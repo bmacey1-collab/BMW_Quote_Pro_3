@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BMW Quote Pro 3.0 Alpha 3</title>
+  <title>BMW Quote Pro 3.0 Alpha 4</title>
   <link rel="stylesheet" href="css/styles.css" />
   <link rel="stylesheet" href="css/cards.css" />
   <link rel="stylesheet" href="css/print.css" />
@@ -20,12 +20,12 @@
 <main class="page">
   <div class="app-header">
     <div>
-      <h1>BMW Quote Pro 3.0 Alpha 3</h1>
+      <h1>BMW Quote Pro 3.0 Alpha 4</h1>
       <div class="app-subtitle">Portfolio desking, flexible scenarios, program management, and manager-ready worksheets.</div>
     </div>
   </div>
   <div class="alpha-banner">
-    <strong>Version 3.0 Alpha 3 Development</strong>
+    <strong>Version 3.0 Alpha 4 Development</strong>
     <span>Continue using BMW Quote Pro 2.4.1 for live customer work.</span>
   </div>
 
@@ -52,7 +52,14 @@
         </div>
         <div class="scenario-toolbar">
           <button type="button" class="btn-secondary" onclick="toggleLegacyCalculator()">Show Legacy Calculator</button>
-          <button type="button" class="btn-primary" onclick="openScenarioEditor()">+ Add Scenario</button>
+          <select id="quickScenarioType" aria-label="Scenario template">
+            <option value="lease">Lease</option>
+            <option value="onepay">One-Pay Lease</option>
+            <option value="finance">Finance</option>
+            <option value="cash">Cash Purchase</option>
+            <option value="select">BMW Select</option>
+          </select>
+          <button type="button" class="btn-primary" onclick="addScenarioTemplate()">+ Add Scenario</button>
         </div>
       </div>
 
@@ -243,6 +250,25 @@
         </div>
       </div>
 
+
+      <section class="deal-incentives">
+        <div class="section-heading-row">
+          <div>
+            <div class="eyebrow">Deal Incentives</div>
+            <h2>Enter each incentive once</h2>
+          </div>
+          <button type="button" class="btn-primary" onclick="addDealIncentiveRow()">+ Add Incentive</button>
+        </div>
+        <div class="small-help">
+          Choose which quote types receive each incentive. Program Center incentives can also be loaded here.
+        </div>
+        <div id="dealIncentiveRows" class="incentive-list"></div>
+        <div class="incentive-total-line">
+          <span>Total incentives entered</span>
+          <strong id="dealIncentiveTotal">$0.00</strong>
+        </div>
+      </section>
+
       <div class="scenario-section-heading">
         <div>
           <div class="eyebrow">Scenario Engine</div>
@@ -315,6 +341,19 @@
               <option value="select">BMW Select</option>
             </select>
           </div>
+          <div class="field lease-only">
+            <label>Lease Structure</label>
+            <div class="checkbox-stack">
+              <label><input id="scenarioOnePay" type="checkbox" onchange="updateScenarioEditorFields()" /> One-Pay Lease</label>
+            </div>
+          </div>
+          <div class="field">
+            <label for="scenarioProgram">Load Saved Program</label>
+            <div class="inline-control">
+              <select id="scenarioProgram"><option value="">Choose saved program</option></select>
+              <button type="button" class="btn-secondary" onclick="applySelectedProgramToEditor()">Load</button>
+            </div>
+          </div>
           <div class="field scenario-term-field">
             <label for="scenarioTerm">Term</label>
             <input id="scenarioTerm" type="number" min="1" step="1" />
@@ -330,8 +369,32 @@
             </select>
           </div>
           <div class="field lease-only required-field">
-            <label for="scenarioResidual">Residual % <span>*</span></label>
+            <label for="scenarioResidual">Base Residual % <span>*</span></label>
             <input id="scenarioResidual" type="number" min="0" max="100" step=".01" />
+          </div>
+          <div class="field lease-only">
+            <label>Included-Mileage Adjustment</label>
+            <div id="scenarioMileageAdjustmentDisplay" class="readout">+0.00%</div>
+          </div>
+          <div class="field lease-only">
+            <label for="scenarioInceptionMileage">In-Service / Inception Mileage</label>
+            <input id="scenarioInceptionMileage" type="number" min="0" step="1" value="0" />
+          </div>
+          <div class="field lease-only">
+            <label for="scenarioInceptionCharge">Mileage Residual Deduction Per Mile</label>
+            <input id="scenarioInceptionCharge" type="number" min="0" step=".01" value=".20" />
+          </div>
+          <div class="field lease-only">
+            <label for="scenarioCustomMiles">Additional Custom Miles</label>
+            <input id="scenarioCustomMiles" type="number" min="0" step="1" value="0" />
+          </div>
+          <div class="field lease-only">
+            <label for="scenarioCustomMileageCharge">Custom-Mile Residual Deduction</label>
+            <input id="scenarioCustomMileageCharge" type="number" min="0" step=".01" value=".20" />
+          </div>
+          <div class="field lease-only">
+            <label>Adjusted Residual</label>
+            <div id="scenarioAdjustedResidualDisplay" class="readout">0.00%</div>
           </div>
           <div class="field lease-only required-field">
             <label for="scenarioMoneyFactor">Money Factor <span>*</span></label>
@@ -358,7 +421,7 @@
             <input id="scenarioTradeAdjustment" type="number" step=".01" value="0" />
           </div>
           <div class="field">
-            <label for="scenarioIncentives">Scenario Incentives</label>
+            <label for="scenarioIncentives">Additional Scenario Incentive / Adjustment</label>
             <input id="scenarioIncentives" type="number" min="0" step=".01" value="0" />
           </div>
           <div class="field">
@@ -1020,13 +1083,103 @@
   </section>
 
   <section id="programsTab" class="tab-panel">
-    <div class="section-heading-row"><div><div class="eyebrow">Program Center</div><h2>Monthly Rates, Residuals & Incentives</h2></div><button type="button" class="btn-primary" disabled>+ New Program Month</button></div>
-    <div class="foundation-grid">
-      <article class="foundation-card"><h3>Monthly Archive</h3><p>Keep every prior month and copy the previous month before updating current programs.</p></article>
-      <article class="foundation-card"><h3>Program Status</h3><p>Confirmed from PDF, carried forward, entered from management, or expired.</p></article>
-      <article class="foundation-card"><h3>Load Into Deal</h3><p>Select manufacturer, model, term, and mileage to populate a scenario.</p></article>
+    <div class="section-heading-row">
+      <div>
+        <div class="eyebrow">Program Center</div>
+        <h2>Monthly Rates, Residuals & Incentives</h2>
+      </div>
+      <div class="results-actions">
+        <button type="button" class="btn-secondary" onclick="copyPriorProgram()">Copy Prior Program</button>
+        <button type="button" class="btn-primary" onclick="saveProgramRecord()">Save Program</button>
+      </div>
     </div>
-    <div class="empty-state">Program database development begins in the next Alpha milestone.</div>
+
+    <div class="program-editor-grid">
+      <div class="field">
+        <label for="programMonth">Program Month</label>
+        <input id="programMonth" type="month" />
+      </div>
+      <div class="field">
+        <label for="programManufacturer">Manufacturer</label>
+        <input id="programManufacturer" type="text" value="BMW" />
+      </div>
+      <div class="field">
+        <label for="programYear">Model Year</label>
+        <input id="programYear" type="number" min="2000" max="2100" />
+      </div>
+      <div class="field">
+        <label for="programModel">Model / Trim</label>
+        <input id="programModel" type="text" placeholder="X5 xDrive40i" />
+      </div>
+      <div class="field">
+        <label for="programStatus">Source Status</label>
+        <select id="programStatus">
+          <option value="confirmed">Confirmed from current PDF</option>
+          <option value="carried">Carried forward — not confirmed</option>
+          <option value="management">Entered from management</option>
+          <option value="expired">Expired</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="programNotes">Program Notes</label>
+        <input id="programNotes" type="text" />
+      </div>
+
+      <div class="field">
+        <label for="programLeaseTerm">Lease Term</label>
+        <input id="programLeaseTerm" type="number" min="1" value="36" />
+      </div>
+      <div class="field">
+        <label for="programBaseResidual">Base Residual %</label>
+        <input id="programBaseResidual" type="number" min="0" max="100" step=".01" />
+      </div>
+      <div class="field">
+        <label for="programMoneyFactor">Money Factor</label>
+        <input id="programMoneyFactor" type="number" min="0" step=".00001" />
+      </div>
+      <div class="field">
+        <label for="programOnePayMfReduction">One-Pay MF Reduction</label>
+        <input id="programOnePayMfReduction" type="number" min="0" step=".00001" value=".00080" />
+      </div>
+      <div class="field">
+        <label for="programFinanceTerm">Finance Term</label>
+        <input id="programFinanceTerm" type="number" min="1" value="60" />
+      </div>
+      <div class="field">
+        <label for="programFinanceApr">Finance APR %</label>
+        <input id="programFinanceApr" type="number" min="0" step=".01" />
+      </div>
+      <div class="field">
+        <label for="programSelectTerm">BMW Select Term</label>
+        <input id="programSelectTerm" type="number" min="1" value="60" />
+      </div>
+      <div class="field">
+        <label for="programSelectApr">BMW Select APR %</label>
+        <input id="programSelectApr" type="number" min="0" step=".01" />
+      </div>
+      <div class="field">
+        <label for="programBalloon">BMW Select Balloon %</label>
+        <input id="programBalloon" type="number" min="0" max="100" step=".01" />
+      </div>
+      <div class="field">
+        <label for="programCode">Program Code</label>
+        <input id="programCode" type="text" />
+      </div>
+    </div>
+
+    <h2>Program Incentives</h2>
+    <div id="programIncentiveRows" class="incentive-list"></div>
+    <button type="button" class="btn-secondary" onclick="addProgramIncentiveRow()">+ Add Program Incentive</button>
+
+    <div id="programMessage" class="database-message"></div>
+
+    <h2>Saved Program History</h2>
+    <div class="program-filter-row">
+      <input id="programSearch" type="search" placeholder="Search month, model, or status" oninput="renderProgramHistory()" />
+    </div>
+    <div id="programHistory" class="program-history">
+      <div class="empty-state">No programs saved yet.</div>
+    </div>
   </section>
 
   <section id="worksheetTab" class="tab-panel">
@@ -1402,6 +1555,15 @@
     </div>
     <h2>Changelog</h2>
     <div class="changelog-card">
+      <h3>3.0.0 Alpha 4</h3>
+      <ul>
+        <li>Restored automatic lease residual adjustments by included annual mileage.</li>
+        <li>Added in-service and custom-mile residual deductions.</li>
+        <li>Added individual deal incentives by quote type.</li>
+        <li>Added Cash and One-Pay Lease scenario templates.</li>
+        <li>Added monthly Program Center with saved history and copy-prior workflow.</li>
+        <li>Added program loading into scenario fields.</li>
+      </ul>
       <h3>3.0.0 Alpha 3</h3>
       <ul>
         <li>Added Dealer Settings and default fees.</li>

@@ -71,3 +71,33 @@ Build date: 2026-07-24
 - No total interest or total-of-payments display on the customer quote
 
 This remains a development Alpha. Continue comparing calculations against Version 2.4.1 before using it for live customer deals.
+
+
+## 3.0.0 Alpha 4 — Programs, Incentives & Lease Enhancements
+
+Build date: 2026-07-24
+
+### Added
+
+- Automatic residual percentage adjustment by included mileage:
+  - 7,500 miles: +4%
+  - 10,000 miles: +3%
+  - 12,000 miles: +2%
+  - 15,000 miles: no adjustment
+- In-service mileage residual deduction after the first 500 miles
+- Custom mileage residual deduction
+- Individual incentives with quote-type applicability
+- Cash Purchase scenario template
+- One-Pay Lease template
+- One-Pay money-factor reduction field loaded from Program Center
+- Monthly Program Center with:
+  - Month/model history
+  - Confirmed, carried-forward, management, and expired status
+  - Copy-prior workflow
+  - Lease, Finance, and BMW Select values
+  - Program incentives
+  - Program loading into scenarios
+
+### Data safety
+
+Alpha 4 program records are stored in browser local storage for development. They do not delete prior months automatically. Supabase program tables and tested backup/restore will be added before production use.

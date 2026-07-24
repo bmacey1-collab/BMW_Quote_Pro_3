@@ -1876,3 +1876,164 @@ textarea {
     flex-direction: column;
   }
 }
+
+
+/* BMW Quote Pro 3.0 Alpha 4 */
+.scenario-toolbar select {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid #cfd6dd;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.deal-incentives {
+  margin-top: 20px;
+  padding: 17px;
+  border: 1px solid #d9e1e9;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.incentive-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.incentive-row {
+  display: grid;
+  grid-template-columns: 1.4fr .7fr .9fr 1.1fr .8fr auto;
+  gap: 7px;
+  align-items: center;
+}
+
+.incentive-row input,
+.incentive-row select {
+  min-width: 0;
+  min-height: 39px;
+  padding: 7px 8px;
+  border: 1px solid #cfd6dd;
+  border-radius: 7px;
+}
+
+.incentive-row button,
+.program-actions button {
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid #cfd6dd;
+  border-radius: 7px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.incentive-total-line {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid #edf0f3;
+  color: #0f2f57;
+}
+
+.empty-state.compact {
+  padding: 12px;
+}
+
+.program-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #d9e1e9;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.program-filter-row {
+  margin-bottom: 10px;
+}
+
+.program-filter-row input {
+  width: min(480px, 100%);
+}
+
+.program-history {
+  display: grid;
+  gap: 10px;
+}
+
+.program-history-card {
+  display: grid;
+  grid-template-columns: 1.1fr 2fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 13px 14px;
+  border: 1px solid #d9e1e9;
+  border-left: 5px solid #1c69d4;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.program-history-card.carried {
+  border-left-color: #e3b341;
+}
+
+.program-history-card.management {
+  border-left-color: #2e8b57;
+}
+
+.program-history-card.expired {
+  border-left-color: #8b929a;
+  opacity: .72;
+}
+
+.program-history-card strong,
+.program-history-card span {
+  display: block;
+}
+
+.program-history-card span {
+  margin-top: 3px;
+  color: #66717d;
+  font-size: 12px;
+}
+
+.program-values {
+  display: grid;
+  gap: 3px;
+}
+
+.program-actions {
+  display: grid;
+  gap: 5px;
+}
+
+@media (max-width: 1050px) {
+  .incentive-row {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .program-history-card {
+    grid-template-columns: 1fr;
+  }
+
+  .program-actions {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 800px) {
+  .program-editor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .incentive-row,
+  .program-editor-grid,
+  .program-actions {
+    grid-template-columns: 1fr;
+  }
+}

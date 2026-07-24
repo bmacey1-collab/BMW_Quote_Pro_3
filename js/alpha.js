@@ -1429,3 +1429,935 @@ document.addEventListener('DOMContentLoaded', function() {
     element.addEventListener('change', updateV3DealReadouts);
   });
 });
+
+
+/* ============================================================
+   BMW Quote Pro 3.0 Alpha 4
+   Program Center, incentives, residual adjustments, One-Pay
+   ============================================================ */
+
+let v3DealIncentives = [];
+let v3Programs = [];
+
+function mileageResidualAdjustment(miles) {
+  const adjustments = {
+    7500: 4,
+    10000: 3,
+    12000: 2,
+    15000: 0
+  };
+  return adjustments[Number(miles)] || 0;
+}
+
+function applicableDealIncentives(type) {
+  return v3DealIncentives
+    .filter(function(item) {
+      return item.amount > 0 &&
+        (item.appliesTo === 'all' || item.appliesTo === type);
+    })
+    .reduce(function(sum, item) {
+      return sum + Number(item.amount || 0);
+    }, 0);
+}
+
+function calculateAdjustedResidual(scenario, msrp) {
+  const basePercent = Number(scenario.residual || 0);
+  const includedAdjustment = mileageResidualAdjustment(scenario.miles);
+  const adjustedPercent = basePercent + includedAdjustment;
+
+  const inceptionMileage = Math.max(0, Number(scenario.inceptionMileage || 0));
+  const chargeableInceptionMiles = Math.max(0, inceptionMileage - 500);
+  const inceptionDeduction =
+    chargeableInceptionMiles * Number(scenario.inceptionCharge || 0);
+
+  const customDeduction =
+    Math.max(0, Number(scenario.customMiles || 0)) *
+    Number(scenario.customMileageCharge || 0);
+
+  const residualBeforeMileageDeductions =
+    Number(msrp || 0) * adjustedPercent / 100;
+  const residualValue = Math.max(
+    0,
+    residualBeforeMileageDeductions -
+      inceptionDeduction -
+      customDeduction
+  );
+
+  return {
+    basePercent,
+    includedAdjustment,
+    adjustedPercent,
+    inceptionDeduction,
+    customDeduction,
+    residualValue
+  };
+}
+
+function getProgramRecords() {
+  try {
+    const raw = localStorage.getItem(APP_CONFIG.programStorageKey);
+    return raw ? JSON.parse(raw) : [];
+  } catch (error) {
+    console.warn('Unable to read program records:', error);
+    return [];
+  }
+}
+
+function saveProgramRecords(records) {
+  localStorage.setItem(
+    APP_CONFIG.programStorageKey,
+    JSON.stringify(records)
+  );
+}
+
+function getDealIncentives() {
+  try {
+    const raw = sessionStorage.getItem(APP_CONFIG.dealIncentiveStorageKey);
+    return raw ? JSON.parse(raw) : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveDealIncentives() {
+  sessionStorage.setItem(
+    APP_CONFIG.dealIncentiveStorageKey,
+    JSON.stringify(v3DealIncentives)
+  );
+}
+
+function newIncentiveRecord(overrides) {
+  return Object.assign({
+    id: Date.now() + Math.floor(Math.random() * 10000),
+    name: '',
+    amount: 0,
+    appliesTo: 'all',
+    category: 'customer',
+    programCode: ''
+  }, overrides || {});
+}
+
+function addDealIncentiveRow(incentive) {
+  v3DealIncentives.push(incentive || newIncentiveRecord());
+  saveDealIncentives();
+  renderDealIncentiveRows();
+  renderV3Scenarios();
+}
+
+function updateDealIncentive(id, field, value) {
+  const item = v3DealIncentives.find(function(row) {
+    return row.id === id;
+  });
+  if (!item) return;
+  item[field] = field === 'amount' ? Number(value || 0) : value;
+  saveDealIncentives();
+  renderDealIncentiveRows();
+  renderV3Scenarios();
+}
+
+function removeDealIncentive(id) {
+  v3DealIncentives = v3DealIncentives.filter(function(row) {
+    return row.id !== id;
+  });
+  saveDealIncentives();
+  renderDealIncentiveRows();
+  renderV3Scenarios();
+}
+
+function incentiveRowHtml(item, prefix, updateFunction, removeFunction) {
+  return '<div class="incentive-row">' +
+    '<input type="text" placeholder="Incentive name" value="' +
+      escapeHtml(item.name || '') + '" onchange="' +
+      updateFunction + '(' + item.id + ', \'name\', this.value)" />' +
+    '<input type="number" min="0" step=".01" placeholder="Amount" value="' +
+      Number(item.amount || 0) + '" onchange="' +
+      updateFunction + '(' + item.id + ', \'amount\', this.value)" />' +
+    '<select onchange="' + updateFunction +
+      '(' + item.id + ', \'appliesTo\', this.value)">' +
+      ['all','lease','finance','cash','select'].map(function(value) {
+        const labels = {
+          all:'All Types', lease:'Lease', finance:'Finance',
+          cash:'Cash', select:'BMW Select'
+        };
+        return '<option value="' + value + '"' +
+          (item.appliesTo === value ? ' selected' : '') + '>' +
+          labels[value] + '</option>';
+      }).join('') +
+    '</select>' +
+    '<select onchange="' + updateFunction +
+      '(' + item.id + ', \'category\', this.value)">' +
+      ['customer','dealer','rate'].map(function(value) {
+        const labels = {
+          customer:'Customer Incentive',
+          dealer:'Dealer Contribution',
+          rate:'Rate / APR Credit'
+        };
+        return '<option value="' + value + '"' +
+          (item.category === value ? ' selected' : '') + '>' +
+          labels[value] + '</option>';
+      }).join('') +
+    '</select>' +
+    '<input type="text" placeholder="Program code" value="' +
+      escapeHtml(item.programCode || '') + '" onchange="' +
+      updateFunction + '(' + item.id + ', \'programCode\', this.value)" />' +
+    '<button type="button" class="danger-button" onclick="' +
+      removeFunction + '(' + item.id + ')">Remove</button>' +
+  '</div>';
+}
+
+function renderDealIncentiveRows() {
+  const container = v3Element('dealIncentiveRows');
+  if (!container) return;
+  if (!v3DealIncentives.length) {
+    container.innerHTML =
+      '<div class="empty-state compact">No deal incentives entered.</div>';
+  } else {
+    container.innerHTML = v3DealIncentives.map(function(item) {
+      return incentiveRowHtml(
+        item,
+        'deal',
+        'updateDealIncentive',
+        'removeDealIncentive'
+      );
+    }).join('');
+  }
+  const total = v3DealIncentives.reduce(function(sum, item) {
+    return sum + Number(item.amount || 0);
+  }, 0);
+  v3Element('dealIncentiveTotal').textContent = v3Money(total);
+}
+
+let programEditorIncentives = [];
+
+function addProgramIncentiveRow(item) {
+  programEditorIncentives.push(item || newIncentiveRecord());
+  renderProgramIncentiveRows();
+}
+
+function updateProgramIncentive(id, field, value) {
+  const item = programEditorIncentives.find(function(row) {
+    return row.id === id;
+  });
+  if (!item) return;
+  item[field] = field === 'amount' ? Number(value || 0) : value;
+  renderProgramIncentiveRows();
+}
+
+function removeProgramIncentive(id) {
+  programEditorIncentives = programEditorIncentives.filter(function(row) {
+    return row.id !== id;
+  });
+  renderProgramIncentiveRows();
+}
+
+function renderProgramIncentiveRows() {
+  const container = v3Element('programIncentiveRows');
+  if (!container) return;
+  container.innerHTML = programEditorIncentives.length
+    ? programEditorIncentives.map(function(item) {
+        return incentiveRowHtml(
+          item,
+          'program',
+          'updateProgramIncentive',
+          'removeProgramIncentive'
+        );
+      }).join('')
+    : '<div class="empty-state compact">No program incentives entered.</div>';
+}
+
+function readProgramForm() {
+  return {
+    id: v3Raw('programRecordId') ||
+      ('program-' + Date.now() + '-' + Math.floor(Math.random() * 1000)),
+    month: v3Raw('programMonth'),
+    manufacturer: v3Raw('programManufacturer').trim(),
+    year: v3Number('programYear'),
+    model: v3Raw('programModel').trim(),
+    status: v3Raw('programStatus'),
+    notes: v3Raw('programNotes').trim(),
+    leaseTerm: v3Number('programLeaseTerm'),
+    baseResidual: v3Raw('programBaseResidual') === ''
+      ? '' : v3Number('programBaseResidual'),
+    moneyFactor: v3Raw('programMoneyFactor') === ''
+      ? '' : v3Number('programMoneyFactor'),
+    onePayMfReduction: v3Number('programOnePayMfReduction'),
+    financeTerm: v3Number('programFinanceTerm'),
+    financeApr: v3Raw('programFinanceApr') === ''
+      ? '' : v3Number('programFinanceApr'),
+    selectTerm: v3Number('programSelectTerm'),
+    selectApr: v3Raw('programSelectApr') === ''
+      ? '' : v3Number('programSelectApr'),
+    balloon: v3Raw('programBalloon') === ''
+      ? '' : v3Number('programBalloon'),
+    programCode: v3Raw('programCode').trim(),
+    incentives: programEditorIncentives.map(function(item) {
+      return Object.assign({}, item);
+    }),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function saveProgramRecord() {
+  const record = readProgramForm();
+  if (!record.month || !record.model) {
+    v3Element('programMessage').textContent =
+      'Program month and model are required.';
+    v3Element('programMessage').className = 'database-message error';
+    return;
+  }
+
+  const records = getProgramRecords();
+  const existingIndex = records.findIndex(function(item) {
+    return item.id === record.id;
+  });
+
+  if (existingIndex >= 0) records[existingIndex] = record;
+  else records.push(record);
+
+  saveProgramRecords(records);
+  v3Programs = records;
+  v3Element('programMessage').textContent =
+    'Program saved. Prior months remain in history.';
+  v3Element('programMessage').className = 'database-message success';
+  clearProgramForm(false);
+  renderProgramHistory();
+  refreshScenarioProgramOptions();
+}
+
+function clearProgramForm(resetMonth) {
+  if (resetMonth !== false) v3Element('programMonth').value = '';
+  [
+    'programYear','programModel','programNotes','programBaseResidual',
+    'programMoneyFactor','programFinanceApr','programSelectApr',
+    'programBalloon','programCode'
+  ].forEach(function(id) {
+    v3Element(id).value = '';
+  });
+  v3Element('programManufacturer').value = 'BMW';
+  v3Element('programStatus').value = 'confirmed';
+  v3Element('programLeaseTerm').value = 36;
+  v3Element('programOnePayMfReduction').value = .00080;
+  v3Element('programFinanceTerm').value = 60;
+  v3Element('programSelectTerm').value = 60;
+  programEditorIncentives = [];
+  renderProgramIncentiveRows();
+}
+
+function editProgramRecord(id) {
+  const record = getProgramRecords().find(function(item) {
+    return item.id === id;
+  });
+  if (!record) return;
+
+  let hidden = v3Element('programRecordId');
+  if (!hidden) {
+    hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.id = 'programRecordId';
+    v3Element('programsTab').appendChild(hidden);
+  }
+  hidden.value = record.id;
+
+  const values = {
+    programMonth: record.month,
+    programManufacturer: record.manufacturer,
+    programYear: record.year,
+    programModel: record.model,
+    programStatus: record.status,
+    programNotes: record.notes,
+    programLeaseTerm: record.leaseTerm,
+    programBaseResidual: record.baseResidual,
+    programMoneyFactor: record.moneyFactor,
+    programOnePayMfReduction: record.onePayMfReduction,
+    programFinanceTerm: record.financeTerm,
+    programFinanceApr: record.financeApr,
+    programSelectTerm: record.selectTerm,
+    programSelectApr: record.selectApr,
+    programBalloon: record.balloon,
+    programCode: record.programCode
+  };
+  Object.keys(values).forEach(function(id) {
+    v3Element(id).value = values[id] ?? '';
+  });
+  programEditorIncentives = (record.incentives || []).map(function(item) {
+    return Object.assign({}, item, {
+      id: Date.now() + Math.floor(Math.random() * 100000)
+    });
+  });
+  renderProgramIncentiveRows();
+  showTab('programsTab');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function archiveProgramRecord(id) {
+  const records = getProgramRecords();
+  const record = records.find(function(item) {
+    return item.id === id;
+  });
+  if (!record) return;
+  record.status = record.status === 'expired' ? 'confirmed' : 'expired';
+  record.updatedAt = new Date().toISOString();
+  saveProgramRecords(records);
+  v3Programs = records;
+  renderProgramHistory();
+  refreshScenarioProgramOptions();
+}
+
+function copyPriorProgram() {
+  const records = getProgramRecords()
+    .slice()
+    .sort(function(a, b) {
+      return String(b.month).localeCompare(String(a.month));
+    });
+  if (!records.length) {
+    v3Element('programMessage').textContent =
+      'There is no prior program to copy.';
+    v3Element('programMessage').className = 'database-message error';
+    return;
+  }
+  const source = records[0];
+  editProgramRecord(source.id);
+  const hidden = v3Element('programRecordId');
+  if (hidden) hidden.value = '';
+  v3Element('programStatus').value = 'carried';
+  v3Element('programMessage').textContent =
+    'Prior program copied. Change the month and confirm updated values.';
+  v3Element('programMessage').className = 'database-message success';
+}
+
+function renderProgramHistory() {
+  const container = v3Element('programHistory');
+  if (!container) return;
+
+  const query = v3Raw('programSearch').trim().toLowerCase();
+  const records = getProgramRecords()
+    .filter(function(item) {
+      const haystack = [
+        item.month, item.manufacturer, item.year, item.model,
+        item.status, item.programCode
+      ].join(' ').toLowerCase();
+      return !query || haystack.includes(query);
+    })
+    .sort(function(a, b) {
+      return String(b.month).localeCompare(String(a.month)) ||
+        String(a.model).localeCompare(String(b.model));
+    });
+
+  if (!records.length) {
+    container.innerHTML =
+      '<div class="empty-state">No matching programs saved.</div>';
+    return;
+  }
+
+  container.innerHTML = records.map(function(item) {
+    const statusLabels = {
+      confirmed: 'Confirmed',
+      carried: 'Carried Forward',
+      management: 'Management',
+      expired: 'Expired'
+    };
+    return '<article class="program-history-card ' + item.status + '">' +
+      '<div><strong>' + escapeHtml(item.month || '') + ' · ' +
+        escapeHtml(String(item.year || '')) + ' ' +
+        escapeHtml(item.model || '') + '</strong>' +
+      '<span>' + escapeHtml(statusLabels[item.status] || item.status) +
+        (item.programCode ? ' · ' + escapeHtml(item.programCode) : '') +
+      '</span></div>' +
+      '<div class="program-values">' +
+        '<span>Lease ' + (item.leaseTerm || '—') +
+          ' · Residual ' + (item.baseResidual === '' ? '—' : item.baseResidual + '%') +
+          ' · MF ' + (item.moneyFactor === '' ? '—' : item.moneyFactor) + '</span>' +
+        '<span>Finance ' + (item.financeTerm || '—') +
+          ' · APR ' + (item.financeApr === '' ? '—' : item.financeApr + '%') + '</span>' +
+        '<span>Select ' + (item.selectTerm || '—') +
+          ' · APR ' + (item.selectApr === '' ? '—' : item.selectApr + '%') +
+          ' · Balloon ' + (item.balloon === '' ? '—' : item.balloon + '%') + '</span>' +
+      '</div>' +
+      '<div class="program-actions">' +
+        '<button type="button" onclick="editProgramRecord(\'' + item.id + '\')">Edit</button>' +
+        '<button type="button" onclick="loadProgramIncentivesToDeal(\'' + item.id + '\')">Load Incentives</button>' +
+        '<button type="button" onclick="archiveProgramRecord(\'' + item.id + '\')">' +
+          (item.status === 'expired' ? 'Restore' : 'Archive') + '</button>' +
+      '</div>' +
+    '</article>';
+  }).join('');
+}
+
+function refreshScenarioProgramOptions() {
+  const select = v3Element('scenarioProgram');
+  if (!select) return;
+  const records = getProgramRecords()
+    .filter(function(item) { return item.status !== 'expired'; })
+    .sort(function(a, b) {
+      return String(b.month).localeCompare(String(a.month));
+    });
+  select.innerHTML =
+    '<option value="">Choose saved program</option>' +
+    records.map(function(item) {
+      return '<option value="' + item.id + '">' +
+        escapeHtml(item.month + ' · ' + item.year + ' ' + item.model +
+          (item.status === 'carried' ? ' ⚠ carried forward' : '')) +
+      '</option>';
+    }).join('');
+}
+
+function applySelectedProgramToEditor() {
+  const id = v3Raw('scenarioProgram');
+  const record = getProgramRecords().find(function(item) {
+    return item.id === id;
+  });
+  if (!record) {
+    showToast('Choose a saved program first.', 'error');
+    return;
+  }
+
+  const type = v3Raw('scenarioType');
+  if (type === 'lease') {
+    v3Element('scenarioTerm').value = record.leaseTerm || 36;
+    v3Element('scenarioResidual').value = record.baseResidual ?? '';
+    v3Element('scenarioMoneyFactor').value = record.moneyFactor ?? '';
+    v3Element('scenarioOnePayMfReduction').value =
+      record.onePayMfReduction ?? .00080;
+  } else if (type === 'finance') {
+    v3Element('scenarioTerm').value = record.financeTerm || 60;
+    v3Element('scenarioApr').value = record.financeApr ?? '';
+  } else if (type === 'select') {
+    v3Element('scenarioTerm').value = record.selectTerm || 60;
+    v3Element('scenarioApr').value = record.selectApr ?? '';
+    v3Element('scenarioBalloon').value = record.balloon ?? '';
+  }
+
+  v3Element('scenarioProgramId').value = record.id;
+  updateScenarioResidualPreview();
+  showToast('Program loaded into scenario.', 'success');
+}
+
+function loadProgramIncentivesToDeal(id) {
+  const record = getProgramRecords().find(function(item) {
+    return item.id === id;
+  });
+  if (!record) return;
+  (record.incentives || []).forEach(function(item) {
+    v3DealIncentives.push(Object.assign({}, item, {
+      id: Date.now() + Math.floor(Math.random() * 100000)
+    }));
+  });
+  saveDealIncentives();
+  renderDealIncentiveRows();
+  renderV3Scenarios();
+  showTab('setupTab');
+  showToast('Program incentives loaded into the deal.', 'success');
+}
+
+function addScenarioTemplate() {
+  const template = v3Raw('quickScenarioType');
+  if (template === 'onepay') {
+    const scenario = defaultScenario('lease');
+    scenario.name = 'One-Pay Lease 10K';
+    scenario.onePay = true;
+    scenario.onePayMfReduction = .00080;
+    scenario.selected = false;
+    if (v3Scenarios.length >= 6) {
+      showToast('A deal can contain up to six scenarios.', 'error');
+      return;
+    }
+    v3Scenarios.push(scenario);
+    renderV3Scenarios();
+    editScenario(scenario.id);
+    return;
+  }
+  openScenarioEditor(template);
+}
+
+function updateScenarioResidualPreview() {
+  const previewScenario = {
+    residual: v3Raw('scenarioResidual') === ''
+      ? 0 : v3Number('scenarioResidual'),
+    miles: v3Number('scenarioMiles'),
+    inceptionMileage: v3Number('scenarioInceptionMileage'),
+    inceptionCharge: v3Number('scenarioInceptionCharge'),
+    customMiles: v3Number('scenarioCustomMiles'),
+    customMileageCharge: v3Number('scenarioCustomMileageCharge')
+  };
+  const residual = calculateAdjustedResidual(
+    previewScenario,
+    v3Number('v3Msrp')
+  );
+  if (v3Element('scenarioMileageAdjustmentDisplay')) {
+    v3Element('scenarioMileageAdjustmentDisplay').textContent =
+      (residual.includedAdjustment >= 0 ? '+' : '') +
+      residual.includedAdjustment.toFixed(2) + '%';
+  }
+  if (v3Element('scenarioAdjustedResidualDisplay')) {
+    v3Element('scenarioAdjustedResidualDisplay').textContent =
+      residual.adjustedPercent.toFixed(2) + '% · ' +
+      v3Money(residual.residualValue);
+  }
+}
+
+/* Override Alpha 3 calculation to include deal incentives,
+   mileage residual adjustments, and One-Pay. */
+function calculateV3Scenario(scenario, overrides) {
+  overrides = overrides || {};
+  const deal = getV3Deal(overrides);
+  const missing = validateScenario(scenario, deal);
+
+  if (missing.length) {
+    return { ready: false, missing, payment: NaN, deal };
+  }
+
+  const programIncentives = applicableDealIncentives(scenario.type);
+  const totalIncentives =
+    programIncentives + Number(scenario.incentives || 0);
+
+  const price = Math.max(
+    0,
+    deal.sellingPrice +
+      Number(scenario.priceAdjustment || 0) -
+      totalIncentives
+  );
+  const cash = Math.max(
+    0,
+    deal.cashDown + Number(scenario.cashAdjustment || 0)
+  );
+  const tradeAllowance = Math.max(
+    0,
+    deal.tradeAllowance + Number(scenario.tradeAdjustment || 0)
+  );
+
+  const adjustedDeal = getV3Deal({
+    discount: deal.msrp - price,
+    cashDown: cash,
+    tradeAllowance
+  });
+  const taxRate = adjustedDeal.taxRate / 100;
+  const fees = getV3Fees(scenario.type);
+
+  if (scenario.type === 'lease') {
+    const residual = calculateAdjustedResidual(scenario, deal.msrp);
+    const residualValue = residual.residualValue;
+    const capReduction = Math.max(0, adjustedDeal.capEquity) + cash;
+    const negativeEquity = Math.max(0, -adjustedDeal.tradeEquity);
+    const adjustedCap =
+      price + fees.capitalizedTotal + negativeEquity - capReduction;
+
+    const usedMoneyFactor = Math.max(
+      0,
+      Number(scenario.moneyFactor || 0) -
+        (scenario.onePay
+          ? Number(scenario.onePayMfReduction || 0)
+          : 0)
+    );
+
+    const depreciation =
+      (adjustedCap - residualValue) / scenario.term;
+    const rent =
+      (adjustedCap + residualValue) * usedMoneyFactor;
+    const basePayment = depreciation + rent;
+    const payment = basePayment * (1 + taxRate);
+    const taxOnCashReduction = cash * taxRate;
+    const standardDueUpfront =
+      payment + fees.upfrontTotal + cash + taxOnCashReduction;
+
+    const onePayTotal = scenario.onePay
+      ? payment * scenario.term + fees.upfrontTotal +
+        cash + taxOnCashReduction
+      : null;
+
+    return {
+      ready: true,
+      payment,
+      dueUpfront: scenario.onePay ? onePayTotal : standardDueUpfront,
+      onePayTotal,
+      equivalentMonthly: payment,
+      residualValue,
+      baseResidualPercent: residual.basePercent,
+      mileageResidualAdjustment: residual.includedAdjustment,
+      adjustedResidualPercent: residual.adjustedPercent,
+      inceptionResidualDeduction: residual.inceptionDeduction,
+      customResidualDeduction: residual.customDeduction,
+      baseMoneyFactor: Number(scenario.moneyFactor || 0),
+      usedMoneyFactor,
+      amountFinanced: adjustedCap,
+      finalPayment: residualValue,
+      taxOnCashReduction,
+      incentives: totalIncentives,
+      fees,
+      deal: adjustedDeal
+    };
+  }
+
+  const taxablePrice = Math.max(0, price - tradeAllowance);
+  const salesTax = taxablePrice * taxRate;
+  const principal =
+    price + salesTax + fees.capitalizedTotal + fees.upfrontTotal +
+    adjustedDeal.tradePayoff - tradeAllowance - cash;
+
+  if (scenario.type === 'cash') {
+    const cashDue = Math.max(0, principal);
+    return {
+      ready: true,
+      payment: cashDue,
+      dueUpfront: cashDue,
+      amountFinanced: 0,
+      salesTax,
+      incentives: totalIncentives,
+      fees,
+      deal: adjustedDeal
+    };
+  }
+
+  if (scenario.type === 'finance') {
+    return {
+      ready: true,
+      payment: v3MonthlyPayment(principal, scenario.apr, scenario.term),
+      dueUpfront: cash,
+      amountFinanced: principal,
+      salesTax,
+      incentives: totalIncentives,
+      fees,
+      deal: adjustedDeal
+    };
+  }
+
+  const balloonValue = deal.msrp * (scenario.balloon / 100);
+  const rate = scenario.apr / 100 / 12;
+  const payment = rate === 0
+    ? (principal - balloonValue) / scenario.term
+    : (principal - balloonValue / Math.pow(1 + rate, scenario.term)) *
+      rate / (1 - Math.pow(1 + rate, -scenario.term));
+
+  return {
+    ready: true,
+    payment,
+    dueUpfront: cash,
+    amountFinanced: principal,
+    finalPayment: balloonValue,
+    salesTax,
+    incentives: totalIncentives,
+    fees,
+    deal: adjustedDeal
+  };
+}
+
+/* Override scenario defaults for new fields. */
+const alpha3DefaultScenario = defaultScenario;
+function defaultScenario(type) {
+  const scenario = alpha3DefaultScenario(type);
+  scenario.onePay = false;
+  scenario.onePayMfReduction = .00080;
+  scenario.inceptionMileage = 0;
+  scenario.inceptionCharge = .20;
+  scenario.customMiles = 0;
+  scenario.customMileageCharge = .20;
+  scenario.programId = '';
+  return scenario;
+}
+
+/* Override editor fill/save for Alpha 4 fields. */
+const alpha3FillScenarioEditor = fillScenarioEditor;
+function fillScenarioEditor(scenario) {
+  alpha3FillScenarioEditor(scenario);
+  v3Element('scenarioOnePay').checked = Boolean(scenario.onePay);
+  let reduction = v3Element('scenarioOnePayMfReduction');
+  if (!reduction) {
+    reduction = document.createElement('input');
+    reduction.type = 'hidden';
+    reduction.id = 'scenarioOnePayMfReduction';
+    v3Element('scenarioEditor').appendChild(reduction);
+  }
+  reduction.value = scenario.onePayMfReduction ?? .00080;
+
+  let programId = v3Element('scenarioProgramId');
+  if (!programId) {
+    programId = document.createElement('input');
+    programId.type = 'hidden';
+    programId.id = 'scenarioProgramId';
+    v3Element('scenarioEditor').appendChild(programId);
+  }
+  programId.value = scenario.programId || '';
+
+  v3Element('scenarioInceptionMileage').value =
+    scenario.inceptionMileage || 0;
+  v3Element('scenarioInceptionCharge').value =
+    scenario.inceptionCharge ?? .20;
+  v3Element('scenarioCustomMiles').value =
+    scenario.customMiles || 0;
+  v3Element('scenarioCustomMileageCharge').value =
+    scenario.customMileageCharge ?? .20;
+
+  refreshScenarioProgramOptions();
+  v3Element('scenarioProgram').value = scenario.programId || '';
+  updateScenarioResidualPreview();
+}
+
+function saveScenarioFromEditor() {
+  const idValue = v3Raw('scenarioEditId');
+  const type = v3Raw('scenarioType');
+  const scenario = {
+    id: idValue ? Number(idValue) : v3NextScenarioId++,
+    name: v3Raw('scenarioName').trim() || 'Scenario',
+    type,
+    term: type === 'cash' ? 1 : Number(v3Raw('scenarioTerm') || 0),
+    miles: v3Raw('scenarioMiles') === ''
+      ? '' : Number(v3Raw('scenarioMiles')),
+    residual: v3Raw('scenarioResidual') === ''
+      ? '' : Number(v3Raw('scenarioResidual')),
+    moneyFactor: v3Raw('scenarioMoneyFactor') === ''
+      ? '' : Number(v3Raw('scenarioMoneyFactor')),
+    apr: v3Raw('scenarioApr') === ''
+      ? '' : Number(v3Raw('scenarioApr')),
+    balloon: v3Raw('scenarioBalloon') === ''
+      ? '' : Number(v3Raw('scenarioBalloon')),
+    priceAdjustment: Number(v3Raw('scenarioPriceAdjustment') || 0),
+    cashAdjustment: Number(v3Raw('scenarioCashAdjustment') || 0),
+    tradeAdjustment: Number(v3Raw('scenarioTradeAdjustment') || 0),
+    incentives: Number(v3Raw('scenarioIncentives') || 0),
+    showRate: v3Element('scenarioShowRate').checked,
+    showResidual: v3Element('scenarioShowResidual').checked,
+    showFeeDetails: v3Element('scenarioShowFeeDetails').checked,
+    selected: false,
+    onePay: v3Element('scenarioOnePay').checked,
+    onePayMfReduction: Number(v3Raw('scenarioOnePayMfReduction') || .00080),
+    inceptionMileage: v3Number('scenarioInceptionMileage'),
+    inceptionCharge: v3Number('scenarioInceptionCharge'),
+    customMiles: v3Number('scenarioCustomMiles'),
+    customMileageCharge: v3Number('scenarioCustomMileageCharge'),
+    programId: v3Raw('scenarioProgramId')
+  };
+
+  if (scenario.onePay && !scenario.name.toLowerCase().includes('one')) {
+    scenario.name = 'One-Pay ' + scenario.name;
+  }
+
+  const existingIndex = v3Scenarios.findIndex(function(s) {
+    return s.id === scenario.id;
+  });
+  if (existingIndex >= 0) {
+    scenario.selected = v3Scenarios[existingIndex].selected;
+    v3Scenarios[existingIndex] = scenario;
+  } else {
+    v3Scenarios.push(scenario);
+  }
+  closeScenarioEditor();
+  renderV3Scenarios();
+}
+
+/* Override summary to show residual adjustments and One-Pay. */
+function scenarioSummary(scenario) {
+  if (scenario.type === 'lease') {
+    const result = calculateV3Scenario(scenario);
+    const adjusted = result.ready
+      ? result.adjustedResidualPercent.toFixed(2) + '%'
+      : '—';
+    return (scenario.onePay ? 'One-Pay · ' : '') +
+      scenario.term + ' months · ' +
+      Number(scenario.miles || 0).toLocaleString('en-US') +
+      ' miles · Adjusted residual ' + adjusted +
+      ' · MF ' + (scenario.moneyFactor === '' ? '—' : scenario.moneyFactor);
+  }
+  if (scenario.type === 'finance') {
+    return scenario.term + ' months · APR ' +
+      (scenario.apr === '' ? '—' : scenario.apr + '%');
+  }
+  if (scenario.type === 'select') {
+    return scenario.term + ' months · APR ' +
+      (scenario.apr === '' ? '—' : scenario.apr + '%') +
+      ' · Balloon ' +
+      (scenario.balloon === '' ? '—' : scenario.balloon + '%');
+  }
+  return 'Cash purchase · Tax ' +
+    (v3Raw('v3TaxRate') === '' ? '—' : v3Raw('v3TaxRate') + '%');
+}
+
+/* Override customer presentation to show incentive and residual detail. */
+const alpha3RenderCustomerPresentation = renderCustomerPresentation;
+function renderCustomerPresentation() {
+  alpha3RenderCustomerPresentation();
+
+  document.querySelectorAll('.customer-scenario-card').forEach(function(card, index) {
+    const selected = v3Scenarios.filter(function(s) {
+      return s.selected && calculateV3Scenario(s).ready;
+    });
+    const scenario = selected[index];
+    if (!scenario) return;
+    const result = calculateV3Scenario(scenario);
+    const body = card.querySelector('.customer-card-body');
+    if (!body) return;
+
+    if (result.incentives > 0) {
+      body.insertAdjacentHTML(
+        'afterbegin',
+        '<div><span>Incentives</span><strong>' +
+          v3Money(result.incentives) + '</strong></div>'
+      );
+    }
+
+    if (scenario.type === 'lease' && scenario.showResidual) {
+      body.insertAdjacentHTML(
+        'beforeend',
+        '<div><span>Base Residual</span><strong>' +
+          result.baseResidualPercent.toFixed(2) + '%</strong></div>' +
+        '<div><span>Mileage Adjustment</span><strong>+' +
+          result.mileageResidualAdjustment.toFixed(2) + '%</strong></div>' +
+        '<div><span>Adjusted Residual</span><strong>' +
+          result.adjustedResidualPercent.toFixed(2) + '%</strong></div>'
+      );
+    }
+
+    if (scenario.type === 'lease' && scenario.showRate) {
+      body.insertAdjacentHTML(
+        'beforeend',
+        '<div><span>Used Money Factor</span><strong>' +
+          result.usedMoneyFactor.toFixed(5) + '</strong></div>'
+      );
+    }
+
+    if (scenario.onePay) {
+      const payment = card.querySelector('.customer-card-payment');
+      const label = card.querySelector('.customer-card-payment-label');
+      payment.textContent = v3Money(result.onePayTotal);
+      label.textContent = 'TOTAL ONE-PAY LEASE';
+      body.insertAdjacentHTML(
+        'afterbegin',
+        '<div><span>Equivalent Monthly</span><strong>' +
+          v3Money(result.equivalentMonthly) + '</strong></div>'
+      );
+    }
+  });
+}
+
+/* Enhance editor live previews. */
+document.addEventListener('input', function(event) {
+  if ([
+    'scenarioResidual','scenarioMiles','scenarioInceptionMileage',
+    'scenarioInceptionCharge','scenarioCustomMiles',
+    'scenarioCustomMileageCharge'
+  ].includes(event.target.id)) {
+    updateScenarioResidualPreview();
+  }
+});
+document.addEventListener('change', function(event) {
+  if ([
+    'scenarioResidual','scenarioMiles','scenarioInceptionMileage',
+    'scenarioInceptionCharge','scenarioCustomMiles',
+    'scenarioCustomMileageCharge'
+  ].includes(event.target.id)) {
+    updateScenarioResidualPreview();
+  }
+});
+
+/* Alpha 4 initialization */
+document.addEventListener('DOMContentLoaded', function() {
+  v3DealIncentives = getDealIncentives();
+  v3Programs = getProgramRecords();
+  renderDealIncentiveRows();
+  renderProgramIncentiveRows();
+  renderProgramHistory();
+  refreshScenarioProgramOptions();
+
+  const month = new Date().toISOString().slice(0, 7);
+  if (v3Element('programMonth') && !v3Element('programMonth').value) {
+    v3Element('programMonth').value = month;
+  }
+});
