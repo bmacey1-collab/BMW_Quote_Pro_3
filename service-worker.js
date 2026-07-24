@@ -1,4 +1,4 @@
-const CACHE_NAME = "bmw-quote-pro-v2.4.0";
+const CACHE_NAME = "bmw-quote-pro-v3-alpha-2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -14,6 +14,7 @@ const APP_SHELL = [
   "./js/email.js",
   "./js/ui.js",
   "./js/app.js",
+  "./js/alpha.js",
   "./manifest.webmanifest",
   "./assets/icons/icon-192.svg",
   "./assets/icons/icon-512.svg"

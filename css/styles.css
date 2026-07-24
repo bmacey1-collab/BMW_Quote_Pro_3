@@ -1380,3 +1380,298 @@ textarea {
 .worksheet-preview{overflow:hidden;border:1px solid #cfd8e2;border-radius:14px;background:#fff}.worksheet-preview-header{padding:13px;background:#0f2f57;color:#fff;text-align:center;font-weight:800;letter-spacing:1px}.worksheet-preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.worksheet-preview-grid>div{padding:16px;border-right:1px solid #edf0f3;border-bottom:1px solid #edf0f3}.worksheet-preview-grid span,.worksheet-preview-grid strong{display:block}.worksheet-preview-grid span{color:#66717d;font-size:11px;font-weight:800;text-transform:uppercase}.worksheet-preview-grid strong{margin-top:5px;color:#0f2f57;font-size:13px}
 @media(max-width:900px){.quick-action-grid,.foundation-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.scenario-preview-grid{grid-template-columns:1fr}}
 @media(max-width:640px){.alpha-banner,.dashboard-hero,.section-heading-row{flex-direction:column;align-items:stretch}.quick-action-grid,.foundation-grid,.worksheet-preview-grid{grid-template-columns:1fr}}
+
+
+/* BMW Quote Pro 3.0 Alpha 2 */
+.scenario-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.deal-profile-grid,
+.scenario-editor-grid,
+.roller-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.deal-profile-grid > .field,
+.scenario-editor-grid > .field {
+  grid-column: span 2;
+}
+
+.deal-profile-grid textarea {
+  min-height: 82px;
+}
+
+.inline-control {
+  display: flex;
+  gap: 6px;
+}
+
+.inline-control input {
+  flex: 1;
+  min-width: 0;
+}
+
+.readout {
+  min-height: 42px;
+  padding: 10px 11px;
+  border: 1px solid #cfd6dd;
+  border-radius: 8px;
+  background: #f4f7fa;
+  color: #0f2f57;
+  font-weight: 800;
+}
+
+.checkbox-stack {
+  display: grid;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px;
+  border: 1px solid #cfd6dd;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.required-field label span {
+  color: #b42318;
+}
+
+.scenario-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 14px;
+  margin: 24px 0 12px;
+}
+
+.selection-counter {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #eef3f8;
+  color: #0f2f57;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.scenario-preview-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.scenario-preview-card {
+  padding: 0;
+}
+
+.scenario-preview-card.selected {
+  box-shadow: 0 0 0 4px rgba(28, 105, 212, .14);
+}
+
+.scenario-card-body {
+  padding: 0 14px 14px;
+}
+
+.present-checkbox {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 5px;
+  margin: -3px 0 6px;
+  color: #52616f;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.scenario-payment {
+  margin-top: 9px;
+  color: #0f2f57;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.scenario-payment-label {
+  margin-top: 3px;
+  color: #66717d;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .8px;
+}
+
+.payment-comparison-text {
+  margin-top: 7px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.scenario-card-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.scenario-card-actions button {
+  min-height: 34px;
+  border: 1px solid #cfd6dd;
+  border-radius: 7px;
+  background: #fff;
+  color: #0f2f57;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.danger-button {
+  color: #a11 !important;
+}
+
+.scenario-status.ready {
+  background: #eaf7ef;
+  color: #1f6a41;
+}
+
+.scenario-status.missing {
+  max-width: 100%;
+  background: #fff1f0;
+  color: #a11;
+  white-space: normal;
+}
+
+.payment-roller {
+  margin-top: 20px;
+  padding: 17px;
+  border: 1px solid #d9e1e9;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.roller-grid > .field {
+  grid-column: span 2;
+}
+
+.roller-action {
+  align-self: end;
+}
+
+.roller-result {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 9px;
+  background: #f4f7fa;
+  color: #52616f;
+}
+
+.roller-result.success {
+  background: #eaf7ef;
+  color: #1f6a41;
+}
+
+.roller-result.error {
+  background: #fff1f0;
+  color: #a11;
+}
+
+.scenario-dialog {
+  width: min(780px, calc(100vw - 30px));
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(0,0,0,.3);
+}
+
+.scenario-dialog::backdrop {
+  background: rgba(15, 47, 87, .55);
+}
+
+.scenario-dialog form {
+  padding: 18px;
+}
+
+.scenario-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 13px;
+}
+
+.scenario-dialog-header h2 {
+  margin: 3px 0 0;
+}
+
+.dialog-close {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: #eef3f8;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.validation-message {
+  margin-top: 10px;
+  color: #a11;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.legacy-calculator.hidden,
+.hidden {
+  display: none !important;
+}
+
+.worksheet-client-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #edf0f3;
+  background: #f8fafc;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .deal-profile-grid,
+  .scenario-editor-grid,
+  .roller-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .deal-profile-grid > .field,
+  .scenario-editor-grid > .field,
+  .roller-grid > .field {
+    grid-column: span 1;
+  }
+
+  .scenario-preview-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .deal-profile-grid,
+  .scenario-editor-grid,
+  .roller-grid,
+  .scenario-preview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scenario-section-heading,
+  .worksheet-client-line {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

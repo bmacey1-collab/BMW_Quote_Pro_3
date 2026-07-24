@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BMW Quote Pro 3.0 Alpha</title>
+  <title>BMW Quote Pro 3.0 Alpha 2</title>
   <link rel="stylesheet" href="css/styles.css" />
   <link rel="stylesheet" href="css/cards.css" />
   <link rel="stylesheet" href="css/print.css" />
@@ -20,12 +20,12 @@
 <main class="page">
   <div class="app-header">
     <div>
-      <h1>BMW Quote Pro 3.0 Alpha</h1>
+      <h1>BMW Quote Pro 3.0 Alpha 2</h1>
       <div class="app-subtitle">Portfolio desking, flexible scenarios, program management, and manager-ready worksheets.</div>
     </div>
   </div>
   <div class="alpha-banner">
-    <strong>Version 3.0 Alpha Development</strong>
+    <strong>Version 3.0 Alpha 2 Development</strong>
     <span>Continue using BMW Quote Pro 2.4.1 for live customer work.</span>
   </div>
 
@@ -44,17 +44,286 @@
   <section id="setupTab" class="tab-panel">
     <section class="scenario-workspace">
       <div class="section-heading-row">
-        <div><div class="eyebrow">Scenario Workspace</div><h2>Build and compare any three options</h2></div>
-        <button type="button" class="btn-primary" onclick="addScenarioPreview()">+ Add Scenario</button>
+        <div>
+          <div class="eyebrow">Deal Profile</div>
+          <h2>Build the deal once, then create flexible scenarios</h2>
+        </div>
+        <div class="scenario-toolbar">
+          <button type="button" class="btn-secondary" onclick="toggleLegacyCalculator()">Show Legacy Calculator</button>
+          <button type="button" class="btn-primary" onclick="openScenarioEditor()">+ Add Scenario</button>
+        </div>
       </div>
-      <div id="scenarioPreviewGrid" class="scenario-preview-grid">
-        <article class="scenario-preview-card lease"><div class="scenario-type">Lease</div><h3>Lease 10K</h3><p>36 months · 10,000 miles</p><span class="scenario-status">Design preview</span></article>
-        <article class="scenario-preview-card finance"><div class="scenario-type">Finance</div><h3>Finance 60</h3><p>60 months · APR required</p><span class="scenario-status">Design preview</span></article>
-        <article class="scenario-preview-card select"><div class="scenario-type">BMW Select</div><h3>Select 60</h3><p>60 months · Balloon required</p><span class="scenario-status">Design preview</span></article>
+
+      <div class="deal-profile-grid">
+        <div class="field">
+          <label for="v3FirstName">First Name</label>
+          <input id="v3FirstName" type="text" />
+        </div>
+        <div class="field">
+          <label for="v3LastName">Last Name</label>
+          <input id="v3LastName" type="text" />
+        </div>
+        <div class="field">
+          <label for="v3CoFirstName">Co-Buyer First</label>
+          <input id="v3CoFirstName" type="text" />
+        </div>
+        <div class="field">
+          <label for="v3CoLastName">Co-Buyer Last</label>
+          <input id="v3CoLastName" type="text" />
+        </div>
+        <div class="field">
+          <label for="v3Salesperson">Salesperson</label>
+          <select id="v3Salesperson">
+            <option value="">Select salesperson</option>
+            <option>Brian Macey</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="v3CurrentPayment">Current Payment</label>
+          <input id="v3CurrentPayment" type="number" min="0" step=".01" />
+        </div>
+
+        <div class="field">
+          <label for="v3StockNumber">Stock Number</label>
+          <input id="v3StockNumber" type="text" />
+        </div>
+        <div class="field">
+          <label for="v3Vin">VIN</label>
+          <div class="inline-control">
+            <input id="v3Vin" type="text" maxlength="17" />
+            <button type="button" class="btn-secondary" onclick="decodeV3Vin('vehicle')">Decode</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="v3Year">Year</label>
+          <input id="v3Year" type="number" min="1900" max="2100" />
+        </div>
+        <div class="field">
+          <label for="v3Make">Make</label>
+          <input id="v3Make" type="text" value="BMW" />
+        </div>
+        <div class="field">
+          <label for="v3Model">Model / Trim</label>
+          <input id="v3Model" type="text" />
+        </div>
+        <div class="field">
+          <label for="v3Mileage">Vehicle Mileage</label>
+          <input id="v3Mileage" type="number" min="0" step="1" />
+        </div>
+
+        <div class="field">
+          <label for="v3Msrp">MSRP / Market Value</label>
+          <input id="v3Msrp" type="number" min="0" step=".01" />
+        </div>
+        <div class="field">
+          <label for="v3SellingPrice">Selling Price</label>
+          <input id="v3SellingPrice" type="number" min="0" step=".01" />
+        </div>
+        <div class="field required-field">
+          <label for="v3TaxRate">Sales Tax % <span>*</span></label>
+          <input id="v3TaxRate" type="number" min="0" step=".01" placeholder="Enter 0 if tax exempt" />
+        </div>
+        <div class="field">
+          <label for="v3Fees">Taxable Fees</label>
+          <input id="v3Fees" type="number" min="0" step=".01" value="725" />
+        </div>
+        <div class="field">
+          <label for="v3VehicleCost">Vehicle Cost</label>
+          <input id="v3VehicleCost" type="number" min="0" step=".01" />
+        </div>
+        <div class="field">
+          <label for="v3Pack">Pack / Internal Cost</label>
+          <input id="v3Pack" type="number" min="0" step=".01" />
+        </div>
+
+        <div class="field">
+          <label for="v3TradeVin">Trade VIN</label>
+          <div class="inline-control">
+            <input id="v3TradeVin" type="text" maxlength="17" />
+            <button type="button" class="btn-secondary" onclick="decodeV3Vin('trade')">Decode</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="v3TradeVehicle">Trade Year / Make / Model</label>
+          <input id="v3TradeVehicle" type="text" />
+        </div>
+        <div class="field">
+          <label for="v3TradeAllowance">Trade Allowance</label>
+          <input id="v3TradeAllowance" type="number" min="0" step=".01" />
+        </div>
+        <div class="field">
+          <label for="v3TradeAcv">Trade ACV</label>
+          <input id="v3TradeAcv" type="number" min="0" step=".01" />
+        </div>
+        <div class="field">
+          <label for="v3TradePayoff">Trade Payoff</label>
+          <input id="v3TradePayoff" type="number" min="0" step=".01" />
+        </div>
+        <div class="field">
+          <label for="v3CashDown">Cash Up Front</label>
+          <input id="v3CashDown" type="number" min="0" step=".01" />
+        </div>
+
+        <div class="field">
+          <label for="v3EquityMethod">Lease Equity Treatment</label>
+          <select id="v3EquityMethod" onchange="updateEquityControls()">
+            <option value="cap">Use all as cap reduction</option>
+            <option value="cashback">Return all as cash back</option>
+            <option value="split">Split equity</option>
+          </select>
+        </div>
+        <div class="field" id="v3CashBackField">
+          <label for="v3EquityCashBack">Equity Returned to Client</label>
+          <input id="v3EquityCashBack" type="number" min="0" step=".01" value="0" />
+        </div>
+        <div class="field">
+          <label>Calculated Trade Equity</label>
+          <div id="v3TradeEquityDisplay" class="readout">$0.00</div>
+        </div>
+        <div class="field">
+          <label>Calculated Trade Gross</label>
+          <div id="v3TradeGrossDisplay" class="readout">$0.00</div>
+        </div>
+        <div class="field">
+          <label for="v3Notes">Manager Notes</label>
+          <textarea id="v3Notes"></textarea>
+        </div>
+        <div class="field">
+          <label>Customer Presentation</label>
+          <div class="checkbox-stack">
+            <label><input id="v3ShowPaymentComparison" type="checkbox" checked /> Show current-payment comparison</label>
+            <label><input id="v3ShowSignature" type="checkbox" /> Include signature lines</label>
+          </div>
+        </div>
       </div>
-      <div class="alpha-note">The existing calculator remains below while the new scenario engine is developed separately.</div>
+
+      <div class="scenario-section-heading">
+        <div>
+          <div class="eyebrow">Scenario Engine</div>
+          <h2>Build up to six; select any three to present</h2>
+        </div>
+        <div id="scenarioSelectionCount" class="selection-counter">0 of 3 selected</div>
+      </div>
+
+      <div id="scenarioPreviewGrid" class="scenario-preview-grid"></div>
+
+      <section class="payment-roller">
+        <div class="section-heading-row">
+          <div>
+            <div class="eyebrow">Roll Payment</div>
+            <h2>Solve a scenario to a target payment</h2>
+          </div>
+        </div>
+        <div class="roller-grid">
+          <div class="field">
+            <label for="rollerScenario">Scenario</label>
+            <select id="rollerScenario"></select>
+          </div>
+          <div class="field required-field">
+            <label for="rollerTarget">Target Payment <span>*</span></label>
+            <input id="rollerTarget" type="number" min="0" step=".01" />
+          </div>
+          <div class="field">
+            <label for="rollerVariable">Adjust</label>
+            <select id="rollerVariable">
+              <option value="sellingPrice">Selling Price</option>
+              <option value="cashDown">Cash Up Front</option>
+              <option value="tradeAllowance">Trade Allowance</option>
+            </select>
+          </div>
+          <div class="field roller-action">
+            <label>&nbsp;</label>
+            <button type="button" class="btn-primary" onclick="rollScenarioPayment()">Calculate Adjustment</button>
+          </div>
+        </div>
+        <div id="rollerResult" class="roller-result">Choose a scenario and target payment.</div>
+      </section>
+
+      <div class="alpha-note">
+        Alpha 2 calculations are for development testing. Continue using Version 2.4.1 for live customer quotes.
+      </div>
     </section>
-  <div class="input-section">
+
+    <dialog id="scenarioEditor" class="scenario-dialog">
+      <form method="dialog" onsubmit="return false;">
+        <div class="scenario-dialog-header">
+          <div>
+            <div class="eyebrow">Scenario Editor</div>
+            <h2 id="scenarioEditorHeading">Add Scenario</h2>
+          </div>
+          <button type="button" class="dialog-close" onclick="closeScenarioEditor()">×</button>
+        </div>
+
+        <input id="scenarioEditId" type="hidden" />
+        <div class="scenario-editor-grid">
+          <div class="field">
+            <label for="scenarioName">Scenario Name</label>
+            <input id="scenarioName" type="text" />
+          </div>
+          <div class="field">
+            <label for="scenarioType">Quote Type</label>
+            <select id="scenarioType" onchange="updateScenarioEditorFields()">
+              <option value="lease">Lease</option>
+              <option value="finance">Finance</option>
+              <option value="cash">Cash Purchase</option>
+              <option value="select">BMW Select</option>
+            </select>
+          </div>
+          <div class="field scenario-term-field">
+            <label for="scenarioTerm">Term</label>
+            <input id="scenarioTerm" type="number" min="1" step="1" />
+          </div>
+          <div class="field lease-only">
+            <label for="scenarioMiles">Annual Miles</label>
+            <select id="scenarioMiles">
+              <option value="">Select miles</option>
+              <option value="7500">7,500</option>
+              <option value="10000">10,000</option>
+              <option value="12000">12,000</option>
+              <option value="15000">15,000</option>
+            </select>
+          </div>
+          <div class="field lease-only required-field">
+            <label for="scenarioResidual">Residual % <span>*</span></label>
+            <input id="scenarioResidual" type="number" min="0" max="100" step=".01" />
+          </div>
+          <div class="field lease-only required-field">
+            <label for="scenarioMoneyFactor">Money Factor <span>*</span></label>
+            <input id="scenarioMoneyFactor" type="number" min="0" step=".00001" />
+          </div>
+          <div class="field finance-rate required-field">
+            <label for="scenarioApr">APR % <span>*</span></label>
+            <input id="scenarioApr" type="number" min="0" step=".01" />
+          </div>
+          <div class="field select-only required-field">
+            <label for="scenarioBalloon">Balloon % <span>*</span></label>
+            <input id="scenarioBalloon" type="number" min="0" max="100" step=".01" />
+          </div>
+          <div class="field">
+            <label for="scenarioPriceAdjustment">Scenario Price Adjustment</label>
+            <input id="scenarioPriceAdjustment" type="number" step=".01" value="0" />
+          </div>
+          <div class="field">
+            <label for="scenarioCashAdjustment">Scenario Cash Adjustment</label>
+            <input id="scenarioCashAdjustment" type="number" step=".01" value="0" />
+          </div>
+          <div class="field">
+            <label for="scenarioTradeAdjustment">Scenario Trade Adjustment</label>
+            <input id="scenarioTradeAdjustment" type="number" step=".01" value="0" />
+          </div>
+          <div class="field">
+            <label for="scenarioIncentives">Scenario Incentives</label>
+            <input id="scenarioIncentives" type="number" min="0" step=".01" value="0" />
+          </div>
+        </div>
+        <div id="scenarioValidationMessage" class="validation-message"></div>
+        <div class="dialog-actions">
+          <button type="button" class="btn-secondary" onclick="closeScenarioEditor()">Cancel</button>
+          <button type="button" class="btn-primary" onclick="saveScenarioFromEditor()">Save Scenario</button>
+        </div>
+      </form>
+    </dialog>
+  <div id="legacyCalculator" class="input-section legacy-calculator hidden">
     <h2>Quote Information</h2>
     <div class="grid">
       <div class="field col-3">
@@ -710,13 +979,19 @@
     <div class="section-heading-row"><div><div class="eyebrow">Internal Document</div><h2>Manager / Business Office Worksheet</h2></div><button type="button" class="btn-secondary" disabled>Print Worksheet Preview</button></div>
     <div class="worksheet-preview">
       <div class="worksheet-preview-header">BMW QUOTE WORKSHEET</div>
+      <div class="worksheet-client-line">
+        <strong id="wsClient">Client: —</strong>
+        <strong id="wsSalesperson">Salesperson: —</strong>
+      </div>
       <div class="worksheet-preview-grid">
-        <div><span>Vehicle Pricing</span><strong>MSRP · Cost · Selling Price · Incentives</strong></div>
-        <div><span>Trade Structure</span><strong>Allowance · ACV · Payoff · Equity · Gross</strong></div>
-        <div><span>Lease</span><strong>Base/Used MF · Residual · Taxes · Payment</strong></div>
-        <div><span>Finance</span><strong>Base/Used APR · Term · Reserve · Payment</strong></div>
-        <div><span>BMW Select</span><strong>APR · Balloon % · Balloon Amount</strong></div>
-        <div><span>Profit</span><strong>Front Gross · Trade Gross · Reserve · 70% Share</strong></div>
+        <div><span>Vehicle</span><strong id="wsVehicle">Stock · VIN · Year · Make · Model</strong></div>
+        <div><span>Vehicle Pricing</span><strong id="wsPricing">MSRP · Cost · Selling Price</strong></div>
+        <div><span>Trade Structure</span><strong id="wsTrade">Allowance · ACV · Payoff · Equity · Gross</strong></div>
+        <div><span>Lease</span><strong id="wsLease">Base/Used MF · Residual · Taxes · Payment</strong></div>
+        <div><span>Finance</span><strong id="wsFinance">Base/Used APR · Term · Reserve · Payment</strong></div>
+        <div><span>BMW Select</span><strong id="wsSelect">Base/Used APR · Balloon % · Balloon Amount</strong></div>
+        <div><span>Profit</span><strong id="wsProfit">Front Gross · Trade Gross · Reserve · 70% Share</strong></div>
+        <div><span>Notes</span><strong id="wsNotes">—</strong></div>
       </div>
     </div>
     <div class="empty-state">This preview defines the worksheet structure. Calculations will be connected in a later Alpha.</div>
@@ -962,6 +1237,15 @@
     </div>
     <h2>Changelog</h2>
     <div class="changelog-card">
+      <h3>3.0.0 Alpha 2</h3>
+      <ul>
+        <li>Added working Lease, Finance, Cash, and BMW Select scenario calculations.</li>
+        <li>Added rename, duplicate, delete, edit, and present-any-three controls.</li>
+        <li>Added required-field validation.</li>
+        <li>Added working Roll Payment calculations for selling price, cash, and trade allowance.</li>
+        <li>Added first/last name, co-buyer, salesperson, vehicle, trade, ACV, cost, notes, and signature settings.</li>
+        <li>Added lease trade-equity allocation.</li>
+      </ul>
       <h3>3.0.0 Alpha 1</h3>
       <ul>
         <li>Dashboard is now the landing page.</li>
