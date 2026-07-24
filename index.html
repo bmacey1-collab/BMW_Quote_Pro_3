@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BMW Quote Pro 3.0 Alpha</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/cards.css" />
+  <link rel="stylesheet" href="css/print.css" />
+
+  <meta name="theme-color" content="#1c69d4" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="BMW Quote Pro" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.svg" />
+
+</head>
+<body>
+<main class="page">
+  <div class="app-header">
+    <div>
+      <h1>BMW Quote Pro 3.0 Alpha</h1>
+      <div class="app-subtitle">Portfolio desking, flexible scenarios, program management, and manager-ready worksheets.</div>
+    </div>
+  </div>
+  <div class="alpha-banner">
+    <strong>Version 3.0 Alpha Development</strong>
+    <span>Continue using BMW Quote Pro 2.4.1 for live customer work.</span>
+  </div>
+
+  <div class="tabs">
+    <button type="button" class="tab-button" data-tab="setupTab">Deal Builder</button>
+    <button type="button" class="tab-button active" data-tab="dashboardTab">Dashboard</button>
+    <button type="button" class="tab-button" data-tab="clientsTab">Clients</button>
+    <button type="button" class="tab-button" data-tab="emailTab">Email Center</button>
+    <button type="button" class="tab-button" data-tab="programsTab">Program Center</button>
+    <button type="button" class="tab-button" data-tab="worksheetTab">Manager Worksheet</button>
+    <button type="button" class="tab-button" data-tab="resultsTab">Results</button>
+    <button type="button" class="tab-button" data-tab="savedTab">Saved Quotes</button>
+    <button type="button" class="tab-button" data-tab="aboutTab">About & Backup</button>
+  </div>
+
+  <section id="setupTab" class="tab-panel">
+    <section class="scenario-workspace">
+      <div class="section-heading-row">
+        <div><div class="eyebrow">Scenario Workspace</div><h2>Build and compare any three options</h2></div>
+        <button type="button" class="btn-primary" onclick="addScenarioPreview()">+ Add Scenario</button>
+      </div>
+      <div id="scenarioPreviewGrid" class="scenario-preview-grid">
+        <article class="scenario-preview-card lease"><div class="scenario-type">Lease</div><h3>Lease 10K</h3><p>36 months · 10,000 miles</p><span class="scenario-status">Design preview</span></article>
+        <article class="scenario-preview-card finance"><div class="scenario-type">Finance</div><h3>Finance 60</h3><p>60 months · APR required</p><span class="scenario-status">Design preview</span></article>
+        <article class="scenario-preview-card select"><div class="scenario-type">BMW Select</div><h3>Select 60</h3><p>60 months · Balloon required</p><span class="scenario-status">Design preview</span></article>
+      </div>
+      <div class="alpha-note">The existing calculator remains below while the new scenario engine is developed separately.</div>
+    </section>
+  <div class="input-section">
+    <h2>Quote Information</h2>
+    <div class="grid">
+      <div class="field col-3">
+        <label for="quoteNumber">Quote Number</label>
+        <input id="quoteNumber" type="text" placeholder="Auto or manual" />
+      </div>
+      <div class="field col-3">
+        <label for="quoteDate">Quote Date</label>
+        <input id="quoteDate" type="date" />
+      </div>
+      <div class="field col-3">
+        <label for="salesperson">Salesperson</label>
+        <input id="salesperson" type="text" />
+      </div>
+      <div class="field col-3">
+        <label for="quoteStatus">Status</label>
+        <select id="quoteStatus">
+          <option value="Quoted">Quoted</option>
+          <option value="Pending">Pending</option>
+          <option value="Sold">Sold</option>
+          <option value="Lost">Lost</option>
+        </select>
+      </div>
+    </div>
+
+    <h2>Customer / Vehicle</h2>
+    <div class="grid">
+      <div class="field col-3">
+        <label for="customerName">Customer Name</label>
+        <input id="customerName" type="text" />
+      </div>
+      <div class="field col-3">
+        <label for="customerEmail">Customer Email</label>
+        <input id="customerEmail" type="email" autocomplete="email" />
+      </div>
+      <div class="field col-3">
+        <label for="customerPhone">Customer Phone</label>
+        <input id="customerPhone" type="tel" autocomplete="tel" />
+      </div>
+      <div class="field col-3">
+        <label for="customerIdDisplay">Client Record</label>
+        <input id="customerIdDisplay" type="text" readonly placeholder="Created when quote is saved" />
+      </div>
+      <div class="field col-6">
+        <label for="vehicle">Vehicle</label>
+        <input id="vehicle" type="text" />
+      </div>
+      <div class="field col-6">
+        <label for="vin">VIN</label>
+        <input id="vin" type="text" />
+      </div>
+    </div>
+
+    <h2>Trade Information</h2>
+    <div class="grid">
+      <div class="field col-6">
+        <label for="tradeIn1">Trade In 1</label>
+        <input id="tradeIn1" type="text" />
+      </div>
+      <div class="field col-3">
+        <label for="tradeValue1">Trade Value 1</label>
+        <input id="tradeValue1" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="payoff1">Payoff 1</label>
+        <input id="payoff1" type="number" min="0" step=".01" />
+      </div>
+
+      <div class="field col-6">
+        <label for="tradeIn2">Trade In 2</label>
+        <input id="tradeIn2" type="text" />
+      </div>
+      <div class="field col-3">
+        <label for="tradeValue2">Trade Value 2</label>
+        <input id="tradeValue2" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="payoff2">Payoff 2</label>
+        <input id="payoff2" type="number" min="0" step=".01" />
+      </div>
+    </div>
+
+    <h2>Vehicle Pricing</h2>
+    <div class="grid">
+      <div class="field col-3">
+        <label for="msrp">MSRP</label>
+        <input id="msrp" type="number" min="0" step=".01" />
+      </div>
+
+      <div class="field col-3">
+        <label for="discount">Discount</label>
+        <input id="discount" type="number" min="0" step=".01" />
+      </div>
+
+      <div class="field col-3">
+        <label for="salesTaxRate">Sales Tax Rate %</label>
+        <input id="salesTaxRate" type="number" min="0" step=".01" />
+      </div>
+
+      <div class="field col-3">
+        <label>Combine Discount & Incentives?</label>
+        <div class="radio-row">
+          <label><input type="radio" name="combine" value="yes" /> Yes</label>
+          <label><input type="radio" name="combine" value="no" checked /> No</label>
+        </div>
+      </div>
+    </div>
+
+
+    <h2>BMW Program Presets</h2>
+    <div class="preset-panel">
+      <div class="grid">
+        <div class="field col-4">
+          <label for="programPreset">Program Preset</label>
+          <select id="programPreset">
+            <option value="">Select a preset</option>
+            <option value="standard">Standard BMW Defaults</option>
+          </select>
+        </div>
+
+        <div class="field col-4">
+          <label for="presetName">Save Current Values As</label>
+          <input id="presetName" type="text" placeholder="Example: July 2026 X5 39/10k" />
+        </div>
+
+        <div class="field col-4">
+          <label>Preset Actions</label>
+          <div class="preset-actions">
+            <button type="button" class="btn-primary" onclick="applyProgramPreset()">Apply</button>
+            <button type="button" class="btn-secondary" onclick="saveCustomPreset()">Save Preset</button>
+            <button type="button" class="btn-secondary" onclick="deleteCustomPreset()">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="small-help">
+        Presets save commonly reused rates, residuals, terms, fees, taxes, and incentives in this browser.
+      </div>
+    </div>
+
+    <h2>Choose Deal Types</h2>
+    <div class="grid deal-selector">
+      <div class="field col-4">
+        <label>Lease</label>
+        <div class="checkbox-row">
+          <label><input id="displayLease" type="checkbox" checked /> Calculate and display Lease</label>
+        </div>
+      </div>
+
+      <div class="field col-4">
+        <label>Finance</label>
+        <div class="checkbox-row">
+          <label><input id="displayRetail" type="checkbox" checked /> Calculate and display Finance</label>
+        </div>
+      </div>
+
+      <div class="field col-4">
+        <label>BMW Select</label>
+        <div class="checkbox-row">
+          <label><input id="displaySelect" type="checkbox" checked /> Calculate and display BMW Select</label>
+        </div>
+      </div>
+    </div>
+
+    <div id="leaseInputSection" class="deal-input-section">
+    <h2>Lease Terms</h2>
+    <div class="grid">
+      <div class="field col-4">
+        <label>Lease Type</label>
+        <div class="radio-row lease-type-control">
+          <label><input type="radio" name="leaseType" value="standard" checked /> Standard Lease</label>
+          <label><input type="radio" name="leaseType" value="onepay" /> One-Pay Lease</label>
+        </div>
+      </div>
+
+      <div class="field col-4">
+        <label for="onePayAmount">Calculated One-Pay Amount</label>
+        <input id="onePayAmount" type="text" readonly />
+      </div>
+
+      <div class="field col-4">
+        <label for="onePayEquivalentMonthly">Equivalent Monthly</label>
+        <input id="onePayEquivalentMonthly" type="text" readonly />
+      </div>
+      <div class="field col-3">
+        <label for="leaseIncentiveName1">Lease Incentive 1 Name</label>
+        <input id="leaseIncentiveName1" type="text" placeholder="Example: Loyalty Credit" />
+      </div>
+      <div class="field col-2">
+        <label for="leaseIncentive1">Amount</label>
+        <input id="leaseIncentive1" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="leaseIncentiveName2">Lease Incentive 2 Name</label>
+        <input id="leaseIncentiveName2" type="text" placeholder="Example: Program Credit" />
+      </div>
+      <div class="field col-2">
+        <label for="leaseIncentive2">Amount</label>
+        <input id="leaseIncentive2" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="leaseIncentiveName3">Lease Incentive 3 Name</label>
+        <input id="leaseIncentiveName3" type="text" placeholder="Example: Military Credit" />
+      </div>
+      <div class="field col-2">
+        <label for="leaseIncentive3">Amount</label>
+        <input id="leaseIncentive3" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="leaseSellingPrice">Lease Selling Price</label>
+        <input id="leaseSellingPrice" type="text" readonly />
+      </div>
+      <div class="field col-3">
+        <label for="leaseMonths">Lease Months</label>
+        <input id="leaseMonths" type="number" min="1" step="1" value="36" />
+      </div>
+      <div class="field col-3">
+        <label for="baseResidual">Base Residual %</label>
+        <input id="baseResidual" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="includedMiles">Included Miles</label>
+        <select id="includedMiles">
+          <option value="0">Select Miles</option>
+          <option value="4">7,500 miles</option>
+          <option value="3">10,000 miles</option>
+          <option value="2">12,000 miles</option>
+        </select>
+      </div>
+      <div class="field col-3">
+        <label for="moneyFactor">Money Factor</label>
+        <input id="moneyFactor" type="number" min="0" step=".00001" />
+      </div>
+      <div class="field col-3">
+        <label for="inceptionMileage">Inception Mileage</label>
+        <input id="inceptionMileage" type="number" min="0" step="1" />
+      </div>
+      <div class="field col-3">
+        <label for="inceptionMileageCharge">Inception Mileage Charge</label>
+        <input id="inceptionMileageCharge" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="customMileage">Custom Annual Mileage</label>
+        <input id="customMileage" type="number" min="0" step="1" />
+      </div>
+      <div class="field col-3">
+        <label for="customMileageCharge">Custom Mileage Charge</label>
+        <input id="customMileageCharge" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="residualValue">Residual Value</label>
+        <input id="residualValue" type="text" readonly />
+      </div>
+      <div class="field col-3">
+        <label for="leasePayment">Lease Payment</label>
+        <input id="leasePayment" type="text" readonly />
+      </div>
+    </div>
+    </div>
+
+    <div id="retailInputSection" class="deal-input-section">
+    <h2>Finance Terms</h2>
+    <div class="grid">
+      <div class="field col-4">
+        <label>Purchase Type</label>
+        <div class="checkbox-row cash-purchase-control">
+          <label><input id="cashPurchase" type="checkbox" /> Cash Purchase</label>
+        </div>
+      </div>
+      <div class="field col-4">
+        <label for="cashPurchaseTotal">Total Cash Due</label>
+        <input id="cashPurchaseTotal" type="text" readonly />
+      </div>
+      <div class="field col-4">
+        <label>Finance Display</label>
+        <div class="small-help">When Cash Purchase is selected, APR, term, and monthly payment are replaced by Total Cash Due.</div>
+      </div>
+      <div class="field col-3">
+        <label for="retailIncentiveName1">Retail Incentive 1 Name</label>
+        <input id="retailIncentiveName1" type="text" placeholder="Example: Loyalty Credit" />
+      </div>
+      <div class="field col-2">
+        <label for="retailIncentive1">Amount</label>
+        <input id="retailIncentive1" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="retailIncentiveName2">Retail Incentive 2 Name</label>
+        <input id="retailIncentiveName2" type="text" placeholder="Example: Program Credit" />
+      </div>
+      <div class="field col-2">
+        <label for="retailIncentive2">Amount</label>
+        <input id="retailIncentive2" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="retailIncentiveName3">Retail Incentive 3 Name</label>
+        <input id="retailIncentiveName3" type="text" placeholder="Example: Military Credit" />
+      </div>
+      <div class="field col-2">
+        <label for="retailIncentive3">Amount</label>
+        <input id="retailIncentive3" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="retailSellingPrice">Retail Selling Price</label>
+        <input id="retailSellingPrice" type="text" readonly />
+      </div>
+      <div id="financeMonthsField" class="field col-3">
+        <label for="financeMonths">Finance Months</label>
+        <input id="financeMonths" type="number" min="1" step="1" value="60" />
+      </div>
+      <div id="financeAprField" class="field col-3">
+        <label for="aprRate">APR %</label>
+        <input id="aprRate" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="amountFinanced">Amount Financed</label>
+        <input id="amountFinanced" type="text" readonly />
+      </div>
+      <div class="field col-3">
+        <label for="financePayment">Retail Payment</label>
+        <input id="financePayment" type="text" readonly />
+      </div>
+    </div>
+    </div>
+
+    <div id="selectInputSection" class="deal-input-section">
+    <h2>BMW Select Terms</h2>
+    <div class="grid">
+      <div class="field col-3">
+        <label for="selectIncentiveName1">Select Incentive 1 Name</label>
+        <input id="selectIncentiveName1" type="text" placeholder="Example: Loyalty Credit" />
+      </div>
+      <div class="field col-2">
+        <label for="selectIncentive1">Amount</label>
+        <input id="selectIncentive1" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="selectIncentiveName2">Select Incentive 2 Name</label>
+        <input id="selectIncentiveName2" type="text" placeholder="Example: Program Credit" />
+      </div>
+      <div class="field col-2">
+        <label for="selectIncentive2">Amount</label>
+        <input id="selectIncentive2" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="selectIncentiveName3">Select Incentive 3 Name</label>
+        <input id="selectIncentiveName3" type="text" placeholder="Example: Military Credit" />
+      </div>
+      <div class="field col-2">
+        <label for="selectIncentive3">Amount</label>
+        <input id="selectIncentive3" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="selectSellingPrice">Select Selling Price</label>
+        <input id="selectSellingPrice" type="text" readonly />
+      </div>
+      <div class="field col-3">
+        <label for="selectMonths">Select Months</label>
+        <input id="selectMonths" type="number" min="1" step="1" value="60" />
+      </div>
+      <div class="field col-3">
+        <label for="selectAprRate">Select APR %</label>
+        <input id="selectAprRate" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="balloonPercent">Balloon % of MSRP</label>
+        <input id="balloonPercent" type="number" min="0" max="100" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="balloonValue">Balloon Amount</label>
+        <input id="balloonValue" type="text" readonly />
+      </div>
+      <div class="field col-3">
+        <label for="selectAmountFinanced">Amount Financed</label>
+        <input id="selectAmountFinanced" type="text" readonly />
+      </div>
+      <div class="field col-3">
+        <label for="selectPayment">Select Payment</label>
+        <input id="selectPayment" type="text" readonly />
+      </div>
+    </div>
+    </div>
+
+    <h2>Fees & Cash</h2>
+    <div class="grid">
+      <div class="field col-3">
+        <label for="acquisitionFee">Acquisition Fee</label>
+        <input id="acquisitionFee" type="number" value="925" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="regFees">Registration Fees</label>
+        <input id="regFees" type="number" value="135" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="docFee">Doc Fee</label>
+        <input id="docFee" type="number" value="595" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="miscFee">Misc Fee</label>
+        <input id="miscFee" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="afterSell1">After Sell 1</label>
+        <input id="afterSell1" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="afterSell2">After Sell 2</label>
+        <input id="afterSell2" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="cashDown">Cash Down</label>
+        <input id="cashDown" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label for="cashBack">Cash Back</label>
+        <input id="cashBack" type="number" min="0" step=".01" />
+      </div>
+      <div class="field col-3">
+        <label>Lease Fees Included?</label>
+        <div class="radio-row">
+          <label><input type="radio" name="feesIncluded" value="yes" checked /> Yes</label>
+          <label><input type="radio" name="feesIncluded" value="no" /> No</label>
+        </div>
+      </div>
+      <div class="field col-3">
+        <label for="leaseUpfrontTax">Lease Taxes Due Up Front</label>
+        <input id="leaseUpfrontTax" type="text" readonly />
+      </div>
+      <div class="field col-3">
+        <label for="tradeEquityDisplay">Positive Trade Equity</label>
+        <input id="tradeEquityDisplay" type="text" readonly />
+      </div>
+      <div class="field col-3">
+        <label for="negativeEquityDisplay">Negative Trade Equity</label>
+        <input id="negativeEquityDisplay" type="text" readonly />
+      </div>
+    </div>
+
+    <h2>Print Options</h2>
+    <div class="grid">
+      <div class="field col-4">
+        <label>Lease Details</label>
+        <div class="checkbox-row">
+          <label><input id="showLeaseDetails" type="checkbox" checked /> Print MF & residual value</label>
+        </div>
+      </div>
+      <div class="field col-4">
+        <label>Retail Details</label>
+        <div class="checkbox-row">
+          <label><input id="showRetailRate" type="checkbox" checked /> Print retail APR</label>
+        </div>
+      </div>
+      <div class="field col-4">
+        <label>Select Details</label>
+        <div class="checkbox-row">
+          <label><input id="showSelectDetails" type="checkbox" checked /> Print APR & balloon</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <div class="private-notes-section">
+    <h2>Customer Notes</h2>
+    <div class="grid">
+      <div class="field col-12 notes-field">
+        <label for="quoteNotes">Notes</label>
+        <textarea id="quoteNotes" placeholder="Customer preferences, follow-up details, requested equipment, next steps..."></textarea>
+      </div>
+    </div>
+    </div>
+
+    <div id="currentRecordBanner" class="current-record-banner"></div>
+
+    <div class="database-save-actions actions">
+      <button type="button" class="btn-secondary" onclick="duplicateCurrentQuote()">Duplicate as New</button>
+      <button type="button" class="btn-secondary" onclick="saveQuoteRevision()">Save Revision</button>
+      <button type="button" class="btn-primary" onclick="saveQuoteToDatabase()">Save Quote</button>
+    </div>
+
+  </section>
+
+    <div class="screen-results" style="display:none !important;">
+    <h2>Payment Comparison</h2>
+    <div class="comparison">
+      <div id="screenLeaseCard" class="result-card">
+        <div class="result-head">
+          <h3>Lease</h3>
+          <div class="payment" id="screenLeasePayment">$0.00</div>
+        </div>
+        <div class="result-body">
+          <div class="result-line"><span>Term</span><strong id="screenLeaseTerm">0 months</strong></div>
+          <div class="result-line"><span>Residual Value</span><strong id="screenResidual">$0.00</strong></div>
+          <div class="result-line"><span>Money Factor</span><strong id="screenMF">0.00000</strong></div>
+          <div class="result-line"><span>Due at Signing</span><strong id="screenLeaseDue">$0.00</strong></div>
+        </div>
+      </div>
+
+      <div id="screenRetailCard" class="result-card">
+        <div class="result-head">
+          <h3 id="screenRetailTitle">Finance</h3>
+          <div class="payment" id="screenRetailPayment">$0.00</div>
+        </div>
+        <div class="result-body">
+          <div class="result-line"><span>Term</span><strong id="screenRetailTerm">0 months</strong></div>
+          <div class="result-line"><span>APR</span><strong id="screenRetailApr">0.00%</strong></div>
+          <div class="result-line"><span>Amount Financed</span><strong id="screenRetailAmount">$0.00</strong></div>
+          <div class="result-line"><span>Cash Due</span><strong id="screenRetailDue">$0.00</strong></div>
+        </div>
+      </div>
+
+      <div id="screenSelectCard" class="result-card">
+        <div class="result-head">
+          <h3>BMW Select</h3>
+          <div class="payment" id="screenSelectPayment">$0.00</div>
+        </div>
+        <div class="result-body">
+          <div class="result-line"><span>Term</span><strong id="screenSelectTerm">0 months</strong></div>
+          <div class="result-line"><span>APR</span><strong id="screenSelectApr">0.00%</strong></div>
+          <div class="result-line"><span>Balloon</span><strong id="screenBalloon">$0.00</strong></div>
+          <div class="result-line"><span>Cash Due</span><strong id="screenSelectDue">$0.00</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <section id="dashboardTab" class="tab-panel active">
+    <div class="dashboard-hero">
+      <div>
+        <div class="eyebrow">BMW Quote Pro 3.0</div>
+        <h2>Your Portfolio Desk</h2>
+        <p>Start a deal, reopen a recent quote, manage programs, or prepare a manager worksheet.</p>
+      </div>
+      <button type="button" class="btn-primary dashboard-new-deal" onclick="showTab('setupTab'); clearForm();">+ New Deal</button>
+    </div>
+
+    <div class="quick-action-grid">
+      <button type="button" class="quick-action-card" onclick="showTab('setupTab'); clearForm();"><strong>New Deal</strong><span>Build flexible quote scenarios</span></button>
+      <button type="button" class="quick-action-card" onclick="showTab('clientsTab')"><strong>Find Client</strong><span>Open clients and quote history</span></button>
+      <button type="button" class="quick-action-card" onclick="showTab('programsTab')"><strong>Programs</strong><span>Rates, residuals, incentives, history</span></button>
+      <button type="button" class="quick-action-card" onclick="showTab('worksheetTab')"><strong>Manager Worksheet</strong><span>Clear internal deal structure</span></button>
+    </div>
+
+    <div class="dashboard-metrics">
+      <div class="metric-card"><span>Quotes Today</span><strong id="metricQuotesToday">0</strong></div>
+      <div class="metric-card"><span>Pending Deals</span><strong id="metricPending">0</strong></div>
+      <div class="metric-card"><span>Clients</span><strong id="metricClients">0</strong></div>
+      <div class="metric-card"><span>Sold Quotes</span><strong id="metricSold">0</strong></div>
+    </div>
+
+    <h2>Recent Quotes</h2>
+    <div id="dashboardRecentQuotes" class="dashboard-list">
+      <div class="empty-state">Sign in to load your dashboard.</div>
+    </div>
+  </section>
+
+  <section id="clientsTab" class="tab-panel">
+    <div class="results-toolbar">
+      <h2>Clients & Quote History</h2>
+      <div class="results-actions">
+        <button type="button" class="btn-secondary" onclick="loadClients()">Refresh</button>
+      </div>
+    </div>
+
+    <div class="client-search-bar">
+      <input id="clientSearch" type="search" placeholder="Search name, email, phone, VIN, vehicle, or quote number" />
+      <button type="button" class="btn-primary" onclick="searchClients()">Search</button>
+      <button type="button" class="btn-secondary" onclick="document.getElementById('clientSearch').value=''; loadClients();">Show All</button>
+    </div>
+
+    <div class="client-layout">
+      <div id="clientList" class="client-list">
+        <div class="empty-state">No clients loaded.</div>
+      </div>
+
+      <div id="clientDetail" class="client-detail">
+        <div class="empty-state">Select a client to see all of their quotes together.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="emailTab" class="tab-panel">
+    <div class="results-toolbar">
+      <h2>Email Center</h2>
+      <div class="results-actions">
+        <button type="button" class="btn-secondary" onclick="loadEmailHistory()">Refresh History</button>
+      </div>
+    </div>
+
+    <div class="email-composer">
+      <div class="grid">
+        <div class="field col-6">
+          <label for="emailTo">To</label>
+          <input id="emailTo" type="email" />
+        </div>
+        <div class="field col-6">
+          <label for="emailSubject">Subject</label>
+          <input id="emailSubject" type="text" value="Your BMW Quote" />
+        </div>
+        <div class="field col-4">
+          <label for="emailTemplate">Template</label>
+          <select id="emailTemplate" onchange="applyEmailTemplate()">
+            <option value="">Choose a template</option>
+            <option value="initial">Initial Quote</option>
+            <option value="revised">Revised Quote</option>
+            <option value="lease">Lease Quote</option>
+            <option value="finance">Finance Quote</option>
+            <option value="cash">Cash Purchase</option>
+            <option value="followup">Follow-Up</option>
+          </select>
+        </div>
+        <div class="field col-4">
+          <label>Email Options</label>
+          <div class="checkbox-row">
+            <label><input id="includeQuoteSummary" type="checkbox" checked /> Include Quote Summary</label>
+          </div>
+        </div>
+        <div class="field col-4">
+          <label>Current Quote</label>
+          <div id="emailQuoteReference" class="email-reference">No quote selected</div>
+        </div>
+        <div class="field col-12 notes-field">
+          <label for="emailMessage">Message / Personal Note</label>
+          <textarea id="emailMessage" placeholder="Write a personal note to the customer..."></textarea>
+        </div>
+      </div>
+
+      <div class="email-actions">
+        <button type="button" class="btn-secondary" onclick="copyEmailText()">Copy Email</button>
+        <button type="button" class="btn-primary" onclick="openEmailApplication()">Open Email App</button>
+        <button type="button" class="btn-secondary" onclick="openGmailComposer()">Open Gmail</button>
+        <button type="button" class="btn-secondary" onclick="recordEmailAsSent()">Record as Sent</button>
+      </div>
+      <div id="emailMessageStatus" class="database-message"></div>
+    </div>
+
+    <h2>Email History</h2>
+    <div id="emailHistory" class="email-history">
+      <div class="empty-state">Open a saved quote or client to view communication history.</div>
+    </div>
+  </section>
+
+  <section id="programsTab" class="tab-panel">
+    <div class="section-heading-row"><div><div class="eyebrow">Program Center</div><h2>Monthly Rates, Residuals & Incentives</h2></div><button type="button" class="btn-primary" disabled>+ New Program Month</button></div>
+    <div class="foundation-grid">
+      <article class="foundation-card"><h3>Monthly Archive</h3><p>Keep every prior month and copy the previous month before updating current programs.</p></article>
+      <article class="foundation-card"><h3>Program Status</h3><p>Confirmed from PDF, carried forward, entered from management, or expired.</p></article>
+      <article class="foundation-card"><h3>Load Into Deal</h3><p>Select manufacturer, model, term, and mileage to populate a scenario.</p></article>
+    </div>
+    <div class="empty-state">Program database development begins in the next Alpha milestone.</div>
+  </section>
+
+  <section id="worksheetTab" class="tab-panel">
+    <div class="section-heading-row"><div><div class="eyebrow">Internal Document</div><h2>Manager / Business Office Worksheet</h2></div><button type="button" class="btn-secondary" disabled>Print Worksheet Preview</button></div>
+    <div class="worksheet-preview">
+      <div class="worksheet-preview-header">BMW QUOTE WORKSHEET</div>
+      <div class="worksheet-preview-grid">
+        <div><span>Vehicle Pricing</span><strong>MSRP · Cost · Selling Price · Incentives</strong></div>
+        <div><span>Trade Structure</span><strong>Allowance · ACV · Payoff · Equity · Gross</strong></div>
+        <div><span>Lease</span><strong>Base/Used MF · Residual · Taxes · Payment</strong></div>
+        <div><span>Finance</span><strong>Base/Used APR · Term · Reserve · Payment</strong></div>
+        <div><span>BMW Select</span><strong>APR · Balloon % · Balloon Amount</strong></div>
+        <div><span>Profit</span><strong>Front Gross · Trade Gross · Reserve · 70% Share</strong></div>
+      </div>
+    </div>
+    <div class="empty-state">This preview defines the worksheet structure. Calculations will be connected in a later Alpha.</div>
+  </section>
+
+  <section id="resultsTab" class="tab-panel">
+  <div id="breakdownResults" class="breakdown-results">
+    <div class="results-toolbar">
+      <h2>Quote Results</h2>
+      <div class="mobile-swipe-hint">Swipe the cards to compare payment options.</div>
+      <div class="results-actions">
+        <button type="button" class="btn-secondary" onclick="showTab('setupTab')">Back to Setup</button>
+        <button type="button" class="btn-secondary" onclick="saveQuoteToDatabase()">Save Quote</button>
+        <button type="button" class="btn-primary" onclick="printQuote()">Print Results</button>
+      
+        <button type="button" class="btn-primary" onclick="emailCurrentQuote()">
+          Email Quote
+        </button></div>
+    </div>
+    <div class="quote-client-strip">
+      <div>
+        <div id="quoteCustomer"></div>
+        <div id="quoteNumberDisplay"></div>
+      </div>
+      <div style="text-align:right;">
+        <div id="quoteVehicle"></div>
+        <div id="quoteVinDisplay"></div>
+      </div>
+    </div>
+
+    <div class="quote-comparison">
+      <div id="quoteLeaseCard" class="quote-option lease-card">
+        <div class="quote-option-title">LEASE</div>
+        <div class="quote-option-payment" id="quoteLeasePayment">$0.00</div>
+          <div id="quoteLeasePaymentLabel" class="payment-label">PER MONTH</div>
+          <div id="quoteOnePayDetail" class="one-pay-detail" hidden></div>
+        <div class="payment-caption">PER MONTH</div>
+        <div class="payment-difference" id="leasePaymentDifference"></div>
+        <div class="quote-option-body">
+          <div class="due-up-front-total"><span>Total Due Up Front</span><strong id="quoteLeaseDue"></strong></div>
+          <div><span>MSRP / Market Value</span><strong id="leaseBreakMSRP"></strong></div>
+          <div><span>Discounts</span><strong id="leaseBreakDiscount"></strong></div>
+          <div id="leaseBreakIncentiveRow"><span>Incentives</span><strong id="leaseBreakIncentives"></strong></div>
+          <div id="leaseNamedIncentives" class="named-incentives"></div>
+          <div><span>Adjusted Price</span><strong id="leaseBreakAdjusted"></strong></div>
+          <div><span>Trade Value</span><strong id="leaseBreakTrade"></strong></div>
+          <div><span>Subtotal</span><strong id="leaseBreakSubtotal"></strong></div>
+          <div><span>Vehicle Payoff</span><strong id="leaseBreakPayoff"></strong></div>
+          <div><span>Sales Tax</span><strong id="leaseBreakTax"></strong></div>
+          <div><span>Registration Fees</span><strong id="leaseBreakReg"></strong></div>
+          <div><span>Documentation Fees</span><strong id="leaseBreakDoc"></strong></div>
+          <div><span>Miscellaneous Fees</span><strong id="leaseBreakMisc"></strong></div>
+          <div><span>Cash Down</span><strong id="leaseBreakCash"></strong></div>
+          <div class="pricing-total"><span>Net Capitalized Cost</span><strong id="leaseBreakTotal"></strong></div>
+          <div><span>Term</span><strong id="quoteLeaseTerm"></strong></div>
+          <div><span>Included Miles</span><strong id="quoteLeaseMiles"></strong></div>
+          <div id="quoteLeaseResidualRow"><span>Residual Value</span><strong id="quoteLeaseResidual"></strong></div>
+          <div id="quoteLeaseMFRow"><span>Money Factor</span><strong id="quoteLeaseMF"></strong></div>
+          <div class="summary-highlight"><span>Total Lease Cost</span><strong id="quoteLeaseTotalCost"></strong></div>
+        </div>
+      </div>
+
+      <div id="quoteRetailCard" class="quote-option retail-card">
+        <div id="quoteRetailTitle" class="quote-option-title">RETAIL FINANCE</div>
+        <div class="quote-option-payment" id="quoteRetailPayment">$0.00</div>
+          <div id="quoteRetailPaymentLabel" class="payment-label">PER MONTH</div>
+        <div class="payment-caption">PER MONTH</div>
+        <div class="payment-difference" id="retailPaymentDifference"></div>
+        <div class="quote-option-body">
+          <div class="due-up-front-total"><span>Total Due Up Front</span><strong id="quoteRetailDueUpFront"></strong></div>
+          <div><span>MSRP / Market Value</span><strong id="retailBreakMSRP"></strong></div>
+          <div><span>Discounts</span><strong id="retailBreakDiscount"></strong></div>
+          <div id="retailBreakIncentiveRow"><span>Incentives</span><strong id="retailBreakIncentives"></strong></div>
+          <div id="retailNamedIncentives" class="named-incentives"></div>
+          <div><span>Adjusted Price</span><strong id="retailBreakAdjusted"></strong></div>
+          <div><span>Trade Value</span><strong id="retailBreakTrade"></strong></div>
+          <div><span>Subtotal</span><strong id="retailBreakSubtotal"></strong></div>
+          <div><span>Vehicle Payoff</span><strong id="retailBreakPayoff"></strong></div>
+          <div><span>Sales Tax</span><strong id="retailBreakTax"></strong></div>
+          <div><span>Registration Fees</span><strong id="retailBreakReg"></strong></div>
+          <div><span>Documentation Fees</span><strong id="retailBreakDoc"></strong></div>
+          <div><span>Miscellaneous Fees</span><strong id="retailBreakMisc"></strong></div>
+          <div><span>Cash Down</span><strong id="retailBreakCash"></strong></div>
+          <div class="pricing-total"><span>Amount Financed</span><strong id="retailBreakTotal"></strong></div>
+          <div><span>Term</span><strong id="quoteRetailTerm"></strong></div>
+          <div id="quoteRetailAprRow"><span>Interest Rate</span><strong id="quoteRetailApr"></strong></div>
+          <div class="summary-highlight"><span>Estimated Interest Paid</span><strong id="quoteRetailInterest"></strong></div>
+          <div class="summary-highlight"><span>Total of Payments</span><strong id="quoteRetailTotalPaid"></strong></div>
+        </div>
+      </div>
+
+      <div id="quoteSelectCard" class="quote-option select-card">
+        <div class="quote-option-title">SELECT FINANCING</div>
+        <div class="quote-option-payment" id="quoteSelectPayment">$0.00</div>
+        <div class="payment-caption">PER MONTH</div>
+        <div class="payment-difference" id="selectPaymentDifference"></div>
+        <div class="quote-option-body">
+          <div class="due-up-front-total"><span>Total Due Up Front</span><strong id="quoteSelectDueUpFront"></strong></div>
+          <div><span>MSRP / Market Value</span><strong id="selectBreakMSRP"></strong></div>
+          <div><span>Discounts</span><strong id="selectBreakDiscount"></strong></div>
+          <div id="selectBreakIncentiveRow"><span>Incentives</span><strong id="selectBreakIncentives"></strong></div>
+          <div id="selectNamedIncentives" class="named-incentives"></div>
+          <div><span>Adjusted Price</span><strong id="selectBreakAdjusted"></strong></div>
+          <div><span>Trade Value</span><strong id="selectBreakTrade"></strong></div>
+          <div><span>Subtotal</span><strong id="selectBreakSubtotal"></strong></div>
+          <div><span>Vehicle Payoff</span><strong id="selectBreakPayoff"></strong></div>
+          <div><span>Sales Tax</span><strong id="selectBreakTax"></strong></div>
+          <div><span>Registration Fees</span><strong id="selectBreakReg"></strong></div>
+          <div><span>Documentation Fees</span><strong id="selectBreakDoc"></strong></div>
+          <div><span>Miscellaneous Fees</span><strong id="selectBreakMisc"></strong></div>
+          <div><span>Cash Down</span><strong id="selectBreakCash"></strong></div>
+          <div class="pricing-total"><span>Amount Financed</span><strong id="selectBreakTotal"></strong></div>
+          <div><span>Term</span><strong id="quoteSelectTerm"></strong></div>
+          <div id="quoteSelectAprRow"><span>Interest Rate</span><strong id="quoteSelectApr"></strong></div>
+          <div id="quoteBalloonRow"><span>Final Balloon Payment</span><strong id="quoteBalloon"></strong></div>
+          <div class="summary-highlight"><span>Total of Payments</span><strong id="quoteSelectTotalPaid"></strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quote-footer">
+      Lease due at signing includes the first monthly payment. Select financing includes a final balloon payment. Every effort is made to ensure the accuracy of this quote; pricing and calculations remain subject to final lender and contract approval.
+    </div>
+  </div>
+  </section>
+
+
+  <section id="savedTab" class="tab-panel">
+    <div id="connectionSetupSection">
+    <h2>Supabase Connection</h2>
+
+    <div class="connection-card">
+      <div class="grid">
+        <div class="field col-6">
+          <label for="supabaseUrl">Supabase Project URL</label>
+          <input id="supabaseUrl" type="text" placeholder="https://your-project.supabase.co" />
+        </div>
+        <div class="field col-6">
+          <label for="supabaseKey">Supabase Publishable / Anon Key</label>
+          <input id="supabaseKey" type="password" placeholder="Paste the publishable key — never use service_role" />
+        </div>
+      </div>
+      <div class="database-toolbar">
+        <button type="button" class="btn-primary" onclick="saveSupabaseSettings()">Save Connection</button>
+        <button type="button" class="btn-secondary" onclick="testSupabaseConnection()">Test Connection</button>
+        <button type="button" class="btn-secondary" onclick="forgetSupabaseConnection()">Forget Connection</button>
+        <span id="connectionStatus" class="connection-status">Checking saved connection…</span>
+      </div>
+      <div class="small-help">
+        Your connection and login session are remembered in this browser. Use only the project URL and publishable/anon key—never a service-role key.
+      </div>
+    </div>
+    </div>
+
+    <div id="accountSetupSection">
+    <h2>Account</h2>
+    <div class="auth-card">
+      <div id="signedOutArea">
+        <div class="grid">
+          <div class="field col-4">
+            <label for="authEmail">Email</label>
+            <input id="authEmail" type="email" autocomplete="email" />
+          </div>
+          <div class="field col-4">
+            <label for="authPassword">Password</label>
+            <input id="authPassword" type="password" autocomplete="current-password" />
+          </div>
+          <div class="field col-4">
+            <label>Account Actions</label>
+            <div class="database-toolbar" style="margin-top:0;">
+              <button type="button" class="btn-primary" onclick="signInUser()">Sign In</button>
+              <button type="button" class="btn-secondary" onclick="signUpUser()">Create Account</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="signedInArea" class="hidden-auth">
+        <strong>Signed in as:</strong> <span id="signedInEmail"></span>
+        <button type="button" class="btn-secondary" style="margin-left:12px;" onclick="signOutUser()">Sign Out</button>
+      </div>
+      <div id="authMessage" class="database-message"></div>
+    </div>
+    </div>
+
+    <div id="databaseReadyBar" class="database-ready-bar" hidden>
+      <div>
+        <strong>Database connected</strong>
+        <span id="databaseReadyEmail"></span>
+      </div>
+      <button type="button" class="btn-secondary" onclick="showDatabaseSettings()">
+        Connection Settings
+      </button>
+    </div>
+
+    <h2>Saved Quotes</h2>
+    <div class="saved-quotes-card">
+      <div class="database-toolbar">
+        <input id="savedQuoteSearch" type="search" placeholder="Search customer, VIN, quote number, or vehicle" />
+        <select id="savedStatusFilter">
+          <option value="">All Statuses</option>
+          <option value="Quoted">Quoted</option>
+          <option value="Pending">Pending</option>
+          <option value="Sold">Sold</option>
+          <option value="Lost">Lost</option>
+        </select>
+        <button type="button" class="btn-primary" onclick="searchSavedQuotes()">Search</button>
+        <button type="button" class="btn-secondary" onclick="loadSavedQuotes()">Show Recent</button>
+      </div>
+
+      <div id="databaseMessage" class="database-message"></div>
+
+      <div class="quote-table-wrap">
+        <table class="quote-table">
+          <thead>
+            <tr>
+              <th>Quote #</th>
+              <th>Date</th>
+              <th>Customer</th>
+              <th>Vehicle</th>
+              <th>VIN</th>
+              <th>Status</th>
+              <th>Updated</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="savedQuotesBody">
+            <tr><td colspan="8">Connect and sign in to view saved quotes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="aboutTab" class="tab-panel">
+    <h2>About BMW Quote Pro</h2>
+    <div class="about-grid">
+      <div class="about-card"><div class="about-label">BMW Quote Pro Version</div><div id="aboutVersion" class="about-value"></div></div>
+      <div class="about-card"><div class="about-label">Build Date</div><div id="aboutBuildDate" class="about-value"></div></div>
+      <div class="about-card"><div class="about-label">Database Status</div><div id="aboutDatabaseStatus" class="about-value">Checking…</div></div>
+      <div class="about-card"><div class="about-label">Signed-In User</div><div id="aboutSignedInUser" class="about-value">Not signed in</div></div>
+      <div class="about-card about-card-wide"><div class="about-label">Connected Supabase Project</div><div id="aboutSupabaseProject" class="about-value about-monospace">Not configured</div></div>
+    </div>
+    <h2>Changelog</h2>
+    <div class="changelog-card">
+      <h3>3.0.0 Alpha 1</h3>
+      <ul>
+        <li>Dashboard is now the landing page.</li>
+        <li>Recent Quotes remain on the dashboard.</li>
+        <li>Added colored flexible-scenario previews.</li>
+        <li>Added Program Center and Manager Worksheet foundations.</li>
+        <li>Version 2.4.1 remains separate for production.</li>
+      </ul>
+      <h3>v2.4.1</h3>
+      <ul>
+        <li>Restored the Email Quote button on the Results screen.</li>
+        <li>Added a mobile Email shortcut.</li>
+        <li>Email Quote now pre-fills the customer, subject, quote reference, and message template.</li>
+      </ul>
+      <h3>v2.4.0</h3>
+      <ul>
+        <li>Added responsive mobile layouts and touch-friendly controls.</li>
+        <li>Added installable Progressive Web App support.</li>
+        <li>Added swipeable result cards on phones.</li>
+        <li>Added a mobile bottom navigation bar.</li>
+        <li>Removed the unreliable custom PDF button; use Print Results → Save as PDF.</li>
+      </ul>
+      <h3>v2.3.3</h3><ul><li>Fixed Create PDF so the quote always fits on one landscape Letter page.</li></ul>
+      <h3>v2.3.2</h3><ul><li>Restored landscape full-page quote printing.</li><li>Added Create PDF download.</li><li>Corrected lease upfront tax to exclude trade equity.</li></ul>
+      <h3>v2.3.1</h3><ul><li>Fixed Save Quote and Email buttons.</li><li>Added Open Gmail browser option.</li><li>Added clearer runtime error notifications.</li></ul>
+      <h3>v2.2.2</h3><ul><li>Added Cash Purchase inside Finance.</li><li>Renamed cards to Lease, Finance, and BMW Select.</li><li>Added About & Backup diagnostics.</li><li>Added quote export and settings backup.</li></ul>
+      <h3>v2.2.1</h3><ul><li>Persistent login and automatic reconnection.</li><li>Collapsed connection settings after sign-in.</li><li>Save/update confirmations.</li><li>One-page printing and private notes excluded.</li></ul>
+    </div>
+    <h2>Backup & Export</h2>
+    <div class="backup-card">
+      <div class="backup-actions"><button type="button" class="btn-primary" onclick="exportDatabaseQuotes()">Export Saved Quotes</button><button type="button" class="btn-secondary" onclick="backupApplicationSettings()">Back Up Settings</button></div>
+      <div class="small-help">Export Saved Quotes downloads your accessible quotes as JSON. Back Up Settings downloads your local connection, presets, and display settings.</div>
+      <div id="backupMessage" class="database-message"></div>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button type="button" class="btn-secondary" onclick="clearForm()">Clear Form</button>
+    <button type="button" class="btn-secondary" onclick="printWorksheet()">Print Worksheet</button>
+    <button type="button" class="btn-secondary" onclick="saveQuoteToDatabase()">Save Quote</button>
+    <button type="button" class="btn-primary" onclick="showTab('resultsTab')">View Results</button>
+  </div>
+  <div id="appToast" class="app-toast" role="status" aria-live="polite"></div>
+
+  <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
+    <button type="button" onclick="showTab('dashboardTab')">
+      <span aria-hidden="true">⌂</span>
+      <small>Home</small>
+    </button>
+    <button type="button" onclick="showTab('setupTab')">
+      <span aria-hidden="true">＋</span>
+      <small>Quote</small>
+    </button>
+    <button type="button" onclick="showTab('resultsTab')">
+      <span aria-hidden="true">▤</span>
+      <small>Results</small>
+    </button>
+    <button type="button" onclick="showTab('clientsTab')">
+      <span aria-hidden="true">👤</span>
+      <small>Clients</small>
+    </button>
+    <button type="button" onclick="emailCurrentQuote()">
+      <span aria-hidden="true">✉</span>
+      <small>Email</small>
+    </button>
+  </nav>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/presets.js"></script>
+<script src="js/calculations.js"></script>
+<script src="js/database.js"></script>
+<script src="js/customers.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/email.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+<script src="js/alpha.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function() {
+      navigator.serviceWorker.register("./service-worker.js").catch(function(error) {
+        console.warn("Service worker registration failed:", error);
+      });
+    });
+  }
+</script>
+</body>
+</html>

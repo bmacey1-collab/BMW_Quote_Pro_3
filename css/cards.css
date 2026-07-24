@@ -1,0 +1,68 @@
+/* Result card colors */
+.quote-option.lease-card {
+  border-color: #1c69d4;
+}
+.quote-option.lease-card .quote-option-title {
+  background: #1c69d4;
+  color: #fff;
+}
+.quote-option.retail-card {
+  border-color: #2e8b57;
+}
+.quote-option.retail-card .quote-option-title {
+  background: #2e8b57;
+  color: #fff;
+}
+.quote-option.select-card {
+  border-color: #e67e22;
+}
+.quote-option.select-card .quote-option-title {
+  background: #e67e22;
+  color: #fff;
+}
+
+/* Always keep the main payment readable */
+.quote-option.lease-card .quote-option-payment,
+.quote-option.retail-card .quote-option-payment,
+.quote-option.select-card .quote-option-payment {
+  color: #ffffff !important;
+}
+
+.payment-label {
+  color: #fff;
+  text-align: center;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: .8px;
+  padding-bottom: 7px;
+}
+
+.one-pay-detail {
+  margin: 0 10px 9px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: rgba(255,255,255,.18);
+  color: #fff;
+  text-align: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.lease-type-control {
+  border: 2px solid #1c69d4;
+  background: #eef6ff;
+}
+
+.preset-panel {
+  padding: 15px;
+  border: 1px solid #d9e1e9;
+  border-radius: 12px;
+  background: #fafcff;
+}
+
+.preset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 0;
+}

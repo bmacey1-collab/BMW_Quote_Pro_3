@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="92" fill="#1c69d4"/>
+  <circle cx="256" cy="256" r="170" fill="#fff"/>
+  <circle cx="256" cy="256" r="142" fill="#0f2f57"/>
+  <path d="M256 114a142 142 0 0 1 142 142H256z" fill="#ffffff"/>
+  <path d="M256 398a142 142 0 0 1-142-142h142z" fill="#ffffff"/>
+  <path d="M114 256a142 142 0 0 1 142-142v142z" fill="#4aa8ff"/>
+  <path d="M398 256a142 142 0 0 1-142 142V256z" fill="#4aa8ff"/>
+  <circle cx="256" cy="256" r="45" fill="#fff"/>
+  <text x="256" y="273" text-anchor="middle" font-family="Arial, sans-serif" font-size="48" font-weight="700" fill="#0f2f57">QP</text>
+</svg>
