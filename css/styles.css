@@ -1675,3 +1675,204 @@ textarea {
     align-items: stretch;
   }
 }
+
+
+/* BMW Quote Pro 3.0 Alpha 3 */
+.fee-control {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 6px;
+}
+
+.dealer-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dealer-wide-field {
+  grid-column: span 2;
+}
+
+.customer-quote-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border: 1px solid #d9e1e9;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.customer-quote-header div {
+  display: grid;
+  gap: 3px;
+}
+
+.customer-quote-header span {
+  color: #66717d;
+  font-size: 12px;
+}
+
+.customer-quote-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.customer-scenario-card {
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.customer-scenario-card.lease {
+  border-color: #1c69d4;
+}
+
+.customer-scenario-card.finance {
+  border-color: #2e8b57;
+}
+
+.customer-scenario-card.cash {
+  border-color: #55606e;
+}
+
+.customer-scenario-card.select {
+  border-color: #e67e22;
+}
+
+.customer-card-title {
+  padding: 9px 12px;
+  color: #fff;
+  font-weight: 900;
+  text-align: center;
+}
+
+.customer-scenario-card.lease .customer-card-title {
+  background: #1c69d4;
+}
+
+.customer-scenario-card.finance .customer-card-title {
+  background: #2e8b57;
+}
+
+.customer-scenario-card.cash .customer-card-title {
+  background: #55606e;
+}
+
+.customer-scenario-card.select .customer-card-title {
+  background: #e67e22;
+}
+
+.customer-card-payment {
+  padding: 15px 8px 3px;
+  color: #fff;
+  font-size: 34px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.customer-scenario-card.lease .customer-card-payment,
+.customer-scenario-card.lease .customer-card-payment-label {
+  background: #1c69d4;
+}
+
+.customer-scenario-card.finance .customer-card-payment,
+.customer-scenario-card.finance .customer-card-payment-label {
+  background: #2e8b57;
+}
+
+.customer-scenario-card.cash .customer-card-payment,
+.customer-scenario-card.cash .customer-card-payment-label {
+  background: #55606e;
+}
+
+.customer-scenario-card.select .customer-card-payment,
+.customer-scenario-card.select .customer-card-payment-label {
+  background: #e67e22;
+}
+
+.customer-card-payment-label {
+  padding-bottom: 10px;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .9px;
+  text-align: center;
+}
+
+.customer-card-body {
+  padding: 10px 12px 12px;
+}
+
+.customer-card-body > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 9px;
+  padding: 4px 0;
+  border-bottom: 1px solid #edf0f3;
+  font-size: 12px;
+}
+
+.customer-card-body > div:last-child {
+  border-bottom: 0;
+}
+
+.customer-payment-comparison {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  background: #eef6ff;
+  color: #0f2f57;
+  text-align: center;
+}
+
+.customer-payment-comparison span {
+  font-size: 11px;
+}
+
+.signature-area {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #cfd8e2;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.signature-grid {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+@media (max-width: 900px) {
+  .dealer-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .customer-quote-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .dealer-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dealer-wide-field {
+    grid-column: span 1;
+  }
+
+  .fee-control {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-quote-header {
+    flex-direction: column;
+  }
+}

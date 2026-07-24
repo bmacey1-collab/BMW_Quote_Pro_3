@@ -1,4 +1,4 @@
-const CACHE_NAME = "bmw-quote-pro-v3-alpha-2";
+const CACHE_NAME = "bmw-quote-pro-v3-alpha-3";
 const APP_SHELL = [
   "./",
   "./index.html",

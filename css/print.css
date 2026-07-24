@@ -123,3 +123,55 @@
   body.print-worksheet select { height: 21px; padding: 2px 4px; border: 1px solid #999; font-size: 7.5px; }
   body.print-worksheet label { font-size: 7.5px; }
 }
+
+
+@media print {
+  body.print-v3-customer .tab-panel,
+  body.print-v3-customer .tabs,
+  body.print-v3-customer .alpha-banner,
+  body.print-v3-customer .mobile-bottom-nav,
+  body.print-v3-customer .app-header,
+  body.print-v3-customer .actions {
+    display: none !important;
+  }
+
+  body.print-v3-customer #presentationTab {
+    display: block !important;
+  }
+
+  body.print-v3-customer #presentationTab .results-actions,
+  body.print-v3-customer #presentationTab .eyebrow {
+    display: none !important;
+  }
+
+  body.print-v3-customer .customer-quote-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  body.print-v3-customer .customer-scenario-card {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+
+  body.print-v3-manager .tab-panel,
+  body.print-v3-manager .tabs,
+  body.print-v3-manager .alpha-banner,
+  body.print-v3-manager .mobile-bottom-nav,
+  body.print-v3-manager .app-header,
+  body.print-v3-manager .actions {
+    display: none !important;
+  }
+
+  body.print-v3-manager #worksheetTab {
+    display: block !important;
+  }
+
+  body.print-v3-manager #worksheetTab .results-actions,
+  body.print-v3-manager #worksheetTab .eyebrow,
+  body.print-v3-manager #worksheetTab .empty-state,
+  body.print-v3-manager #worksheetTab button {
+    display: none !important;
+  }
+}

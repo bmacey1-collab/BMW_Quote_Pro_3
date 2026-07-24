@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BMW Quote Pro 3.0 Alpha 2</title>
+  <title>BMW Quote Pro 3.0 Alpha 3</title>
   <link rel="stylesheet" href="css/styles.css" />
   <link rel="stylesheet" href="css/cards.css" />
   <link rel="stylesheet" href="css/print.css" />
@@ -20,12 +20,12 @@
 <main class="page">
   <div class="app-header">
     <div>
-      <h1>BMW Quote Pro 3.0 Alpha 2</h1>
+      <h1>BMW Quote Pro 3.0 Alpha 3</h1>
       <div class="app-subtitle">Portfolio desking, flexible scenarios, program management, and manager-ready worksheets.</div>
     </div>
   </div>
   <div class="alpha-banner">
-    <strong>Version 3.0 Alpha 2 Development</strong>
+    <strong>Version 3.0 Alpha 3 Development</strong>
     <span>Continue using BMW Quote Pro 2.4.1 for live customer work.</span>
   </div>
 
@@ -36,7 +36,9 @@
     <button type="button" class="tab-button" data-tab="emailTab">Email Center</button>
     <button type="button" class="tab-button" data-tab="programsTab">Program Center</button>
     <button type="button" class="tab-button" data-tab="worksheetTab">Manager Worksheet</button>
-    <button type="button" class="tab-button" data-tab="resultsTab">Results</button>
+    <button type="button" class="tab-button" data-tab="dealerSettingsTab">Dealer Settings</button>
+    <button type="button" class="tab-button" data-tab="resultsTab">Legacy Results</button>
+    <button type="button" class="tab-button" data-tab="presentationTab">Customer Quote</button>
     <button type="button" class="tab-button" data-tab="savedTab">Saved Quotes</button>
     <button type="button" class="tab-button" data-tab="aboutTab">About & Backup</button>
   </div>
@@ -116,16 +118,60 @@
           <input id="v3Msrp" type="number" min="0" step=".01" />
         </div>
         <div class="field">
-          <label for="v3SellingPrice">Selling Price</label>
-          <input id="v3SellingPrice" type="number" min="0" step=".01" />
+          <label for="v3Discount">Dealer Discount</label>
+          <input id="v3Discount" type="number" min="0" step=".01" value="0" />
+        </div>
+        <div class="field">
+          <label>Adjusted Selling Price</label>
+          <div id="v3SellingPriceDisplay" class="readout">$0.00</div>
         </div>
         <div class="field required-field">
           <label for="v3TaxRate">Sales Tax % <span>*</span></label>
           <input id="v3TaxRate" type="number" min="0" step=".01" placeholder="Enter 0 if tax exempt" />
         </div>
         <div class="field">
-          <label for="v3Fees">Taxable Fees</label>
-          <input id="v3Fees" type="number" min="0" step=".01" value="725" />
+          <label for="v3DocFee">Document Fee</label>
+          <div class="fee-control">
+            <input id="v3DocFee" type="number" min="0" step=".01" />
+            <select id="v3DocFeeTreatment">
+              <option value="upfront">Pay Up Front</option>
+              <option value="capitalize">Include in Payment</option>
+              <option value="none">Not Applicable</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="v3RegFee">Registration / Title</label>
+          <div class="fee-control">
+            <input id="v3RegFee" type="number" min="0" step=".01" />
+            <select id="v3RegFeeTreatment">
+              <option value="upfront">Pay Up Front</option>
+              <option value="capitalize">Include in Payment</option>
+              <option value="none">Not Applicable</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="v3AcqFee">Lease Acquisition Fee</label>
+          <div class="fee-control">
+            <input id="v3AcqFee" type="number" min="0" step=".01" />
+            <select id="v3AcqFeeTreatment">
+              <option value="capitalize">Include in Payment</option>
+              <option value="upfront">Pay Up Front</option>
+              <option value="none">Not Applicable</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="v3MiscFee">Miscellaneous Fee</label>
+          <div class="fee-control">
+            <input id="v3MiscFee" type="number" min="0" step=".01" />
+            <select id="v3MiscFeeTreatment">
+              <option value="capitalize">Include in Payment</option>
+              <option value="upfront">Pay Up Front</option>
+              <option value="none">Not Applicable</option>
+            </select>
+          </div>
         </div>
         <div class="field">
           <label for="v3VehicleCost">Vehicle Cost</label>
@@ -226,7 +272,7 @@
           <div class="field">
             <label for="rollerVariable">Adjust</label>
             <select id="rollerVariable">
-              <option value="sellingPrice">Selling Price</option>
+              <option value="discount">Dealer Discount</option>
               <option value="cashDown">Cash Up Front</option>
               <option value="tradeAllowance">Trade Allowance</option>
             </select>
@@ -314,6 +360,14 @@
           <div class="field">
             <label for="scenarioIncentives">Scenario Incentives</label>
             <input id="scenarioIncentives" type="number" min="0" step=".01" value="0" />
+          </div>
+          <div class="field">
+            <label>Customer Quote Display</label>
+            <div class="checkbox-stack">
+              <label><input id="scenarioShowRate" type="checkbox" /> Show APR / Money Factor</label>
+              <label><input id="scenarioShowResidual" type="checkbox" /> Show Residual / Balloon</label>
+              <label><input id="scenarioShowFeeDetails" type="checkbox" checked /> Itemize Due Up Front</label>
+            </div>
           </div>
         </div>
         <div id="scenarioValidationMessage" class="validation-message"></div>
@@ -976,7 +1030,7 @@
   </section>
 
   <section id="worksheetTab" class="tab-panel">
-    <div class="section-heading-row"><div><div class="eyebrow">Internal Document</div><h2>Manager / Business Office Worksheet</h2></div><button type="button" class="btn-secondary" disabled>Print Worksheet Preview</button></div>
+    <div class="section-heading-row"><div><div class="eyebrow">Internal Document</div><h2>Manager / Business Office Worksheet</h2></div><button type="button" class="btn-primary" onclick="printV3ManagerWorksheet()">Print Manager Worksheet</button></div>
     <div class="worksheet-preview">
       <div class="worksheet-preview-header">BMW QUOTE WORKSHEET</div>
       <div class="worksheet-client-line">
@@ -995,6 +1049,117 @@
       </div>
     </div>
     <div class="empty-state">This preview defines the worksheet structure. Calculations will be connected in a later Alpha.</div>
+  </section>
+
+
+  <section id="presentationTab" class="tab-panel">
+    <div class="section-heading-row">
+      <div>
+        <div class="eyebrow">Customer Presentation</div>
+        <h2>Selected Quote Scenarios</h2>
+      </div>
+      <div class="results-actions">
+        <button type="button" class="btn-secondary" onclick="renderCustomerPresentation()">Refresh Quote</button>
+        <button type="button" class="btn-primary" onclick="printV3CustomerQuote()">Print Customer Quote</button>
+      </div>
+    </div>
+
+    <div id="v3CustomerHeader" class="customer-quote-header"></div>
+    <div id="v3CustomerQuoteCards" class="customer-quote-grid">
+      <div class="empty-state">Select up to three ready scenarios in Deal Builder.</div>
+    </div>
+    <div id="v3SignatureArea" class="signature-area hidden">
+      <p>I acknowledge that these figures are estimates and remain subject to final approval, vehicle availability, appraisal, and current manufacturer programs.</p>
+      <div class="signature-grid">
+        <div>Client Signature: ______________________________</div>
+        <div>Co-Buyer Signature: ___________________________</div>
+        <div>Date: ________________________________________</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="dealerSettingsTab" class="tab-panel">
+    <div class="section-heading-row">
+      <div>
+        <div class="eyebrow">Dealer Defaults</div>
+        <h2>Dealer Settings</h2>
+      </div>
+      <button type="button" class="btn-primary" onclick="saveDealerSettings()">Save Dealer Settings</button>
+    </div>
+
+    <div class="dealer-settings-grid">
+      <div class="field">
+        <label for="dealerName">Dealership Name</label>
+        <input id="dealerName" type="text" value="BMW of Peabody" />
+      </div>
+      <div class="field">
+        <label for="dealerDefaultTax">Default Sales Tax %</label>
+        <input id="dealerDefaultTax" type="number" min="0" step=".01" value="6.25" />
+      </div>
+      <div class="field">
+        <label for="dealerReserveShare">Reserve Share %</label>
+        <input id="dealerReserveShare" type="number" min="0" max="100" step=".01" value="70" />
+      </div>
+      <div class="field">
+        <label for="dealerDefaultSalesperson">Default Salesperson</label>
+        <input id="dealerDefaultSalesperson" type="text" value="Brian Macey" />
+      </div>
+
+      <div class="field">
+        <label for="dealerDocFee">Default Document Fee</label>
+        <input id="dealerDocFee" type="number" min="0" step=".01" value="595" />
+      </div>
+      <div class="field">
+        <label for="dealerDocTreatment">Document Fee Treatment</label>
+        <select id="dealerDocTreatment">
+          <option value="upfront">Pay Up Front</option>
+          <option value="capitalize">Include in Payment</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="dealerRegFee">Default Registration / Title</label>
+        <input id="dealerRegFee" type="number" min="0" step=".01" value="130" />
+      </div>
+      <div class="field">
+        <label for="dealerRegTreatment">Registration Treatment</label>
+        <select id="dealerRegTreatment">
+          <option value="upfront">Pay Up Front</option>
+          <option value="capitalize">Include in Payment</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="dealerAcqFee">Default Acquisition Fee</label>
+        <input id="dealerAcqFee" type="number" min="0" step=".01" value="925" />
+      </div>
+      <div class="field">
+        <label for="dealerAcqTreatment">Acquisition Treatment</label>
+        <select id="dealerAcqTreatment">
+          <option value="capitalize">Include in Payment</option>
+          <option value="upfront">Pay Up Front</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="dealerMiscFee">Default Miscellaneous Fee</label>
+        <input id="dealerMiscFee" type="number" min="0" step=".01" value="0" />
+      </div>
+      <div class="field">
+        <label for="dealerMiscTreatment">Miscellaneous Treatment</label>
+        <select id="dealerMiscTreatment">
+          <option value="capitalize">Include in Payment</option>
+          <option value="upfront">Pay Up Front</option>
+        </select>
+      </div>
+
+      <div class="field dealer-wide-field">
+        <label for="dealerSalespeople">Salespeople — one name per line</label>
+        <textarea id="dealerSalespeople">Brian Macey</textarea>
+      </div>
+      <div class="field dealer-wide-field">
+        <label for="dealerDisclaimer">Customer Quote Disclaimer</label>
+        <textarea id="dealerDisclaimer">Figures are estimates and remain subject to credit approval, vehicle availability, final appraisal, and current manufacturer programs.</textarea>
+      </div>
+    </div>
+    <div id="dealerSettingsMessage" class="database-message"></div>
   </section>
 
   <section id="resultsTab" class="tab-panel">
@@ -1237,6 +1402,16 @@
     </div>
     <h2>Changelog</h2>
     <div class="changelog-card">
+      <h3>3.0.0 Alpha 3</h3>
+      <ul>
+        <li>Added Dealer Settings and default fees.</li>
+        <li>Changed Deal Builder pricing from Selling Price to Dealer Discount.</li>
+        <li>Added calculated adjusted selling price.</li>
+        <li>Added fee treatment: upfront, capitalized, or not applicable.</li>
+        <li>Added real customer presentation from selected scenarios.</li>
+        <li>Added optional rate, residual, balloon, and due-upfront detail display.</li>
+        <li>Added printable customer quote and manager worksheet.</li>
+      </ul>
       <h3>3.0.0 Alpha 2</h3>
       <ul>
         <li>Added working Lease, Finance, Cash, and BMW Select scenario calculations.</li>

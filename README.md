@@ -49,3 +49,25 @@ Build date: 2026-07-24
 ### Important
 
 This remains a development Alpha. Continue using Version 2.4.1 for live deals until the scenario engine, database schema, printing, and backup/restore process are fully tested.
+
+
+## 3.0.0 Alpha 3 — Dealer Defaults & Quote Outputs
+
+Build date: 2026-07-24
+
+### Added
+
+- Dealer Settings with default tax, fees, fee treatment, reserve share, salesperson list, and disclaimer
+- Discount entry instead of selling price
+- Calculated adjusted selling price
+- Payment Roller solves for dealer discount
+- Fee treatment: upfront, capitalized, or not applicable
+- Lease due-upfront includes first payment, upfront fees, cash down, and tax on cash reduction
+- Trade equity is not taxed
+- Optional APR, money factor, residual, balloon, and fee-detail display
+- Real customer quote page from the selected scenarios
+- Printable customer quote
+- Printable manager worksheet
+- No total interest or total-of-payments display on the customer quote
+
+This remains a development Alpha. Continue comparing calculations against Version 2.4.1 before using it for live customer deals.
