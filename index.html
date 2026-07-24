@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BMW Quote Pro 3.0 Alpha 4</title>
+  <title>BMW Quote Pro 3.0 Alpha 5</title>
   <link rel="stylesheet" href="css/styles.css" />
   <link rel="stylesheet" href="css/cards.css" />
   <link rel="stylesheet" href="css/print.css" />
@@ -20,12 +20,12 @@
 <main class="page">
   <div class="app-header">
     <div>
-      <h1>BMW Quote Pro 3.0 Alpha 4</h1>
+      <h1>BMW Quote Pro 3.0 Alpha 5</h1>
       <div class="app-subtitle">Portfolio desking, flexible scenarios, program management, and manager-ready worksheets.</div>
     </div>
   </div>
   <div class="alpha-banner">
-    <strong>Version 3.0 Alpha 4 Development</strong>
+    <strong>Version 3.0 Alpha 5 Development</strong>
     <span>Continue using BMW Quote Pro 2.4.1 for live customer work.</span>
   </div>
 
@@ -37,7 +37,6 @@
     <button type="button" class="tab-button" data-tab="programsTab">Program Center</button>
     <button type="button" class="tab-button" data-tab="worksheetTab">Manager Worksheet</button>
     <button type="button" class="tab-button" data-tab="dealerSettingsTab">Dealer Settings</button>
-    <button type="button" class="tab-button" data-tab="resultsTab">Legacy Results</button>
     <button type="button" class="tab-button" data-tab="presentationTab">Customer Quote</button>
     <button type="button" class="tab-button" data-tab="savedTab">Saved Quotes</button>
     <button type="button" class="tab-button" data-tab="aboutTab">About & Backup</button>
@@ -51,7 +50,6 @@
           <h2>Build the deal once, then create flexible scenarios</h2>
         </div>
         <div class="scenario-toolbar">
-          <button type="button" class="btn-secondary" onclick="toggleLegacyCalculator()">Show Legacy Calculator</button>
           <select id="quickScenarioType" aria-label="Scenario template">
             <option value="lease">Lease</option>
             <option value="onepay">One-Pay Lease</option>
@@ -440,466 +438,7 @@
         </div>
       </form>
     </dialog>
-  <div id="legacyCalculator" class="input-section legacy-calculator hidden">
-    <h2>Quote Information</h2>
-    <div class="grid">
-      <div class="field col-3">
-        <label for="quoteNumber">Quote Number</label>
-        <input id="quoteNumber" type="text" placeholder="Auto or manual" />
-      </div>
-      <div class="field col-3">
-        <label for="quoteDate">Quote Date</label>
-        <input id="quoteDate" type="date" />
-      </div>
-      <div class="field col-3">
-        <label for="salesperson">Salesperson</label>
-        <input id="salesperson" type="text" />
-      </div>
-      <div class="field col-3">
-        <label for="quoteStatus">Status</label>
-        <select id="quoteStatus">
-          <option value="Quoted">Quoted</option>
-          <option value="Pending">Pending</option>
-          <option value="Sold">Sold</option>
-          <option value="Lost">Lost</option>
-        </select>
-      </div>
-    </div>
-
-    <h2>Customer / Vehicle</h2>
-    <div class="grid">
-      <div class="field col-3">
-        <label for="customerName">Customer Name</label>
-        <input id="customerName" type="text" />
-      </div>
-      <div class="field col-3">
-        <label for="customerEmail">Customer Email</label>
-        <input id="customerEmail" type="email" autocomplete="email" />
-      </div>
-      <div class="field col-3">
-        <label for="customerPhone">Customer Phone</label>
-        <input id="customerPhone" type="tel" autocomplete="tel" />
-      </div>
-      <div class="field col-3">
-        <label for="customerIdDisplay">Client Record</label>
-        <input id="customerIdDisplay" type="text" readonly placeholder="Created when quote is saved" />
-      </div>
-      <div class="field col-6">
-        <label for="vehicle">Vehicle</label>
-        <input id="vehicle" type="text" />
-      </div>
-      <div class="field col-6">
-        <label for="vin">VIN</label>
-        <input id="vin" type="text" />
-      </div>
-    </div>
-
-    <h2>Trade Information</h2>
-    <div class="grid">
-      <div class="field col-6">
-        <label for="tradeIn1">Trade In 1</label>
-        <input id="tradeIn1" type="text" />
-      </div>
-      <div class="field col-3">
-        <label for="tradeValue1">Trade Value 1</label>
-        <input id="tradeValue1" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="payoff1">Payoff 1</label>
-        <input id="payoff1" type="number" min="0" step=".01" />
-      </div>
-
-      <div class="field col-6">
-        <label for="tradeIn2">Trade In 2</label>
-        <input id="tradeIn2" type="text" />
-      </div>
-      <div class="field col-3">
-        <label for="tradeValue2">Trade Value 2</label>
-        <input id="tradeValue2" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="payoff2">Payoff 2</label>
-        <input id="payoff2" type="number" min="0" step=".01" />
-      </div>
-    </div>
-
-    <h2>Vehicle Pricing</h2>
-    <div class="grid">
-      <div class="field col-3">
-        <label for="msrp">MSRP</label>
-        <input id="msrp" type="number" min="0" step=".01" />
-      </div>
-
-      <div class="field col-3">
-        <label for="discount">Discount</label>
-        <input id="discount" type="number" min="0" step=".01" />
-      </div>
-
-      <div class="field col-3">
-        <label for="salesTaxRate">Sales Tax Rate %</label>
-        <input id="salesTaxRate" type="number" min="0" step=".01" />
-      </div>
-
-      <div class="field col-3">
-        <label>Combine Discount & Incentives?</label>
-        <div class="radio-row">
-          <label><input type="radio" name="combine" value="yes" /> Yes</label>
-          <label><input type="radio" name="combine" value="no" checked /> No</label>
-        </div>
-      </div>
-    </div>
-
-
-    <h2>BMW Program Presets</h2>
-    <div class="preset-panel">
-      <div class="grid">
-        <div class="field col-4">
-          <label for="programPreset">Program Preset</label>
-          <select id="programPreset">
-            <option value="">Select a preset</option>
-            <option value="standard">Standard BMW Defaults</option>
-          </select>
-        </div>
-
-        <div class="field col-4">
-          <label for="presetName">Save Current Values As</label>
-          <input id="presetName" type="text" placeholder="Example: July 2026 X5 39/10k" />
-        </div>
-
-        <div class="field col-4">
-          <label>Preset Actions</label>
-          <div class="preset-actions">
-            <button type="button" class="btn-primary" onclick="applyProgramPreset()">Apply</button>
-            <button type="button" class="btn-secondary" onclick="saveCustomPreset()">Save Preset</button>
-            <button type="button" class="btn-secondary" onclick="deleteCustomPreset()">Delete</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="small-help">
-        Presets save commonly reused rates, residuals, terms, fees, taxes, and incentives in this browser.
-      </div>
-    </div>
-
-    <h2>Choose Deal Types</h2>
-    <div class="grid deal-selector">
-      <div class="field col-4">
-        <label>Lease</label>
-        <div class="checkbox-row">
-          <label><input id="displayLease" type="checkbox" checked /> Calculate and display Lease</label>
-        </div>
-      </div>
-
-      <div class="field col-4">
-        <label>Finance</label>
-        <div class="checkbox-row">
-          <label><input id="displayRetail" type="checkbox" checked /> Calculate and display Finance</label>
-        </div>
-      </div>
-
-      <div class="field col-4">
-        <label>BMW Select</label>
-        <div class="checkbox-row">
-          <label><input id="displaySelect" type="checkbox" checked /> Calculate and display BMW Select</label>
-        </div>
-      </div>
-    </div>
-
-    <div id="leaseInputSection" class="deal-input-section">
-    <h2>Lease Terms</h2>
-    <div class="grid">
-      <div class="field col-4">
-        <label>Lease Type</label>
-        <div class="radio-row lease-type-control">
-          <label><input type="radio" name="leaseType" value="standard" checked /> Standard Lease</label>
-          <label><input type="radio" name="leaseType" value="onepay" /> One-Pay Lease</label>
-        </div>
-      </div>
-
-      <div class="field col-4">
-        <label for="onePayAmount">Calculated One-Pay Amount</label>
-        <input id="onePayAmount" type="text" readonly />
-      </div>
-
-      <div class="field col-4">
-        <label for="onePayEquivalentMonthly">Equivalent Monthly</label>
-        <input id="onePayEquivalentMonthly" type="text" readonly />
-      </div>
-      <div class="field col-3">
-        <label for="leaseIncentiveName1">Lease Incentive 1 Name</label>
-        <input id="leaseIncentiveName1" type="text" placeholder="Example: Loyalty Credit" />
-      </div>
-      <div class="field col-2">
-        <label for="leaseIncentive1">Amount</label>
-        <input id="leaseIncentive1" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="leaseIncentiveName2">Lease Incentive 2 Name</label>
-        <input id="leaseIncentiveName2" type="text" placeholder="Example: Program Credit" />
-      </div>
-      <div class="field col-2">
-        <label for="leaseIncentive2">Amount</label>
-        <input id="leaseIncentive2" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="leaseIncentiveName3">Lease Incentive 3 Name</label>
-        <input id="leaseIncentiveName3" type="text" placeholder="Example: Military Credit" />
-      </div>
-      <div class="field col-2">
-        <label for="leaseIncentive3">Amount</label>
-        <input id="leaseIncentive3" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="leaseSellingPrice">Lease Selling Price</label>
-        <input id="leaseSellingPrice" type="text" readonly />
-      </div>
-      <div class="field col-3">
-        <label for="leaseMonths">Lease Months</label>
-        <input id="leaseMonths" type="number" min="1" step="1" value="36" />
-      </div>
-      <div class="field col-3">
-        <label for="baseResidual">Base Residual %</label>
-        <input id="baseResidual" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="includedMiles">Included Miles</label>
-        <select id="includedMiles">
-          <option value="0">Select Miles</option>
-          <option value="4">7,500 miles</option>
-          <option value="3">10,000 miles</option>
-          <option value="2">12,000 miles</option>
-        </select>
-      </div>
-      <div class="field col-3">
-        <label for="moneyFactor">Money Factor</label>
-        <input id="moneyFactor" type="number" min="0" step=".00001" />
-      </div>
-      <div class="field col-3">
-        <label for="inceptionMileage">Inception Mileage</label>
-        <input id="inceptionMileage" type="number" min="0" step="1" />
-      </div>
-      <div class="field col-3">
-        <label for="inceptionMileageCharge">Inception Mileage Charge</label>
-        <input id="inceptionMileageCharge" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="customMileage">Custom Annual Mileage</label>
-        <input id="customMileage" type="number" min="0" step="1" />
-      </div>
-      <div class="field col-3">
-        <label for="customMileageCharge">Custom Mileage Charge</label>
-        <input id="customMileageCharge" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="residualValue">Residual Value</label>
-        <input id="residualValue" type="text" readonly />
-      </div>
-      <div class="field col-3">
-        <label for="leasePayment">Lease Payment</label>
-        <input id="leasePayment" type="text" readonly />
-      </div>
-    </div>
-    </div>
-
-    <div id="retailInputSection" class="deal-input-section">
-    <h2>Finance Terms</h2>
-    <div class="grid">
-      <div class="field col-4">
-        <label>Purchase Type</label>
-        <div class="checkbox-row cash-purchase-control">
-          <label><input id="cashPurchase" type="checkbox" /> Cash Purchase</label>
-        </div>
-      </div>
-      <div class="field col-4">
-        <label for="cashPurchaseTotal">Total Cash Due</label>
-        <input id="cashPurchaseTotal" type="text" readonly />
-      </div>
-      <div class="field col-4">
-        <label>Finance Display</label>
-        <div class="small-help">When Cash Purchase is selected, APR, term, and monthly payment are replaced by Total Cash Due.</div>
-      </div>
-      <div class="field col-3">
-        <label for="retailIncentiveName1">Retail Incentive 1 Name</label>
-        <input id="retailIncentiveName1" type="text" placeholder="Example: Loyalty Credit" />
-      </div>
-      <div class="field col-2">
-        <label for="retailIncentive1">Amount</label>
-        <input id="retailIncentive1" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="retailIncentiveName2">Retail Incentive 2 Name</label>
-        <input id="retailIncentiveName2" type="text" placeholder="Example: Program Credit" />
-      </div>
-      <div class="field col-2">
-        <label for="retailIncentive2">Amount</label>
-        <input id="retailIncentive2" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="retailIncentiveName3">Retail Incentive 3 Name</label>
-        <input id="retailIncentiveName3" type="text" placeholder="Example: Military Credit" />
-      </div>
-      <div class="field col-2">
-        <label for="retailIncentive3">Amount</label>
-        <input id="retailIncentive3" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="retailSellingPrice">Retail Selling Price</label>
-        <input id="retailSellingPrice" type="text" readonly />
-      </div>
-      <div id="financeMonthsField" class="field col-3">
-        <label for="financeMonths">Finance Months</label>
-        <input id="financeMonths" type="number" min="1" step="1" value="60" />
-      </div>
-      <div id="financeAprField" class="field col-3">
-        <label for="aprRate">APR %</label>
-        <input id="aprRate" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="amountFinanced">Amount Financed</label>
-        <input id="amountFinanced" type="text" readonly />
-      </div>
-      <div class="field col-3">
-        <label for="financePayment">Retail Payment</label>
-        <input id="financePayment" type="text" readonly />
-      </div>
-    </div>
-    </div>
-
-    <div id="selectInputSection" class="deal-input-section">
-    <h2>BMW Select Terms</h2>
-    <div class="grid">
-      <div class="field col-3">
-        <label for="selectIncentiveName1">Select Incentive 1 Name</label>
-        <input id="selectIncentiveName1" type="text" placeholder="Example: Loyalty Credit" />
-      </div>
-      <div class="field col-2">
-        <label for="selectIncentive1">Amount</label>
-        <input id="selectIncentive1" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="selectIncentiveName2">Select Incentive 2 Name</label>
-        <input id="selectIncentiveName2" type="text" placeholder="Example: Program Credit" />
-      </div>
-      <div class="field col-2">
-        <label for="selectIncentive2">Amount</label>
-        <input id="selectIncentive2" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="selectIncentiveName3">Select Incentive 3 Name</label>
-        <input id="selectIncentiveName3" type="text" placeholder="Example: Military Credit" />
-      </div>
-      <div class="field col-2">
-        <label for="selectIncentive3">Amount</label>
-        <input id="selectIncentive3" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="selectSellingPrice">Select Selling Price</label>
-        <input id="selectSellingPrice" type="text" readonly />
-      </div>
-      <div class="field col-3">
-        <label for="selectMonths">Select Months</label>
-        <input id="selectMonths" type="number" min="1" step="1" value="60" />
-      </div>
-      <div class="field col-3">
-        <label for="selectAprRate">Select APR %</label>
-        <input id="selectAprRate" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="balloonPercent">Balloon % of MSRP</label>
-        <input id="balloonPercent" type="number" min="0" max="100" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="balloonValue">Balloon Amount</label>
-        <input id="balloonValue" type="text" readonly />
-      </div>
-      <div class="field col-3">
-        <label for="selectAmountFinanced">Amount Financed</label>
-        <input id="selectAmountFinanced" type="text" readonly />
-      </div>
-      <div class="field col-3">
-        <label for="selectPayment">Select Payment</label>
-        <input id="selectPayment" type="text" readonly />
-      </div>
-    </div>
-    </div>
-
-    <h2>Fees & Cash</h2>
-    <div class="grid">
-      <div class="field col-3">
-        <label for="acquisitionFee">Acquisition Fee</label>
-        <input id="acquisitionFee" type="number" value="925" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="regFees">Registration Fees</label>
-        <input id="regFees" type="number" value="135" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="docFee">Doc Fee</label>
-        <input id="docFee" type="number" value="595" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="miscFee">Misc Fee</label>
-        <input id="miscFee" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="afterSell1">After Sell 1</label>
-        <input id="afterSell1" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="afterSell2">After Sell 2</label>
-        <input id="afterSell2" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="cashDown">Cash Down</label>
-        <input id="cashDown" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label for="cashBack">Cash Back</label>
-        <input id="cashBack" type="number" min="0" step=".01" />
-      </div>
-      <div class="field col-3">
-        <label>Lease Fees Included?</label>
-        <div class="radio-row">
-          <label><input type="radio" name="feesIncluded" value="yes" checked /> Yes</label>
-          <label><input type="radio" name="feesIncluded" value="no" /> No</label>
-        </div>
-      </div>
-      <div class="field col-3">
-        <label for="leaseUpfrontTax">Lease Taxes Due Up Front</label>
-        <input id="leaseUpfrontTax" type="text" readonly />
-      </div>
-      <div class="field col-3">
-        <label for="tradeEquityDisplay">Positive Trade Equity</label>
-        <input id="tradeEquityDisplay" type="text" readonly />
-      </div>
-      <div class="field col-3">
-        <label for="negativeEquityDisplay">Negative Trade Equity</label>
-        <input id="negativeEquityDisplay" type="text" readonly />
-      </div>
-    </div>
-
-    <h2>Print Options</h2>
-    <div class="grid">
-      <div class="field col-4">
-        <label>Lease Details</label>
-        <div class="checkbox-row">
-          <label><input id="showLeaseDetails" type="checkbox" checked /> Print MF & residual value</label>
-        </div>
-      </div>
-      <div class="field col-4">
-        <label>Retail Details</label>
-        <div class="checkbox-row">
-          <label><input id="showRetailRate" type="checkbox" checked /> Print retail APR</label>
-        </div>
-      </div>
-      <div class="field col-4">
-        <label>Select Details</label>
-        <div class="checkbox-row">
-          <label><input id="showSelectDetails" type="checkbox" checked /> Print APR & balloon</label>
-        </div>
-      </div>
-    </div>
-  </div>
+  
 
     <div class="private-notes-section">
     <h2>Customer Notes</h2>
@@ -1315,126 +854,7 @@
     <div id="dealerSettingsMessage" class="database-message"></div>
   </section>
 
-  <section id="resultsTab" class="tab-panel">
-  <div id="breakdownResults" class="breakdown-results">
-    <div class="results-toolbar">
-      <h2>Quote Results</h2>
-      <div class="mobile-swipe-hint">Swipe the cards to compare payment options.</div>
-      <div class="results-actions">
-        <button type="button" class="btn-secondary" onclick="showTab('setupTab')">Back to Setup</button>
-        <button type="button" class="btn-secondary" onclick="saveQuoteToDatabase()">Save Quote</button>
-        <button type="button" class="btn-primary" onclick="printQuote()">Print Results</button>
-      
-        <button type="button" class="btn-primary" onclick="emailCurrentQuote()">
-          Email Quote
-        </button></div>
-    </div>
-    <div class="quote-client-strip">
-      <div>
-        <div id="quoteCustomer"></div>
-        <div id="quoteNumberDisplay"></div>
-      </div>
-      <div style="text-align:right;">
-        <div id="quoteVehicle"></div>
-        <div id="quoteVinDisplay"></div>
-      </div>
-    </div>
-
-    <div class="quote-comparison">
-      <div id="quoteLeaseCard" class="quote-option lease-card">
-        <div class="quote-option-title">LEASE</div>
-        <div class="quote-option-payment" id="quoteLeasePayment">$0.00</div>
-          <div id="quoteLeasePaymentLabel" class="payment-label">PER MONTH</div>
-          <div id="quoteOnePayDetail" class="one-pay-detail" hidden></div>
-        <div class="payment-caption">PER MONTH</div>
-        <div class="payment-difference" id="leasePaymentDifference"></div>
-        <div class="quote-option-body">
-          <div class="due-up-front-total"><span>Total Due Up Front</span><strong id="quoteLeaseDue"></strong></div>
-          <div><span>MSRP / Market Value</span><strong id="leaseBreakMSRP"></strong></div>
-          <div><span>Discounts</span><strong id="leaseBreakDiscount"></strong></div>
-          <div id="leaseBreakIncentiveRow"><span>Incentives</span><strong id="leaseBreakIncentives"></strong></div>
-          <div id="leaseNamedIncentives" class="named-incentives"></div>
-          <div><span>Adjusted Price</span><strong id="leaseBreakAdjusted"></strong></div>
-          <div><span>Trade Value</span><strong id="leaseBreakTrade"></strong></div>
-          <div><span>Subtotal</span><strong id="leaseBreakSubtotal"></strong></div>
-          <div><span>Vehicle Payoff</span><strong id="leaseBreakPayoff"></strong></div>
-          <div><span>Sales Tax</span><strong id="leaseBreakTax"></strong></div>
-          <div><span>Registration Fees</span><strong id="leaseBreakReg"></strong></div>
-          <div><span>Documentation Fees</span><strong id="leaseBreakDoc"></strong></div>
-          <div><span>Miscellaneous Fees</span><strong id="leaseBreakMisc"></strong></div>
-          <div><span>Cash Down</span><strong id="leaseBreakCash"></strong></div>
-          <div class="pricing-total"><span>Net Capitalized Cost</span><strong id="leaseBreakTotal"></strong></div>
-          <div><span>Term</span><strong id="quoteLeaseTerm"></strong></div>
-          <div><span>Included Miles</span><strong id="quoteLeaseMiles"></strong></div>
-          <div id="quoteLeaseResidualRow"><span>Residual Value</span><strong id="quoteLeaseResidual"></strong></div>
-          <div id="quoteLeaseMFRow"><span>Money Factor</span><strong id="quoteLeaseMF"></strong></div>
-          <div class="summary-highlight"><span>Total Lease Cost</span><strong id="quoteLeaseTotalCost"></strong></div>
-        </div>
-      </div>
-
-      <div id="quoteRetailCard" class="quote-option retail-card">
-        <div id="quoteRetailTitle" class="quote-option-title">RETAIL FINANCE</div>
-        <div class="quote-option-payment" id="quoteRetailPayment">$0.00</div>
-          <div id="quoteRetailPaymentLabel" class="payment-label">PER MONTH</div>
-        <div class="payment-caption">PER MONTH</div>
-        <div class="payment-difference" id="retailPaymentDifference"></div>
-        <div class="quote-option-body">
-          <div class="due-up-front-total"><span>Total Due Up Front</span><strong id="quoteRetailDueUpFront"></strong></div>
-          <div><span>MSRP / Market Value</span><strong id="retailBreakMSRP"></strong></div>
-          <div><span>Discounts</span><strong id="retailBreakDiscount"></strong></div>
-          <div id="retailBreakIncentiveRow"><span>Incentives</span><strong id="retailBreakIncentives"></strong></div>
-          <div id="retailNamedIncentives" class="named-incentives"></div>
-          <div><span>Adjusted Price</span><strong id="retailBreakAdjusted"></strong></div>
-          <div><span>Trade Value</span><strong id="retailBreakTrade"></strong></div>
-          <div><span>Subtotal</span><strong id="retailBreakSubtotal"></strong></div>
-          <div><span>Vehicle Payoff</span><strong id="retailBreakPayoff"></strong></div>
-          <div><span>Sales Tax</span><strong id="retailBreakTax"></strong></div>
-          <div><span>Registration Fees</span><strong id="retailBreakReg"></strong></div>
-          <div><span>Documentation Fees</span><strong id="retailBreakDoc"></strong></div>
-          <div><span>Miscellaneous Fees</span><strong id="retailBreakMisc"></strong></div>
-          <div><span>Cash Down</span><strong id="retailBreakCash"></strong></div>
-          <div class="pricing-total"><span>Amount Financed</span><strong id="retailBreakTotal"></strong></div>
-          <div><span>Term</span><strong id="quoteRetailTerm"></strong></div>
-          <div id="quoteRetailAprRow"><span>Interest Rate</span><strong id="quoteRetailApr"></strong></div>
-          <div class="summary-highlight"><span>Estimated Interest Paid</span><strong id="quoteRetailInterest"></strong></div>
-          <div class="summary-highlight"><span>Total of Payments</span><strong id="quoteRetailTotalPaid"></strong></div>
-        </div>
-      </div>
-
-      <div id="quoteSelectCard" class="quote-option select-card">
-        <div class="quote-option-title">SELECT FINANCING</div>
-        <div class="quote-option-payment" id="quoteSelectPayment">$0.00</div>
-        <div class="payment-caption">PER MONTH</div>
-        <div class="payment-difference" id="selectPaymentDifference"></div>
-        <div class="quote-option-body">
-          <div class="due-up-front-total"><span>Total Due Up Front</span><strong id="quoteSelectDueUpFront"></strong></div>
-          <div><span>MSRP / Market Value</span><strong id="selectBreakMSRP"></strong></div>
-          <div><span>Discounts</span><strong id="selectBreakDiscount"></strong></div>
-          <div id="selectBreakIncentiveRow"><span>Incentives</span><strong id="selectBreakIncentives"></strong></div>
-          <div id="selectNamedIncentives" class="named-incentives"></div>
-          <div><span>Adjusted Price</span><strong id="selectBreakAdjusted"></strong></div>
-          <div><span>Trade Value</span><strong id="selectBreakTrade"></strong></div>
-          <div><span>Subtotal</span><strong id="selectBreakSubtotal"></strong></div>
-          <div><span>Vehicle Payoff</span><strong id="selectBreakPayoff"></strong></div>
-          <div><span>Sales Tax</span><strong id="selectBreakTax"></strong></div>
-          <div><span>Registration Fees</span><strong id="selectBreakReg"></strong></div>
-          <div><span>Documentation Fees</span><strong id="selectBreakDoc"></strong></div>
-          <div><span>Miscellaneous Fees</span><strong id="selectBreakMisc"></strong></div>
-          <div><span>Cash Down</span><strong id="selectBreakCash"></strong></div>
-          <div class="pricing-total"><span>Amount Financed</span><strong id="selectBreakTotal"></strong></div>
-          <div><span>Term</span><strong id="quoteSelectTerm"></strong></div>
-          <div id="quoteSelectAprRow"><span>Interest Rate</span><strong id="quoteSelectApr"></strong></div>
-          <div id="quoteBalloonRow"><span>Final Balloon Payment</span><strong id="quoteBalloon"></strong></div>
-          <div class="summary-highlight"><span>Total of Payments</span><strong id="quoteSelectTotalPaid"></strong></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="quote-footer">
-      Lease due at signing includes the first monthly payment. Select financing includes a final balloon payment. Every effort is made to ensure the accuracy of this quote; pricing and calculations remain subject to final lender and contract approval.
-    </div>
-  </div>
-  </section>
+  
 
 
   <section id="savedTab" class="tab-panel">
@@ -1555,6 +975,13 @@
     </div>
     <h2>Changelog</h2>
     <div class="changelog-card">
+      <h3>3.0.0 Alpha 5</h3>
+      <ul>
+        <li>Fixed the startup error that left the scenario workspace empty.</li>
+        <li>Restored default scenarios and Add Scenario controls.</li>
+        <li>Restored Cash Purchase and One-Pay Lease templates.</li>
+        <li>Removed the legacy calculator and legacy results completely.</li>
+      </ul>
       <h3>3.0.0 Alpha 4</h3>
       <ul>
         <li>Restored automatic lease residual adjustments by included annual mileage.</li>

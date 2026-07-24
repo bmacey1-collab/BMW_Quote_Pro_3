@@ -101,3 +101,12 @@ Build date: 2026-07-24
 ### Data safety
 
 Alpha 4 program records are stored in browser local storage for development. They do not delete prior months automatically. Supabase program tables and tested backup/restore will be added before production use.
+
+
+## 3.0.0 Alpha 5 — Clean Scenario Build
+
+- Fixed three function-hoisting recursion errors introduced in Alpha 4.
+- Default Lease, Finance, and BMW Select scenarios load again.
+- Add Scenario, Cash Purchase, and One-Pay Lease work again.
+- Removed the complete Version 2.4 legacy calculator and legacy results.
+- Version 3 now uses only the new Deal Builder, Customer Quote, Program Center, and Manager Worksheet.

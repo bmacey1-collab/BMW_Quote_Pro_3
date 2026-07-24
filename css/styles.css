@@ -1628,7 +1628,6 @@ textarea {
   font-weight: 700;
 }
 
-.legacy-calculator.hidden,
 .hidden {
   display: none !important;
 }

@@ -1009,17 +1009,7 @@ function updateV3DealReadouts() {
   renderV3Scenarios();
 }
 
-function toggleLegacyCalculator() {
-  const legacy = v3Element('legacyCalculator');
-  legacy.classList.toggle('hidden');
 
-  if (!legacy.classList.contains('hidden')) {
-    legacy.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start'
-    });
-  }
-}
 
 async function decodeV3Vin(target) {
   const vinId = target === 'trade' ? 'v3TradeVin' : 'v3Vin';
@@ -2142,7 +2132,7 @@ function calculateV3Scenario(scenario, overrides) {
 
 /* Override scenario defaults for new fields. */
 const alpha3DefaultScenario = defaultScenario;
-function defaultScenario(type) {
+defaultScenario = function(type) {
   const scenario = alpha3DefaultScenario(type);
   scenario.onePay = false;
   scenario.onePayMfReduction = .00080;
@@ -2152,11 +2142,11 @@ function defaultScenario(type) {
   scenario.customMileageCharge = .20;
   scenario.programId = '';
   return scenario;
-}
+};
 
 /* Override editor fill/save for Alpha 4 fields. */
 const alpha3FillScenarioEditor = fillScenarioEditor;
-function fillScenarioEditor(scenario) {
+fillScenarioEditor = function(scenario) {
   alpha3FillScenarioEditor(scenario);
   v3Element('scenarioOnePay').checked = Boolean(scenario.onePay);
   let reduction = v3Element('scenarioOnePayMfReduction');
@@ -2189,7 +2179,7 @@ function fillScenarioEditor(scenario) {
   refreshScenarioProgramOptions();
   v3Element('scenarioProgram').value = scenario.programId || '';
   updateScenarioResidualPreview();
-}
+};
 
 function saveScenarioFromEditor() {
   const idValue = v3Raw('scenarioEditId');
@@ -2272,7 +2262,7 @@ function scenarioSummary(scenario) {
 
 /* Override customer presentation to show incentive and residual detail. */
 const alpha3RenderCustomerPresentation = renderCustomerPresentation;
-function renderCustomerPresentation() {
+renderCustomerPresentation = function() {
   alpha3RenderCustomerPresentation();
 
   document.querySelectorAll('.customer-scenario-card').forEach(function(card, index) {
@@ -2325,7 +2315,7 @@ function renderCustomerPresentation() {
       );
     }
   });
-}
+};
 
 /* Enhance editor live previews. */
 document.addEventListener('input', function(event) {

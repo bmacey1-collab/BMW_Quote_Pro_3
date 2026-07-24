@@ -1,6 +1,6 @@
 const APP_CONFIG = Object.freeze({
   appName: "BMW Quote Pro",
-  version: "3.0.0-alpha.4",
+  version: "3.0.0-alpha.5",
   buildDate: "2026-07-24",
   siteUrl: "https://yourbmwguy.com",
   supabaseUrlStorageKey: "vehicleQuoteSupabaseUrl",
