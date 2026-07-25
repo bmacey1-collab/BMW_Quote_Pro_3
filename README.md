@@ -1,4 +1,4 @@
-# BMW Quote Pro 3.0 Alpha 7
+# BMW Quote Pro 3.0 Alpha 8
 
 Build date: 2026-07-24
 
@@ -36,3 +36,16 @@ Continue using Version 2.4.1 for live customer work until calculation parity and
 - Manager Worksheet includes total incentives and scenario-specific applied incentive totals.
 - Added an option to combine dealer discount and incentives on the customer quote.
 - The combine option changes presentation only; calculations remain unchanged.
+
+
+## Alpha 8
+
+- Added Base/Buy Money Factor and Used/Customer Money Factor.
+- Added Buy APR and Used/Customer APR for Finance and BMW Select.
+- Manager Worksheet shows money-factor and APR markup.
+- Manager Worksheet includes a complete due-upfront breakdown for each scenario.
+- Added customer email, phone, persistent client IDs, and quote counts.
+- Saved deals are grouped by client, allowing multiple vehicles and quotes under one customer.
+- Added automatic local draft saving after meaningful changes.
+- Drafts restore automatically when the app is reopened.
+- Manual Save Deal remains the permanent save and Supabase synchronization action.

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0f2f57">
-  <title>BMW Quote Pro 3.0 Alpha 7</title>
+  <title>BMW Quote Pro 3.0 Alpha 8</title>
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/print.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13,10 +13,10 @@
   <div class="app-shell">
     <header class="app-header">
       <div>
-        <h1>BMW Quote Pro 3.0 Alpha 7</h1>
+        <h1>BMW Quote Pro 3.0 Alpha 8</h1>
         <p>Clean desking architecture — no Version 2 calculator code.</p>
       </div>
-      <div class="build-chip">Alpha 7 · Development</div>
+      <div class="build-chip">Alpha 8 · Development</div>
     </header>
 
     <nav class="main-nav" aria-label="Primary navigation">
@@ -60,9 +60,12 @@
       <section id="page-deal" class="page">
         <div class="section-heading">
           <div><div class="eyebrow">Deal Builder</div><h2>Build the deal once</h2></div>
-          <div class="button-row">
-            <button class="secondary" id="clearDealButton">Clear Deal</button>
-            <button class="primary" id="saveDealButton">Save Deal</button>
+          <div class="deal-save-actions">
+            <div id="autosaveStatus" class="autosave-status">Draft not yet saved</div>
+            <div class="button-row">
+              <button class="secondary" id="clearDealButton">Clear Deal</button>
+              <button class="primary" id="saveDealButton">Save Deal</button>
+            </div>
           </div>
         </div>
 
@@ -75,6 +78,10 @@
             <label>Co-Buyer Last<input id="coLastName"></label>
             <label>Salesperson<select id="salesperson"></select></label>
             <label>Current Payment<input id="currentPayment" type="number" min="0" step=".01"></label>
+            <label>Customer Email<input id="customerEmail" type="email"></label>
+            <label>Customer Phone<input id="customerPhone" type="tel"></label>
+            <label>Client Record<div id="clientRecordDisplay" class="readout">New client</div></label>
+            <label>Prior Quotes<div id="priorQuoteCountDisplay" class="readout">0</div></label>
 
             <label>Stock Number<input id="stockNumber"></label>
             <label class="span2">VIN<div class="inline"><input id="vin" maxlength="17"><button class="secondary small" id="decodeVin">Decode</button></div></label>
@@ -275,13 +282,15 @@
         <label class="term-field">Term<input id="scenarioTerm" type="number"></label>
         <label class="lease-field">Annual Miles<select id="scenarioMiles"><option value="">Select</option><option value="7500">7,500</option><option value="10000">10,000</option><option value="12000">12,000</option><option value="15000">15,000</option></select></label>
         <label class="lease-field required">Base Residual %<input id="scenarioResidual" type="number" step=".01"></label>
-        <label class="lease-field required">Money Factor<input id="scenarioMf" type="number" step=".00001"></label>
+        <label class="lease-field required">Base / Buy Money Factor<input id="scenarioBaseMf" type="number" step=".00001"></label>
+        <label class="lease-field required">Used / Customer Money Factor<input id="scenarioMf" type="number" step=".00001"></label>
         <label class="lease-field">One-Pay MF Reduction<input id="scenarioOnePayReduction" type="number" step=".00001" value=".00080"></label>
         <label class="lease-field">In-Service Mileage<input id="scenarioInceptionMileage" type="number" value="0"></label>
         <label class="lease-field">Deduction Per Mile<input id="scenarioInceptionCharge" type="number" step=".01" value=".20"></label>
         <label class="lease-field">Custom Miles<input id="scenarioCustomMiles" type="number" value="0"></label>
         <label class="lease-field">Custom Deduction Per Mile<input id="scenarioCustomCharge" type="number" step=".01" value=".20"></label>
-        <label class="rate-field required">APR %<input id="scenarioApr" type="number" step=".01"></label>
+        <label class="rate-field required">Buy APR %<input id="scenarioBuyApr" type="number" step=".01"></label>
+        <label class="rate-field required">Used / Customer APR %<input id="scenarioApr" type="number" step=".01"></label>
         <label class="select-field required">Balloon %<input id="scenarioBalloon" type="number" step=".01"></label>
         <label>Price Adjustment<input id="scenarioPriceAdjustment" type="number" step=".01" value="0"></label>
         <label>Cash Adjustment<input id="scenarioCashAdjustment" type="number" step=".01" value="0"></label>
