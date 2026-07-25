@@ -1,4 +1,4 @@
-# BMW Quote Pro 3.0 Alpha 8
+# BMW Quote Pro 3.0 Alpha 9
 
 Build date: 2026-07-24
 
@@ -49,3 +49,17 @@ Continue using Version 2.4.1 for live customer work until calculation parity and
 - Added automatic local draft saving after meaningful changes.
 - Drafts restore automatically when the app is reopened.
 - Manual Save Deal remains the permanent save and Supabase synchronization action.
+
+
+## Alpha 9 — Accepted Deal & Program Workflow
+
+- Scenario cards can be reordered by drag-and-drop or Move Left/Move Right buttons.
+- One scenario can be marked Accepted Deal.
+- The Manager Worksheet prints only the accepted, complete scenario.
+- Replaced free-form Deal Builder incentives with a Program Incentive selector.
+- Added Quick Missing Program entry from the current deal.
+- Program Center records now contain incentives, effective dates, restrictions, model codes, and source status.
+- Added browser-local BMW program PDF import using PDF.js.
+- PDF import detects program rows, presents a review table, and saves only approved rows.
+- Imported programs default to Needs Review.
+- PDF files are processed in the browser; the document is not uploaded to an outside extraction service.

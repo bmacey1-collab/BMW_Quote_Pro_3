@@ -4,19 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0f2f57">
-  <title>BMW Quote Pro 3.0 Alpha 8</title>
+  <title>BMW Quote Pro 3.0 Alpha 9</title>
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/print.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs" type="module"></script>
 </head>
 <body>
   <div class="app-shell">
     <header class="app-header">
       <div>
-        <h1>BMW Quote Pro 3.0 Alpha 8</h1>
+        <h1>BMW Quote Pro 3.0 Alpha 9</h1>
         <p>Clean desking architecture — no Version 2 calculator code.</p>
       </div>
-      <div class="build-chip">Alpha 8 · Development</div>
+      <div class="build-chip">Alpha 9 · Development</div>
     </header>
 
     <nav class="main-nav" aria-label="Primary navigation">
@@ -126,10 +127,14 @@
 
         <div class="panel">
           <div class="section-heading compact">
-            <div><div class="eyebrow">Incentives</div><h3>Enter each incentive once</h3></div>
-            <button class="primary" id="addIncentiveButton">+ Add Incentive</button>
+            <div><div class="eyebrow">Selected Incentives</div><h3>Programs applied to this deal</h3></div>
+            <div class="button-row">
+              <button class="secondary" id="selectIncentivesButton">Select Incentives</button>
+              <button class="primary" id="quickProgramButton">+ Add Missing Program</button>
+            </div>
           </div>
-          <div id="incentiveRows" class="incentive-list"></div>
+          <p class="section-help">Use Program Center incentives for normal quoting. Each scenario still has an Additional Incentive field for a quick one-off adjustment.</p>
+          <div id="incentiveRows" class="selected-incentive-list"></div>
           <div class="total-line"><span>Total Incentives Entered</span><strong id="incentiveTotal">$0.00</strong></div>
         </div>
 
@@ -191,7 +196,12 @@
       <section id="page-programs" class="page">
         <div class="section-heading">
           <div><div class="eyebrow">Program Center</div><h2>Monthly rates, residuals and incentives</h2></div>
-          <div class="button-row"><button class="secondary" id="copyPriorProgram">Copy Prior</button><button class="primary" id="saveProgram">Save Program</button></div>
+          <div class="button-row">
+            <input id="programPdfFile" type="file" accept="application/pdf" class="hidden">
+            <button class="secondary" id="importProgramPdf">Import BMW Program PDF</button>
+            <button class="secondary" id="copyPriorProgram">Copy Prior</button>
+            <button class="primary" id="saveProgram">Save Program</button>
+          </div>
         </div>
         <div class="panel">
           <div class="form-grid five">
@@ -199,7 +209,10 @@
             <label>Manufacturer<input id="programManufacturer" value="BMW"></label>
             <label>Model Year<input id="programYear" type="number"></label>
             <label>Model / Trim<input id="programModel"></label>
-            <label>Status<select id="programStatus"><option value="confirmed">Confirmed from PDF</option><option value="carried">Carried forward</option><option value="management">Entered by management</option><option value="expired">Expired</option></select></label>
+            <label>Status<select id="programStatus"><option value="confirmed">Confirmed from PDF</option><option value="review">Needs Review</option><option value="carried">Carried forward</option><option value="management">Entered by management</option><option value="expired">Expired</option></select></label>
+            <label>Effective Date<input id="programEffectiveDate" type="date"></label>
+            <label>Expiration / Delivery Date<input id="programExpirationDate" type="date"></label>
+            <label class="span2">Restrictions / Notes<input id="programRestrictions"></label>
             <label>Lease Term<input id="programLeaseTerm" type="number" value="36"></label>
             <label>Base Residual %<input id="programResidual" type="number" step=".01"></label>
             <label>Money Factor<input id="programMf" type="number" step=".00001"></label>
@@ -211,6 +224,13 @@
             <label>Select Balloon %<input id="programBalloon" type="number" step=".01"></label>
             <label>Program Code<input id="programCode"></label>
           </div>
+        </div>
+        <div class="panel">
+          <div class="section-heading compact">
+            <div><div class="eyebrow">Program Incentives</div><h3>Available incentives for this model</h3></div>
+            <button class="secondary" id="addProgramIncentive">+ Add Incentive</button>
+          </div>
+          <div id="programIncentiveRows" class="program-incentive-list"></div>
         </div>
         <div class="panel">
           <h3>Saved Program History</h3>
@@ -302,6 +322,74 @@
       </div>
       <div id="scenarioPreview" class="result-box"></div>
       <div class="dialog-actions"><button type="button" class="secondary" id="cancelScenario">Cancel</button><button type="submit" class="primary">Save Scenario</button></div>
+    </form>
+  </dialog>
+
+
+  <dialog id="incentiveDialog">
+    <form method="dialog">
+      <div class="dialog-header">
+        <div><div class="eyebrow">Program Incentives</div><h2>Select Incentives</h2></div>
+        <button type="button" class="icon-button" id="closeIncentiveDialog">×</button>
+      </div>
+      <div id="incentiveProgramSummary" class="result-box"></div>
+      <div id="availableIncentives" class="incentive-picker"></div>
+      <div class="dialog-actions">
+        <button type="button" class="secondary" id="cancelIncentives">Cancel</button>
+        <button type="button" class="primary" id="applyIncentives">Apply Selected</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="quickProgramDialog">
+    <form method="dialog" id="quickProgramForm">
+      <div class="dialog-header">
+        <div><div class="eyebrow">Quick Program Entry</div><h2>Add Missing Program</h2></div>
+        <button type="button" class="icon-button" id="closeQuickProgram">×</button>
+      </div>
+      <div class="form-grid five">
+        <label>Program Month<input id="quickMonth" type="month" required></label>
+        <label>Model Year<input id="quickYear" type="number" required></label>
+        <label>Model Code<input id="quickModelCode"></label>
+        <label class="span2">Model / Trim<input id="quickModel" required></label>
+        <label>36-mo Residual @ 15K<input id="quickResidual" type="number" step=".01"></label>
+        <label>Base Money Factor<input id="quickMf" type="number" step=".00001"></label>
+        <label>Retail APR 24–60<input id="quickRetailApr" type="number" step=".01"></label>
+        <label>Retail APR 61–72<input id="quickRetailAprLong" type="number" step=".01"></label>
+        <label>Select APR<input id="quickSelectApr" type="number" step=".01"></label>
+        <label>Lease Credit<input id="quickLeaseCredit" type="number" step=".01"></label>
+        <label>Purchase Credit<input id="quickPurchaseCredit" type="number" step=".01"></label>
+        <label>Cash Purchase Credit<input id="quickCashCredit" type="number" step=".01"></label>
+        <label>Conquest<input id="quickConquest" type="number" step=".01"></label>
+        <label>Loyalty<input id="quickLoyalty" type="number" step=".01"></label>
+        <label>Dealer Contribution<input id="quickDealerContribution" type="number" step=".01"></label>
+        <label>Effective Date<input id="quickEffectiveDate" type="date"></label>
+        <label>Expiration Date<input id="quickExpirationDate" type="date"></label>
+        <label class="span2">Restrictions<input id="quickRestrictions"></label>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="secondary" id="cancelQuickProgram">Cancel</button>
+        <button type="submit" class="primary">Save Program & Select Incentives</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="importReviewDialog" class="wide-dialog">
+    <form method="dialog">
+      <div class="dialog-header">
+        <div><div class="eyebrow">PDF Import Review</div><h2>Review Detected Programs</h2></div>
+        <button type="button" class="icon-button" id="closeImportReview">×</button>
+      </div>
+      <div id="importMetadata" class="result-box"></div>
+      <div class="import-toolbar">
+        <label><input id="selectAllImported" type="checkbox" checked> Import all detected rows</label>
+        <span id="importRowCount"></span>
+      </div>
+      <div id="importReviewTable" class="import-review-table"></div>
+      <div class="dialog-actions">
+        <button type="button" class="secondary" id="cancelImportReview">Cancel</button>
+        <button type="button" class="primary" id="saveImportedPrograms">Save Approved Programs</button>
+      </div>
     </form>
   </dialog>
 

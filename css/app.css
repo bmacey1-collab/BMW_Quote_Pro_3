@@ -16,3 +16,42 @@
 .upfront-scenario h4{margin:0 0 7px;color:#0f2f57}
 .rate-scenario{margin-bottom:8px}
 @media(max-width:900px){.upfront-grid{grid-template-columns:1fr}.deal-save-actions{justify-content:flex-start}}
+
+.section-help{margin:0 0 12px;color:#66717d;font-size:12px}
+.selected-incentive-list{display:grid;gap:8px}
+.selected-incentive-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px;border:1px solid #d9e1e9;border-radius:9px;background:#f8fafc}
+.selected-incentive-row span{display:block;margin-top:3px;color:#66717d;font-size:11px}
+.scenario-card.accepted{box-shadow:0 0 0 4px rgba(28,105,212,.18)}
+.scenario-card.accepted:before{content:"ACCEPTED DEAL";display:block;padding:5px;background:#0f2f57;color:#fff;text-align:center;font-size:10px;font-weight:900;letter-spacing:.9px}
+.scenario-card.dragging{opacity:.55}
+.card-title{display:flex;justify-content:space-between;align-items:center}
+.drag-handle{cursor:grab;font-size:18px}
+.scenario-choice-row{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.accepted-check{color:#0f2f57}
+.move-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
+.move-actions button{min-height:32px;border:1px solid #cfd6dd;border-radius:7px;background:#f8fafc;font-weight:800;cursor:pointer}
+.move-actions button:disabled{opacity:.4;cursor:not-allowed}
+.accepted-banner{padding:12px;background:#eaf2ff;color:#0f2f57;font-weight:900;text-align:center}
+.manager-empty{margin:20px}
+.program-incentive-list{display:grid;gap:8px}
+.program-incentive-row{display:grid;grid-template-columns:1.4fr .7fr .9fr .9fr .8fr auto;gap:7px}
+.program-restriction{margin-top:5px;color:#8a6400;font-size:11px}
+.incentive-picker{display:grid;gap:8px;max-height:55vh;overflow:auto;margin-top:12px}
+.incentive-pick-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:11px;border:1px solid #d9e1e9;border-radius:9px}
+.incentive-pick-row input{width:auto;min-height:0}
+.incentive-pick-row small{display:block;margin-top:3px;color:#66717d}
+.wide-dialog{width:min(1200px,96vw)}
+.import-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:12px 0}
+.import-toolbar label{display:flex;align-items:center;gap:8px}
+.import-toolbar input{width:auto;min-height:0}
+.import-review-table{max-height:60vh;overflow:auto;border:1px solid #d9e1e9;border-radius:9px}
+.import-review-table table{width:100%;border-collapse:collapse;font-size:11px}
+.import-review-table th,.import-review-table td{padding:6px;border-bottom:1px solid #e7ebef;text-align:left;white-space:nowrap}
+.import-review-table th{position:sticky;top:0;background:#eef3f8;z-index:1}
+.import-review-table input{min-width:80px;min-height:32px;padding:5px}
+@media(max-width:900px){
+ .program-incentive-row{grid-template-columns:1fr 1fr}
+ .selected-incentive-row{grid-template-columns:1fr auto}
+ .selected-incentive-row .danger{grid-column:1/-1}
+ .scenario-choice-row{display:grid}
+}
