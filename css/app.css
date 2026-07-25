@@ -55,3 +55,33 @@
  .selected-incentive-row .danger{grid-column:1/-1}
  .scenario-choice-row{display:grid}
 }
+
+.pdf-import-status{
+  align-self:center;
+  max-width:260px;
+  color:#66717d;
+  font-size:11px;
+  font-weight:800;
+}
+.pdf-import-status.working{color:#8a6400}
+.pdf-import-status.success{color:#1f6a41}
+.pdf-import-status.error{color:#a11}
+.import-help-panel{
+  margin-bottom:14px;
+  padding:12px 14px;
+  border:1px solid #cdddf2;
+  border-radius:10px;
+  background:#f2f7fd;
+  color:#31455a;
+  font-size:12px;
+  line-height:1.45;
+}
+.import-warnings{
+  margin-top:10px;
+  padding:10px 12px;
+  border:1px solid #edc36a;
+  border-radius:9px;
+  background:#fff8df;
+  color:#684d00;
+  font-size:12px;
+}

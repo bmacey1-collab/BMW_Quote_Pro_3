@@ -4,20 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0f2f57">
-  <title>BMW Quote Pro 3.0 Alpha 9</title>
+  <title>BMW Quote Pro 3.0 Beta 1</title>
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/print.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs" type="module"></script>
 </head>
 <body>
   <div class="app-shell">
     <header class="app-header">
       <div>
-        <h1>BMW Quote Pro 3.0 Alpha 9</h1>
+        <h1>BMW Quote Pro 3.0 Beta 1</h1>
         <p>Clean desking architecture — no Version 2 calculator code.</p>
       </div>
-      <div class="build-chip">Alpha 9 · Development</div>
+      <div class="build-chip">Beta 1 · Testing</div>
     </header>
 
     <nav class="main-nav" aria-label="Primary navigation">
@@ -197,11 +196,17 @@
         <div class="section-heading">
           <div><div class="eyebrow">Program Center</div><h2>Monthly rates, residuals and incentives</h2></div>
           <div class="button-row">
-            <input id="programPdfFile" type="file" accept="application/pdf" class="hidden">
+            <input id="programPdfFile" type="file" accept="application/pdf,.pdf" class="hidden">
             <button class="secondary" id="importProgramPdf">Import BMW Program PDF</button>
+            <span id="pdfImportStatus" class="pdf-import-status">Importer ready</span>
             <button class="secondary" id="copyPriorProgram">Copy Prior</button>
             <button class="primary" id="saveProgram">Save Program</button>
           </div>
+        </div>
+        <div class="import-help-panel">
+          <strong>PDF import workflow:</strong>
+          choose the BMW program PDF, wait for all pages to be read, review the detected rows, then save only the approved programs.
+          The PDF is processed in your browser and is not uploaded to an outside extraction service.
         </div>
         <div class="panel">
           <div class="form-grid five">
@@ -380,7 +385,7 @@
         <div><div class="eyebrow">PDF Import Review</div><h2>Review Detected Programs</h2></div>
         <button type="button" class="icon-button" id="closeImportReview">×</button>
       </div>
-      <div id="importMetadata" class="result-box"></div>
+      <div id="importMetadata" class="result-box"></div><div id="importWarnings" class="import-warnings hidden"></div>
       <div class="import-toolbar">
         <label><input id="selectAllImported" type="checkbox" checked> Import all detected rows</label>
         <span id="importRowCount"></span>

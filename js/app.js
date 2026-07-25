@@ -3,7 +3,7 @@
 const $ = id => document.getElementById(id);
 const money = new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"});
 const KEYS={settings:"bqp3_settings",programs:"bqp3_programs",deals:"bqp3_deals",connection:"bqp3_connection",draft:"bqp3_autosave_draft"};
-let supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,draggedScenarioId=null,importedProgramRows=[];
+let supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,draggedScenarioId=null,importedProgramRows=[],pdfJsModulePromise=null;
 let state=createEmptyDeal();
 
 function createEmptyDeal(){
@@ -349,35 +349,260 @@ function saveQuickProgram(){
  if(!p.month||!p.year||!p.model){toast("Month, model year and model are required.");return}
  const rows=programs();rows.push(p);localStorage.setItem(KEYS.programs,JSON.stringify(rows));renderPrograms();$("quickProgramDialog").close();openIncentivePicker(p.id);toast("Program saved. Select the applicable incentives.");
 }
+const PDFJS_MODULE_URL="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
+const PDFJS_WORKER_URL="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+
+function setPdfImportStatus(message,kind=""){
+ const el=$("pdfImportStatus");
+ if(!el)return;
+ el.textContent=message;
+ el.className="pdf-import-status"+(kind?" "+kind:"");
+}
+
+async function loadPdfJs(){
+ if(window.pdfjsLib?.getDocument)return window.pdfjsLib;
+ if(!pdfJsModulePromise){
+   setPdfImportStatus("Loading PDF reader…","working");
+   pdfJsModulePromise=import(PDFJS_MODULE_URL).then(module=>{
+     module.GlobalWorkerOptions.workerSrc=PDFJS_WORKER_URL;
+     window.pdfjsLib=module;
+     return module;
+   }).catch(error=>{
+     pdfJsModulePromise=null;
+     throw new Error("The PDF reader could not be loaded. Check the internet connection and try again.");
+   });
+ }
+ return pdfJsModulePromise;
+}
+
+function normalizePdfLine(line){
+ return String(line||"")
+   .replace(/\u00a0/g," ")
+   .replace(/[‐‑‒–—]/g,"-")
+   .replace(/\s+/g," ")
+   .trim();
+}
+
+function likelyProgramRow(line){
+ return /^[0-9]{2}[A-Z0-9]{2}\s+/.test(line) &&
+   /\s(?:Yes|No)\s+\d+%\s+\$/.test(line) &&
+   /0\.\d{5}/.test(line);
+}
+
+function mergeWrappedProgramLines(lines){
+ const merged=[];
+ for(let i=0;i<lines.length;i++){
+   let line=normalizePdfLine(lines[i]);
+   if(!line)continue;
+   if(/^[0-9]{2}[A-Z0-9]{2}\s+/.test(line)){
+     let combined=line;
+     let look=i+1;
+     while(look<lines.length && !likelyProgramRow(combined) && look<=i+3){
+       const next=normalizePdfLine(lines[look]);
+       if(/^[0-9]{2}[A-Z0-9]{2}\s+/.test(next))break;
+       if(next && !/^(BMW July Programs|Not Lockable|Rates apply|This document|Model Year|BEV|Lease|Loan|Non-FS|Conquest|Loyalty)/i.test(next)){
+         combined+=" "+next;
+       }
+       look++;
+     }
+     merged.push(normalizePdfLine(combined));
+   }else{
+     merged.push(line);
+   }
+ }
+ return merged;
+}
+
 function currencyValue(token){const s=String(token||"").replace(/[$,\s]/g,"");return s==="-"||s===""?0:num(s)}
-function parseProgramRow(line,meta){
- const rx=/^([0-9]{2}[A-Z0-9]{2})\s+(.+?)\s+(Yes|No)\s+(\d+)%\s+\$\s*([\d,]+|-)\s+(0\.\d{5})\s+([\d.]+)%\s+([\d.]+)%\s+\$\s*([\d,]+|-)\s+([\d.]+)%\s+([\d.]+)%\s+\$\s*([\d,]+|-)\s+\$\s*([\d,]+|-)\s+\$\s*([\d,]+|-)\s+\$\s*([\d,]+|-)\s+\$\s*([\d,]+|-)\s+\$\s*([\d,]+|-)\s+\$\s*([\d,]+|-)\s*$/;
- const m=line.replace(/\s+/g," ").trim().match(rx);if(!m)return null;
- const code=m[1],year=2000+num(code.slice(0,2));
+function parseProgramRow(rawLine,meta){
+ const line=normalizePdfLine(rawLine)
+   .replace(/\$\s*-\s*/g,"$ - ")
+   .replace(/(\d)%/g,"$1%")
+   .replace(/\s+/g," ");
+
+ const header=line.match(/^([0-9]{2}[A-Z0-9]{2})\s+(.+?)\s+(Yes|No)\s+(\d+)%\s+(.*)$/);
+ if(!header)return null;
+
+ const code=header[1],model=header[2].trim(),lease39=header[3]==="Yes",residual=num(header[4]);
+ let rest=header[5];
+
+ const tokenPattern=/\$\s*(?:[\d,]+|-)|0\.\d{5}|[\d.]+%/g;
+ const tokens=[...rest.matchAll(tokenPattern)].map(match=>normalizePdfLine(match[0]));
+
+ // Expected table order after residual:
+ // lease credit, MF, retail 24-60, retail 61-72, purchase credit,
+ // Select, OwnersChoice, cash credit, conquest, loyalty,
+ // dealer contribution, total loyalty, GKL loyalty, GKL conquest.
+ if(tokens.length<14)return null;
+
+ const moneyToken=t=>currencyValue(t.replace("$",""));
+ const percentToken=t=>num(t.replace("%",""));
+ const year=2000+num(code.slice(0,2));
+
+ const leaseCredit=moneyToken(tokens[0]);
+ const moneyFactor=num(tokens[1]);
+ const retailApr=percentToken(tokens[2]);
+ const retailAprLong=percentToken(tokens[3]);
+ const purchaseCredit=moneyToken(tokens[4]);
+ const selectApr=percentToken(tokens[5]);
+ const ownersChoice=percentToken(tokens[6]);
+ const cashCredit=moneyToken(tokens[7]);
+ const conquest=moneyToken(tokens[8]);
+ const loyalty=moneyToken(tokens[9]);
+ const dealerContribution=moneyToken(tokens[10]);
+ const totalLoyalty=moneyToken(tokens[11]);
+ const gklLoyalty=moneyToken(tokens[12]);
+ const gklConquest=moneyToken(tokens[13]);
+
  const incentives=[
-   ["FS Lease Credit",m[5],"lease"],["FS Purchase Credit",m[9],"finance"],["Cash Purchase Credit",m[12],"cash"],["Conquest Credit",m[13],"all"],["FS Lease/Purchase Loyalty",m[14],"all"],["Loyalty Dealer Contribution",m[15],"all"],["Total Loyalty",m[16],"all"],["GKL Loyalty",m[17],"all"],["GKL Conquest",m[18],"all"]
- ].map(([name,value,appliesTo])=>({id:crypto.randomUUID(),name,amount:currencyValue(value),appliesTo,category:"customer",programCode:code})).filter(i=>i.amount>0);
- return {id:crypto.randomUUID(),month:meta.month,manufacturer:"BMW",year,modelCode:code,model:m[2].trim(),status:"review",effectiveDate:meta.effectiveDate,expirationDate:meta.expirationDate,restrictions:meta.restrictions,leaseTerm:36,residual:num(m[4]),moneyFactor:num(m[6]),onePayReduction:.00080,financeApr:num(m[7]),financeAprLong:num(m[8]),financeTerm:60,selectApr:num(m[10]),selectTerm:60,ownersChoice:num(m[11]),balloon:"",lease39Eligible:m[3]==="Yes",source:"pdf",incentives};
+   ["FS Lease Credit",leaseCredit,"lease"],
+   ["FS Purchase Credit",purchaseCredit,"finance"],
+   ["Cash Purchase Credit",cashCredit,"cash"],
+   ["Conquest Credit",conquest,"all"],
+   ["FS Lease/Purchase Loyalty",loyalty,"all"],
+   ["Loyalty Dealer Contribution",dealerContribution,"all"],
+   ["Total Loyalty",totalLoyalty,"all"],
+   ["GKL Loyalty",gklLoyalty,"all"],
+   ["GKL Conquest",gklConquest,"all"]
+ ].map(([name,amount,appliesTo])=>({
+   id:crypto.randomUUID(),name,amount,appliesTo,
+   category:"customer",programCode:code
+ })).filter(item=>item.amount>0);
+
+ return {
+   id:crypto.randomUUID(),
+   month:meta.month,
+   manufacturer:"BMW",
+   year,
+   modelCode:code,
+   model,
+   status:"review",
+   effectiveDate:meta.effectiveDate,
+   expirationDate:meta.expirationDate,
+   restrictions:meta.restrictions,
+   leaseTerm:36,
+   residual,
+   moneyFactor,
+   onePayReduction:.00080,
+   financeApr:retailApr,
+   financeAprLong:retailAprLong,
+   financeTerm:60,
+   selectApr,
+   selectTerm:60,
+   ownersChoice,
+   balloon:"",
+   lease39Eligible:lease39,
+   source:"pdf",
+   sourceFile:meta.sourceFile,
+   importedAt:new Date().toISOString(),
+   incentives
+ };
 }
 async function importProgramPdf(file){
  if(!file)return;
- if(!window.pdfjsLib){toast("PDF reader is still loading. Try again in a moment.");return}
- const bytes=new Uint8Array(await file.arrayBuffer());
- const pdf=await window.pdfjsLib.getDocument({data:bytes}).promise;
- const lines=[];let meta={month:"",effectiveDate:"",expirationDate:"",restrictions:""};
- for(let pageNo=1;pageNo<=pdf.numPages;pageNo++){
-   const page=await pdf.getPage(pageNo),content=await page.getTextContent();
-   const groups=new Map();
-   content.items.forEach(item=>{const y=Math.round(item.transform[5]);if(!groups.has(y))groups.set(y,[]);groups.get(y).push(item)});
-   [...groups.entries()].sort((a,b)=>b[0]-a[0]).forEach(([,items])=>lines.push(items.sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(" ").replace(/\s+/g," ").trim()));
+ if(file.type && file.type!=="application/pdf" && !file.name.toLowerCase().endsWith(".pdf")){
+   toast("Please select a PDF file.");
+   setPdfImportStatus("Invalid file","error");
+   return;
  }
- const full=lines.join("\n");
- const title=full.match(/BMW\s+([A-Za-z]+)\s+Programs\s+(\d{4})\s+\(effective:\s*(\d{1,2}\/\d{1,2}\/\d{2})\s*-\s*(\d{1,2}\/\d{1,2}\/\d{2})\)/i);
- if(title){const monthNumber=new Date(`${title[1]} 1, ${title[2]}`).getMonth()+1;meta.month=`${title[2]}-${String(monthNumber).padStart(2,"0")}`;meta.effectiveDate=toIsoDate(title[3]);meta.expirationDate=toIsoDate(title[4])}
- const restrictionLine=lines.find(x=>/Not Lockable|Must deliver/i.test(x));meta.restrictions=restrictionLine||"Final eligibility must be confirmed by VIN.";
- importedProgramRows=lines.map(line=>parseProgramRow(line,meta)).filter(Boolean);
- $("importMetadata").textContent=`${file.name} · ${pdf.numPages} pages · Effective ${meta.effectiveDate||"not detected"} through ${meta.expirationDate||"not detected"} · ${meta.restrictions}`;
- renderImportReview();$("importReviewDialog").showModal();
+
+ try{
+   setPdfImportStatus(`Opening ${file.name}…`,"working");
+   toast("Reading BMW program PDF…");
+   const pdfjs=await loadPdfJs();
+   const bytes=new Uint8Array(await file.arrayBuffer());
+
+   setPdfImportStatus("Reading PDF pages…","working");
+   const loadingTask=pdfjs.getDocument({data:bytes});
+   const pdf=await loadingTask.promise;
+   const rawLines=[];
+   let meta={month:"",effectiveDate:"",expirationDate:"",restrictions:"",sourceFile:file.name};
+
+   for(let pageNo=1;pageNo<=pdf.numPages;pageNo++){
+     setPdfImportStatus(`Reading page ${pageNo} of ${pdf.numPages}…`,"working");
+     const page=await pdf.getPage(pageNo);
+     const content=await page.getTextContent({includeMarkedContent:false});
+     const groups=new Map();
+
+     content.items.forEach(item=>{
+       if(!item.str?.trim())return;
+       const y=Math.round(item.transform[5]);
+       if(!groups.has(y))groups.set(y,[]);
+       groups.get(y).push(item);
+     });
+
+     [...groups.entries()]
+       .sort((a,b)=>b[0]-a[0])
+       .forEach(([,items])=>{
+         const line=items
+           .sort((a,b)=>a.transform[4]-b.transform[4])
+           .map(item=>item.str)
+           .join(" ");
+         const clean=normalizePdfLine(line);
+         if(clean)rawLines.push(clean);
+       });
+   }
+
+   const lines=mergeWrappedProgramLines(rawLines);
+   const full=lines.join("\n");
+   const title=full.match(/BMW\s+([A-Za-z]+)\s+Programs\s+(\d{4})\s+\(effective:\s*(\d{1,2}\/\d{1,2}\/\d{2})\s*-\s*(\d{1,2}\/\d{1,2}\/\d{2})\)/i);
+
+   if(title){
+     const monthNumber=new Date(`${title[1]} 1, ${title[2]}`).getMonth()+1;
+     meta.month=`${title[2]}-${String(monthNumber).padStart(2,"0")}`;
+     meta.effectiveDate=toIsoDate(title[3]);
+     meta.expirationDate=toIsoDate(title[4]);
+   }
+
+   const restrictionLines=lines.filter(line=>
+     /Not Lockable|Must deliver|final eligibility|Sales Support Inquiry by VIN/i.test(line)
+   ).slice(0,3);
+   meta.restrictions=restrictionLines.join(" · ") ||
+     "Final eligibility must be confirmed by VIN.";
+
+   importedProgramRows=lines
+     .filter(line=>/^[0-9]{2}[A-Z0-9]{2}\s+/.test(line))
+     .map(line=>parseProgramRow(line,meta))
+     .filter(Boolean);
+
+   const unique=new Map();
+   importedProgramRows.forEach(row=>{
+     const key=`${row.month}|${row.modelCode}`;
+     if(!unique.has(key))unique.set(key,row);
+   });
+   importedProgramRows=[...unique.values()];
+
+   $("importMetadata").textContent=
+     `${file.name} · ${pdf.numPages} pages · `+
+     `Effective ${meta.effectiveDate||"not detected"} through `+
+     `${meta.expirationDate||"not detected"} · ${meta.restrictions}`;
+
+   const warnings=[];
+   if(!meta.month)warnings.push("The program month was not detected.");
+   if(!meta.effectiveDate||!meta.expirationDate)warnings.push("The effective dates need review.");
+   if(!importedProgramRows.length)warnings.push("No program rows were detected.");
+   const warningsEl=$("importWarnings");
+   warningsEl.classList.toggle("hidden",warnings.length===0);
+   warningsEl.innerHTML=warnings.map(w=>`<div>⚠ ${esc(w)}</div>`).join("");
+
+   renderImportReview();
+   $("importReviewDialog").showModal();
+   setPdfImportStatus(
+     importedProgramRows.length
+       ? `${importedProgramRows.length} rows ready for review`
+       : "No rows detected",
+     importedProgramRows.length?"success":"error"
+   );
+   toast(
+     importedProgramRows.length
+       ? `Found ${importedProgramRows.length} program rows.`
+       : "The PDF opened, but no program rows were detected."
+   );
+ }catch(error){
+   console.error("PDF import failed:",error);
+   setPdfImportStatus("Import failed","error");
+   toast(error?.message||"The PDF could not be imported.");
+ }
 }
 function toIsoDate(value){const [m,d,y]=value.split("/").map(Number);return `20${String(y).padStart(2,"0")}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`}
 function renderImportReview(){
@@ -389,9 +614,9 @@ function saveApprovedImports(){
  if(!checked.length){toast("No rows selected.");return}
  const rows=programs();
  checked.forEach(p=>{const existing=rows.findIndex(x=>x.month===p.month&&x.modelCode===p.modelCode);existing>=0?rows[existing]=p:rows.push(p)});
- localStorage.setItem(KEYS.programs,JSON.stringify(rows));renderPrograms();$("importReviewDialog").close();toast(`${checked.length} programs imported.`);
+ localStorage.setItem(KEYS.programs,JSON.stringify(rows));renderPrograms();$("importReviewDialog").close();$("programPdfFile").value="";setPdfImportStatus(`${checked.length} programs saved`,"success");toast(`${checked.length} programs imported.`);
 }
-function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("rollPaymentButton").onclick=rollPayment;$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=renderDashboard;$("refreshSaved").onclick=renderSaved;$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>$("programPdfFile").click();$("programPdfFile").onchange=e=>importProgramPdf(e.target.files[0]);$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=programs().sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p){editProgram(p.id);$("programId").value="";$("programStatus").value="carried";toast("Prior program copied. Change the month.")}};$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{const id=e.target.dataset.removeIncentive;if(id){state.incentives=state.incentives.filter(x=>x.id!==id);renderIncentives();renderScenarios();scheduleAutosave()}});$("scenarioGrid").addEventListener("click",e=>{
+function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("rollPaymentButton").onclick=rollPayment;$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=renderDashboard;$("refreshSaved").onclick=renderSaved;$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=programs().sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p){editProgram(p.id);$("programId").value="";$("programStatus").value="carried";toast("Prior program copied. Change the month.")}};$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{const id=e.target.dataset.removeIncentive;if(id){state.incentives=state.incentives.filter(x=>x.id!==id);renderIncentives();renderScenarios();scheduleAutosave()}});$("scenarioGrid").addEventListener("click",e=>{
  const moveId=e.target.dataset.moveScenario;if(moveId){moveScenario(moveId,num(e.target.dataset.direction));return}
  const id=e.target.dataset.editScenario||e.target.dataset.duplicateScenario||e.target.dataset.renameScenario||e.target.dataset.deleteScenario;if(!id)return;
  const s=state.scenarios.find(x=>x.id===id);if(e.target.dataset.editScenario)openScenario(s);
@@ -412,6 +637,6 @@ $("closeImportReview").onclick=$("cancelImportReview").onclick=()=>$("importRevi
 $("importReviewTable").addEventListener("input",e=>{const i=e.target.dataset.importEdit;if(i!==undefined)importedProgramRows[num(i)][e.target.dataset.field]=e.target.type==="number"?num(e.target.value):e.target.value});
 $("programIncentiveRows").addEventListener("click",e=>{if(e.target.dataset.removeProgramIncentive)e.target.closest(".program-incentive-row").remove()});
 document.body.addEventListener("click",e=>{if(e.target.dataset.loadDeal)loadDeal(e.target.dataset.loadDeal);if(e.target.dataset.duplicateDeal)loadDeal(e.target.dataset.duplicateDeal,true);if(e.target.dataset.useProgram){const p=programs().find(x=>x.id===e.target.dataset.useProgram);if(p){state.vehicle.year=p.year;state.vehicle.model=p.model;writeStateToForm();showPage("deal");openIncentivePicker(p.id)}}if(e.target.dataset.editProgram)editProgram(e.target.dataset.editProgram);if(e.target.dataset.archiveProgram){let rows=programs(),p=rows.find(x=>x.id===e.target.dataset.archiveProgram);p.status=p.status==="expired"?"confirmed":"expired";localStorage.setItem(KEYS.programs,JSON.stringify(rows));renderPrograms()}});$("saveConnection").onclick=()=>{localStorage.setItem(KEYS.connection,JSON.stringify({url:$("supabaseUrl").value.trim(),key:$("supabaseKey").value.trim()}));initializeSupabase();updateConnectionStatus("Connection saved.")};$("testConnection").onclick=async()=>{if(!supabaseClient&&!initializeSupabase()){updateConnectionStatus("Enter and save connection details.");return}const r=await supabaseClient.auth.getSession();updateConnectionStatus(r.error?r.error.message:"Connection works.")};$("createAccount").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signUp({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Account created. Check email if confirmation is enabled.")};$("signIn").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signInWithPassword({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Signed in.")};$("signOut").onclick=async()=>{if(supabaseClient)await supabaseClient.auth.signOut();currentUser=null;updateConnectionStatus()};}
-function init(){loadSettingsForm();const c=JSON.parse(localStorage.getItem(KEYS.connection)||"null");if(c){$("supabaseUrl").value=c.url||"";$("supabaseKey").value=c.key||"";initializeSupabase()}applySettingsToDeal(true);if(!restoreAutosaveDraft()){state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);writeStateToForm();setAutosaveStatus("Draft ready")}bindEvents();renderIncentives();renderScenarios();renderDashboard();renderPrograms();renderProgramIncentiveEditor([]);updateClientHistoryDisplays();$("programMonth").value=new Date().toISOString().slice(0,7);}
+function init(){loadSettingsForm();const c=JSON.parse(localStorage.getItem(KEYS.connection)||"null");if(c){$("supabaseUrl").value=c.url||"";$("supabaseKey").value=c.key||"";initializeSupabase()}applySettingsToDeal(true);if(!restoreAutosaveDraft()){state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);writeStateToForm();setAutosaveStatus("Draft ready")}bindEvents();renderIncentives();renderScenarios();renderDashboard();renderPrograms();renderProgramIncentiveEditor([]);updateClientHistoryDisplays();setPdfImportStatus("Importer ready");$("programMonth").value=new Date().toISOString().slice(0,7);}
 document.addEventListener("DOMContentLoaded",init);
 })();
