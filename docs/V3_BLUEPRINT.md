@@ -14,3 +14,11 @@ Alpha 1 build date: 2026-07-24
 - No total interest on customer quotes.
 - Archive instead of delete; backups and audit trail.
 - Version 2.4.1 remains the production app.
+
+
+## Alpha 2 completed
+
+- Working flexible scenarios
+- Required validation
+- Payment Roller
+- Expanded client, vehicle, trade, and worksheet fields

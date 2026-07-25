@@ -1380,3 +1380,659 @@ textarea {
 .worksheet-preview{overflow:hidden;border:1px solid #cfd8e2;border-radius:14px;background:#fff}.worksheet-preview-header{padding:13px;background:#0f2f57;color:#fff;text-align:center;font-weight:800;letter-spacing:1px}.worksheet-preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.worksheet-preview-grid>div{padding:16px;border-right:1px solid #edf0f3;border-bottom:1px solid #edf0f3}.worksheet-preview-grid span,.worksheet-preview-grid strong{display:block}.worksheet-preview-grid span{color:#66717d;font-size:11px;font-weight:800;text-transform:uppercase}.worksheet-preview-grid strong{margin-top:5px;color:#0f2f57;font-size:13px}
 @media(max-width:900px){.quick-action-grid,.foundation-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.scenario-preview-grid{grid-template-columns:1fr}}
 @media(max-width:640px){.alpha-banner,.dashboard-hero,.section-heading-row{flex-direction:column;align-items:stretch}.quick-action-grid,.foundation-grid,.worksheet-preview-grid{grid-template-columns:1fr}}
+
+
+/* BMW Quote Pro 3.0 Alpha 2 */
+.scenario-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.deal-profile-grid,
+.scenario-editor-grid,
+.roller-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.deal-profile-grid > .field,
+.scenario-editor-grid > .field {
+  grid-column: span 2;
+}
+
+.deal-profile-grid textarea {
+  min-height: 82px;
+}
+
+.inline-control {
+  display: flex;
+  gap: 6px;
+}
+
+.inline-control input {
+  flex: 1;
+  min-width: 0;
+}
+
+.readout {
+  min-height: 42px;
+  padding: 10px 11px;
+  border: 1px solid #cfd6dd;
+  border-radius: 8px;
+  background: #f4f7fa;
+  color: #0f2f57;
+  font-weight: 800;
+}
+
+.checkbox-stack {
+  display: grid;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px;
+  border: 1px solid #cfd6dd;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.required-field label span {
+  color: #b42318;
+}
+
+.scenario-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 14px;
+  margin: 24px 0 12px;
+}
+
+.selection-counter {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #eef3f8;
+  color: #0f2f57;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.scenario-preview-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.scenario-preview-card {
+  padding: 0;
+}
+
+.scenario-preview-card.selected {
+  box-shadow: 0 0 0 4px rgba(28, 105, 212, .14);
+}
+
+.scenario-card-body {
+  padding: 0 14px 14px;
+}
+
+.present-checkbox {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 5px;
+  margin: -3px 0 6px;
+  color: #52616f;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.scenario-payment {
+  margin-top: 9px;
+  color: #0f2f57;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.scenario-payment-label {
+  margin-top: 3px;
+  color: #66717d;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .8px;
+}
+
+.payment-comparison-text {
+  margin-top: 7px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.scenario-card-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.scenario-card-actions button {
+  min-height: 34px;
+  border: 1px solid #cfd6dd;
+  border-radius: 7px;
+  background: #fff;
+  color: #0f2f57;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.danger-button {
+  color: #a11 !important;
+}
+
+.scenario-status.ready {
+  background: #eaf7ef;
+  color: #1f6a41;
+}
+
+.scenario-status.missing {
+  max-width: 100%;
+  background: #fff1f0;
+  color: #a11;
+  white-space: normal;
+}
+
+.payment-roller {
+  margin-top: 20px;
+  padding: 17px;
+  border: 1px solid #d9e1e9;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.roller-grid > .field {
+  grid-column: span 2;
+}
+
+.roller-action {
+  align-self: end;
+}
+
+.roller-result {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 9px;
+  background: #f4f7fa;
+  color: #52616f;
+}
+
+.roller-result.success {
+  background: #eaf7ef;
+  color: #1f6a41;
+}
+
+.roller-result.error {
+  background: #fff1f0;
+  color: #a11;
+}
+
+.scenario-dialog {
+  width: min(780px, calc(100vw - 30px));
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(0,0,0,.3);
+}
+
+.scenario-dialog::backdrop {
+  background: rgba(15, 47, 87, .55);
+}
+
+.scenario-dialog form {
+  padding: 18px;
+}
+
+.scenario-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 13px;
+}
+
+.scenario-dialog-header h2 {
+  margin: 3px 0 0;
+}
+
+.dialog-close {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: #eef3f8;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.validation-message {
+  margin-top: 10px;
+  color: #a11;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.worksheet-client-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #edf0f3;
+  background: #f8fafc;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .deal-profile-grid,
+  .scenario-editor-grid,
+  .roller-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .deal-profile-grid > .field,
+  .scenario-editor-grid > .field,
+  .roller-grid > .field {
+    grid-column: span 1;
+  }
+
+  .scenario-preview-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .deal-profile-grid,
+  .scenario-editor-grid,
+  .roller-grid,
+  .scenario-preview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scenario-section-heading,
+  .worksheet-client-line {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+
+/* BMW Quote Pro 3.0 Alpha 3 */
+.fee-control {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 6px;
+}
+
+.dealer-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dealer-wide-field {
+  grid-column: span 2;
+}
+
+.customer-quote-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border: 1px solid #d9e1e9;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.customer-quote-header div {
+  display: grid;
+  gap: 3px;
+}
+
+.customer-quote-header span {
+  color: #66717d;
+  font-size: 12px;
+}
+
+.customer-quote-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.customer-scenario-card {
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.customer-scenario-card.lease {
+  border-color: #1c69d4;
+}
+
+.customer-scenario-card.finance {
+  border-color: #2e8b57;
+}
+
+.customer-scenario-card.cash {
+  border-color: #55606e;
+}
+
+.customer-scenario-card.select {
+  border-color: #e67e22;
+}
+
+.customer-card-title {
+  padding: 9px 12px;
+  color: #fff;
+  font-weight: 900;
+  text-align: center;
+}
+
+.customer-scenario-card.lease .customer-card-title {
+  background: #1c69d4;
+}
+
+.customer-scenario-card.finance .customer-card-title {
+  background: #2e8b57;
+}
+
+.customer-scenario-card.cash .customer-card-title {
+  background: #55606e;
+}
+
+.customer-scenario-card.select .customer-card-title {
+  background: #e67e22;
+}
+
+.customer-card-payment {
+  padding: 15px 8px 3px;
+  color: #fff;
+  font-size: 34px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.customer-scenario-card.lease .customer-card-payment,
+.customer-scenario-card.lease .customer-card-payment-label {
+  background: #1c69d4;
+}
+
+.customer-scenario-card.finance .customer-card-payment,
+.customer-scenario-card.finance .customer-card-payment-label {
+  background: #2e8b57;
+}
+
+.customer-scenario-card.cash .customer-card-payment,
+.customer-scenario-card.cash .customer-card-payment-label {
+  background: #55606e;
+}
+
+.customer-scenario-card.select .customer-card-payment,
+.customer-scenario-card.select .customer-card-payment-label {
+  background: #e67e22;
+}
+
+.customer-card-payment-label {
+  padding-bottom: 10px;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .9px;
+  text-align: center;
+}
+
+.customer-card-body {
+  padding: 10px 12px 12px;
+}
+
+.customer-card-body > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 9px;
+  padding: 4px 0;
+  border-bottom: 1px solid #edf0f3;
+  font-size: 12px;
+}
+
+.customer-card-body > div:last-child {
+  border-bottom: 0;
+}
+
+.customer-payment-comparison {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  background: #eef6ff;
+  color: #0f2f57;
+  text-align: center;
+}
+
+.customer-payment-comparison span {
+  font-size: 11px;
+}
+
+.signature-area {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #cfd8e2;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.signature-grid {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+@media (max-width: 900px) {
+  .dealer-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .customer-quote-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .dealer-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dealer-wide-field {
+    grid-column: span 1;
+  }
+
+  .fee-control {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-quote-header {
+    flex-direction: column;
+  }
+}
+
+
+/* BMW Quote Pro 3.0 Alpha 4 */
+.scenario-toolbar select {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid #cfd6dd;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.deal-incentives {
+  margin-top: 20px;
+  padding: 17px;
+  border: 1px solid #d9e1e9;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.incentive-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.incentive-row {
+  display: grid;
+  grid-template-columns: 1.4fr .7fr .9fr 1.1fr .8fr auto;
+  gap: 7px;
+  align-items: center;
+}
+
+.incentive-row input,
+.incentive-row select {
+  min-width: 0;
+  min-height: 39px;
+  padding: 7px 8px;
+  border: 1px solid #cfd6dd;
+  border-radius: 7px;
+}
+
+.incentive-row button,
+.program-actions button {
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid #cfd6dd;
+  border-radius: 7px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.incentive-total-line {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid #edf0f3;
+  color: #0f2f57;
+}
+
+.empty-state.compact {
+  padding: 12px;
+}
+
+.program-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #d9e1e9;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.program-filter-row {
+  margin-bottom: 10px;
+}
+
+.program-filter-row input {
+  width: min(480px, 100%);
+}
+
+.program-history {
+  display: grid;
+  gap: 10px;
+}
+
+.program-history-card {
+  display: grid;
+  grid-template-columns: 1.1fr 2fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 13px 14px;
+  border: 1px solid #d9e1e9;
+  border-left: 5px solid #1c69d4;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.program-history-card.carried {
+  border-left-color: #e3b341;
+}
+
+.program-history-card.management {
+  border-left-color: #2e8b57;
+}
+
+.program-history-card.expired {
+  border-left-color: #8b929a;
+  opacity: .72;
+}
+
+.program-history-card strong,
+.program-history-card span {
+  display: block;
+}
+
+.program-history-card span {
+  margin-top: 3px;
+  color: #66717d;
+  font-size: 12px;
+}
+
+.program-values {
+  display: grid;
+  gap: 3px;
+}
+
+.program-actions {
+  display: grid;
+  gap: 5px;
+}
+
+@media (max-width: 1050px) {
+  .incentive-row {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .program-history-card {
+    grid-template-columns: 1fr;
+  }
+
+  .program-actions {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 800px) {
+  .program-editor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .incentive-row,
+  .program-editor-grid,
+  .program-actions {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,20 +1,38 @@
-# BMW Quote Pro 3.0 Alpha 1
+# BMW Quote Pro 3.0 Alpha 7
 
-This is a separate development project. Continue using BMW Quote Pro 2.4.1 for live deals.
+Build date: 2026-07-24
 
-## Alpha 1
+Alpha 6 is a clean rewrite. It does not load the Version 2 calculator, Version 2 results renderer, or Version 2 save routines.
 
-- Dashboard landing page
-- Recent Quotes preserved
-- New quick actions
-- Colored flexible-scenario preview
-- Program Center foundation
-- Manager Worksheet foundation
-- Existing calculator retained under Deal Builder during development
+## Working foundation
 
-The scenario cards are design previews in Alpha 1. They are not yet connected to the calculation engine.
+- Dashboard and recent saved deals
+- Independent Deal state
+- Independent Scenario state
+- Lease, One-Pay Lease, Finance, Cash and BMW Select calculations
+- Automatic mileage residual adjustments
+- In-service and custom-mile residual deductions
+- Individual incentives by quote type
+- Payment Roller
+- Customer Quote renderer
+- Manager Worksheet renderer
+- Dealer Settings
+- Program Center
+- Local save/load
+- Optional Supabase save/load through the new `v3_deals` JSONB table
 
-Recommended separate deployment:
-- GitHub repository: `BMW_Quote_Pro_3_Dev`
-- Netlify development site
-- Separate Supabase test project
+## Supabase
+
+Run `supabase/001_v3_clean_deals.sql` in the Version 3 development project.
+
+Alpha 6 always saves locally first. When connected and signed in, it also saves the same complete deal object to Supabase.
+
+Continue using Version 2.4.1 for live customer work until calculation parity and printing are fully tested.
+
+
+## Alpha 7
+
+- Manager Worksheet lists every incentive, amount, applicable quote type, and program code.
+- Manager Worksheet includes total incentives and scenario-specific applied incentive totals.
+- Added an option to combine dealer discount and incentives on the customer quote.
+- The combine option changes presentation only; calculations remain unchanged.
