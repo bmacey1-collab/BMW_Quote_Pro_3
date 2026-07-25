@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0f2f57">
-  <title>BMW Quote Pro 3.0 Beta 1</title>
+  <title>BMW Quote Pro 3.0 Beta 2</title>
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/print.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13,10 +13,10 @@
   <div class="app-shell">
     <header class="app-header">
       <div>
-        <h1>BMW Quote Pro 3.0 Beta 1</h1>
+        <h1>BMW Quote Pro 3.0 Beta 2</h1>
         <p>Clean desking architecture — no Version 2 calculator code.</p>
       </div>
-      <div class="build-chip">Beta 1 · Testing</div>
+      <div class="build-chip">Beta 2 · Testing</div>
     </header>
 
     <nav class="main-nav" aria-label="Primary navigation">
@@ -339,9 +339,12 @@
       </div>
       <div id="incentiveProgramSummary" class="result-box"></div>
       <div id="availableIncentives" class="incentive-picker"></div>
-      <div class="dialog-actions">
+      <div id="incentivePickerMessage" class="picker-message"></div>
+      <div class="dialog-actions incentive-dialog-actions">
+        <button type="button" class="secondary" id="addIncentiveToProgram">+ Add Incentive to This Program</button>
+        <span class="dialog-action-spacer"></span>
         <button type="button" class="secondary" id="cancelIncentives">Cancel</button>
-        <button type="button" class="primary" id="applyIncentives">Apply Selected</button>
+        <button type="button" class="primary" id="applyIncentives" disabled>Apply Selected</button>
       </div>
     </form>
   </dialog>
@@ -394,6 +397,42 @@
       <div class="dialog-actions">
         <button type="button" class="secondary" id="cancelImportReview">Cancel</button>
         <button type="button" class="primary" id="saveImportedPrograms">Save Approved Programs</button>
+      </div>
+    </form>
+  </dialog>
+
+
+  <dialog id="programIncentiveDialog">
+    <form method="dialog" id="programIncentiveForm">
+      <div class="dialog-header">
+        <div>
+          <div class="eyebrow">Program Incentive</div>
+          <h2>Add Incentive to Program</h2>
+        </div>
+        <button type="button" class="icon-button" id="closeProgramIncentiveDialog">×</button>
+      </div>
+      <input id="programIncentiveProgramId" type="hidden">
+      <div id="programIncentiveProgramLabel" class="result-box"></div>
+      <div class="form-grid four">
+        <label class="span2">Incentive Name<input id="newProgramIncentiveName" required placeholder="Example: Loyalty"></label>
+        <label>Amount<input id="newProgramIncentiveAmount" type="number" min="0" step=".01" required></label>
+        <label>Applies To<select id="newProgramIncentiveApplies">
+          <option value="all">All Types</option>
+          <option value="lease">Lease</option>
+          <option value="finance">Finance</option>
+          <option value="cash">Cash</option>
+          <option value="select">BMW Select</option>
+        </select></label>
+        <label>Category<select id="newProgramIncentiveCategory">
+          <option value="customer">Customer Incentive</option>
+          <option value="dealer">Dealer Contribution</option>
+          <option value="rate">Rate / APR Credit</option>
+        </select></label>
+        <label>Program Code<input id="newProgramIncentiveCode"></label>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="secondary" id="cancelProgramIncentive">Cancel</button>
+        <button type="submit" class="primary">Save Incentive</button>
       </div>
     </form>
   </dialog>

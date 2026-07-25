@@ -1,4 +1,4 @@
-# BMW Quote Pro 3.0 Beta 1
+# BMW Quote Pro 3.0 Beta 2
 
 Beta 1 is based on the clean Version 3 architecture and includes the complete Alpha 9 workflow with a repaired BMW program PDF importer.
 
@@ -32,3 +32,15 @@ Imported rows are marked **Needs Review** until confirmed.
 - Local save plus optional Supabase deal synchronization
 
 Continue using Version 2.4.1 for live work until Beta calculations and importing have been tested against actual BMW program documents.
+
+
+## Beta 2 — Incentive Selection Fix
+
+- Apply Selected is disabled until at least one incentive is checked.
+- Empty matching programs clearly explain why no incentive can be applied.
+- Added Add Incentive to This Program directly inside the selection workflow.
+- New incentives save to the matching Program Center record.
+- Newly added incentives are automatically checked and ready to apply.
+- Applied incentives display a Remove Incentive button in Deal Builder.
+- Removing an incentive recalculates scenarios, refreshes the Manager Worksheet, and autosaves the draft.
+- Selected program incentives retain their source program and source incentive IDs.

@@ -85,3 +85,50 @@
   color:#684d00;
   font-size:12px;
 }
+
+.incentive-dialog-actions{
+  align-items:center;
+}
+.dialog-action-spacer{
+  flex:1;
+}
+.picker-message{
+  min-height:22px;
+  margin-top:10px;
+  color:#8a6400;
+  font-size:12px;
+  font-weight:800;
+}
+.picker-message.ready{
+  color:#1f6a41;
+}
+.incentive-empty{
+  display:grid;
+  gap:7px;
+}
+.incentive-empty span{
+  color:#66717d;
+  font-size:12px;
+  line-height:1.45;
+}
+.incentive-pick-row.already-applied{
+  border-color:#8fb5e8;
+  background:#f2f7fd;
+}
+#applyIncentives:disabled,
+#addIncentiveToProgram:disabled{
+  cursor:not-allowed;
+  opacity:.45;
+}
+.remove-incentive-button{
+  white-space:nowrap;
+}
+@media(max-width:700px){
+  .incentive-dialog-actions{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+  .dialog-action-spacer{
+    display:none;
+  }
+}

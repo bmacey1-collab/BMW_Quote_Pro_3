@@ -3,7 +3,7 @@
 const $ = id => document.getElementById(id);
 const money = new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"});
 const KEYS={settings:"bqp3_settings",programs:"bqp3_programs",deals:"bqp3_deals",connection:"bqp3_connection",draft:"bqp3_autosave_draft"};
-let supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,draggedScenarioId=null,importedProgramRows=[],pdfJsModulePromise=null;
+let supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,draggedScenarioId=null,importedProgramRows=[],pdfJsModulePromise=null,currentIncentiveProgramIds=[];
 let state=createEmptyDeal();
 
 function createEmptyDeal(){
@@ -43,7 +43,7 @@ const taxable=Math.max(0,selling-allowance),salesTax=taxable*tax,principal=selli
 function defaultScenario(type){const base={id:crypto.randomUUID(),name:"",type:type==="onepay"?"lease":type,selected:false,term:type==="cash"?1:(type==="lease"||type==="onepay"?36:60),miles:type==="lease"||type==="onepay"?10000:"",residual:"",baseMoneyFactor:"",moneyFactor:"",onePay:type==="onepay",onePayReduction:.00080,inceptionMileage:0,inceptionCharge:.20,customMiles:0,customCharge:.20,buyApr:"",apr:"",balloon:"",priceAdjustment:0,cashAdjustment:0,tradeAdjustment:0,extraIncentive:0,showRate:false,showResidual:false,showFees:true,programId:""};base.name=type==="onepay"?"One-Pay Lease 10K":type==="lease"?"Lease 10K":type==="finance"?"Finance 60":type==="cash"?"Cash Purchase":"BMW Select 60";return base;}
 function renderIncentives(){
  const c=$("incentiveRows");
- c.innerHTML=state.incentives.length?state.incentives.map(i=>`<div class="selected-incentive-row"><div><strong>${esc(i.name)}</strong><span>${esc(i.appliesTo==="all"?"All Types":i.appliesTo)}${i.programCode?" · "+esc(i.programCode):""}</span></div><strong>${money.format(num(i.amount))}</strong><button class="danger" data-remove-incentive="${i.id}">Remove</button></div>`).join(""):'<div class="empty-state">No program incentives selected.</div>';
+ c.innerHTML=state.incentives.length?state.incentives.map(i=>`<div class="selected-incentive-row"><div><strong>${esc(i.name)}</strong><span>${esc(i.appliesTo==="all"?"All Types":i.appliesTo)}${i.programCode?" · "+esc(i.programCode):""}</span></div><strong>${money.format(num(i.amount))}</strong><button type="button" class="danger remove-incentive-button" data-remove-incentive="${i.id}">Remove Incentive</button></div>`).join(""):'<div class="empty-state">No program incentives selected.</div>';
  $("incentiveTotal").textContent=money.format(state.incentives.reduce((s,i)=>s+num(i.amount),0));
 }
 function renderScenarios(){
@@ -316,20 +316,176 @@ function currentProgramMatches(){
  const y=num(state.vehicle.year),model=normalizeClientText(state.vehicle.model);
  return programs().filter(p=>p.status!=="expired"&&(!y||p.year===y)&&(!model||normalizeClientText(p.model).includes(model)||model.includes(normalizeClientText(p.model))));
 }
+function updateIncentivePickerButtons(){
+ const selectedCount=document.querySelectorAll("[data-pick-incentive]:checked").length;
+ const apply=$("applyIncentives");
+ apply.disabled=selectedCount===0;
+ $("incentivePickerMessage").textContent=selectedCount
+   ? `${selectedCount} incentive${selectedCount===1?"":"s"} selected`
+   : "Select at least one incentive to apply.";
+ $("incentivePickerMessage").className=
+   "picker-message"+(selectedCount?" ready":"");
+}
+
 function openIncentivePicker(programId=""){
  readFormToState();
- const matches=programId?programs().filter(p=>p.id===programId):currentProgramMatches();
+ const matches=programId
+   ? programs().filter(p=>p.id===programId)
+   : currentProgramMatches();
+
+ currentIncentiveProgramIds=matches.map(p=>p.id);
+
  const available=[];
- matches.forEach(p=>(p.incentives||[]).forEach(i=>available.push({...i,sourceProgramId:p.id,sourceLabel:`${p.month} · ${p.year} ${p.model}`})));
- $("incentiveProgramSummary").textContent=matches.length?`${matches.length} matching program record${matches.length===1?"":"s"} for ${state.vehicle.year||""} ${state.vehicle.model||""}`:"No matching program found. Add the missing program or choose one from Program Center.";
- $("availableIncentives").innerHTML=available.length?available.map(i=>`<label class="incentive-pick-row"><input type="checkbox" data-pick-incentive="${i.id}" data-program-id="${i.sourceProgramId}" ${state.incentives.some(x=>x.sourceProgramId===i.sourceProgramId&&x.name===i.name)?"checked":""}><span><strong>${esc(i.name)}</strong><small>${esc(i.sourceLabel)} · ${esc(i.appliesTo==="all"?"All Types":i.appliesTo)}</small></span><strong>${money.format(i.amount)}</strong></label>`).join(""):'<div class="empty-state">No incentives are stored for the matching program.</div>';
+ matches.forEach(p=>(p.incentives||[]).forEach(i=>available.push({
+   ...i,
+   sourceProgramId:p.id,
+   sourceLabel:`${p.month} · ${p.year} ${p.model}`
+ })));
+
+ $("incentiveProgramSummary").textContent=matches.length
+   ? `${matches.length} matching program record${matches.length===1?"":"s"} for ${state.vehicle.year||""} ${state.vehicle.model||""}`
+   : "No matching program found. Add the missing program first.";
+
+ $("availableIncentives").innerHTML=available.length
+   ? available.map(i=>{
+       const alreadyApplied=state.incentives.some(x=>
+         x.sourceProgramId===i.sourceProgramId &&
+         x.sourceIncentiveId===i.id
+       );
+       return `<label class="incentive-pick-row ${alreadyApplied?"already-applied":""}">
+         <input type="checkbox"
+           data-pick-incentive="${i.id}"
+           data-program-id="${i.sourceProgramId}"
+           ${alreadyApplied?"checked":""}>
+         <span>
+           <strong>${esc(i.name)}</strong>
+           <small>${esc(i.sourceLabel)} · ${esc(i.appliesTo==="all"?"All Types":i.appliesTo)}${alreadyApplied?" · Currently applied":""}</small>
+         </span>
+         <strong>${money.format(i.amount)}</strong>
+       </label>`;
+     }).join("")
+   : `<div class="empty-state incentive-empty">
+        <strong>No incentives are stored for the matching program.</strong>
+        <span>Use “Add Incentive to This Program” below to enter Loyalty, Lease Credit, Purchase Credit, Conquest or another available program.</span>
+      </div>`;
+
+ const canAdd=matches.length>0;
+ $("addIncentiveToProgram").disabled=!canAdd;
+ $("addIncentiveToProgram").textContent=canAdd
+   ? "+ Add Incentive to This Program"
+   : "Add the Missing Program First";
+
  $("incentiveDialog").showModal();
+ updateIncentivePickerButtons();
 }
+
 function applyPickedIncentives(){
  const picked=[...document.querySelectorAll("[data-pick-incentive]:checked")];
- const rows=programs();const selected=[];
- picked.forEach(box=>{const p=rows.find(x=>x.id===box.dataset.programId),i=p?.incentives?.find(x=>x.id===box.dataset.pickIncentive);if(i)selected.push({...i,id:crypto.randomUUID(),sourceProgramId:p.id});});
- state.incentives=selected;renderIncentives();renderScenarios();scheduleAutosave();$("incentiveDialog").close();
+
+ if(!picked.length){
+   toast("Select at least one incentive before clicking Apply Selected.");
+   updateIncentivePickerButtons();
+   return;
+ }
+
+ const rows=programs();
+ const selected=[];
+
+ picked.forEach(box=>{
+   const program=rows.find(p=>p.id===box.dataset.programId);
+   const incentive=program?.incentives?.find(i=>i.id===box.dataset.pickIncentive);
+   if(incentive){
+     selected.push({
+       ...incentive,
+       id:crypto.randomUUID(),
+       sourceProgramId:program.id,
+       sourceIncentiveId:incentive.id
+     });
+   }
+ });
+
+ if(!selected.length){
+   toast("The selected incentives could not be found in the program record.");
+   return;
+ }
+
+ state.incentives=selected;
+ renderIncentives();
+ renderScenarios();
+ renderWorksheet();
+ scheduleAutosave();
+ $("incentiveDialog").close();
+ toast(`${selected.length} incentive${selected.length===1?"":"s"} applied.`);
+}
+
+function openAddProgramIncentiveDialog(){
+ const programId=currentIncentiveProgramIds[0];
+ const program=programs().find(p=>p.id===programId);
+
+ if(!program){
+   toast("Add or select a matching program first.");
+   return;
+ }
+
+ $("programIncentiveProgramId").value=program.id;
+ $("programIncentiveProgramLabel").textContent=
+   `${program.month} · ${program.year} ${program.model}${program.modelCode?" · "+program.modelCode:""}`;
+ $("newProgramIncentiveName").value="";
+ $("newProgramIncentiveAmount").value="";
+ $("newProgramIncentiveApplies").value="all";
+ $("newProgramIncentiveCategory").value="customer";
+ $("newProgramIncentiveCode").value=program.modelCode||"";
+ $("programIncentiveDialog").showModal();
+}
+
+function saveProgramIncentiveFromDeal(){
+ const programId=$("programIncentiveProgramId").value;
+ const rows=programs();
+ const program=rows.find(p=>p.id===programId);
+
+ if(!program){
+   toast("The matching program could not be found.");
+   return false;
+ }
+
+ const name=$("newProgramIncentiveName").value.trim();
+ const amount=num($("newProgramIncentiveAmount").value);
+
+ if(!name||amount<=0){
+   toast("Enter an incentive name and amount.");
+   return false;
+ }
+
+ if(!Array.isArray(program.incentives))program.incentives=[];
+
+ const incentive={
+   id:crypto.randomUUID(),
+   name,
+   amount,
+   appliesTo:$("newProgramIncentiveApplies").value,
+   category:$("newProgramIncentiveCategory").value,
+   programCode:$("newProgramIncentiveCode").value.trim()
+ };
+
+ program.incentives.push(incentive);
+ localStorage.setItem(KEYS.programs,JSON.stringify(rows));
+ renderPrograms();
+ $("programIncentiveDialog").close();
+ openIncentivePicker(programId);
+
+ // Automatically select the newly added item.
+ requestAnimationFrame(()=>{
+   const checkbox=document.querySelector(
+     `[data-pick-incentive="${incentive.id}"][data-program-id="${programId}"]`
+   );
+   if(checkbox){
+     checkbox.checked=true;
+     updateIncentivePickerButtons();
+   }
+ });
+
+ toast("Incentive saved to the program.");
+ return true;
 }
 function openQuickProgram(){
  readFormToState();
@@ -616,7 +772,19 @@ function saveApprovedImports(){
  checked.forEach(p=>{const existing=rows.findIndex(x=>x.month===p.month&&x.modelCode===p.modelCode);existing>=0?rows[existing]=p:rows.push(p)});
  localStorage.setItem(KEYS.programs,JSON.stringify(rows));renderPrograms();$("importReviewDialog").close();$("programPdfFile").value="";setPdfImportStatus(`${checked.length} programs saved`,"success");toast(`${checked.length} programs imported.`);
 }
-function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("rollPaymentButton").onclick=rollPayment;$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=renderDashboard;$("refreshSaved").onclick=renderSaved;$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=programs().sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p){editProgram(p.id);$("programId").value="";$("programStatus").value="carried";toast("Prior program copied. Change the month.")}};$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{const id=e.target.dataset.removeIncentive;if(id){state.incentives=state.incentives.filter(x=>x.id!==id);renderIncentives();renderScenarios();scheduleAutosave()}});$("scenarioGrid").addEventListener("click",e=>{
+function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("rollPaymentButton").onclick=rollPayment;$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=renderDashboard;$("refreshSaved").onclick=renderSaved;$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=programs().sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p){editProgram(p.id);$("programId").value="";$("programStatus").value="carried";toast("Prior program copied. Change the month.")}};$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{
+ const id=e.target.dataset.removeIncentive;
+ if(!id)return;
+ const incentive=state.incentives.find(x=>x.id===id);
+ if(!incentive)return;
+ if(!confirm(`Remove "${incentive.name}" from this deal?`))return;
+ state.incentives=state.incentives.filter(x=>x.id!==id);
+ renderIncentives();
+ renderScenarios();
+ renderWorksheet();
+ scheduleAutosave();
+ toast("Incentive removed from the deal.");
+});$("scenarioGrid").addEventListener("click",e=>{
  const moveId=e.target.dataset.moveScenario;if(moveId){moveScenario(moveId,num(e.target.dataset.direction));return}
  const id=e.target.dataset.editScenario||e.target.dataset.duplicateScenario||e.target.dataset.renameScenario||e.target.dataset.deleteScenario;if(!id)return;
  const s=state.scenarios.find(x=>x.id===id);if(e.target.dataset.editScenario)openScenario(s);
@@ -631,7 +799,17 @@ $("scenarioGrid").addEventListener("change",e=>{
 $("scenarioGrid").addEventListener("dragstart",e=>{const card=e.target.closest("[data-scenario-card]");if(card){draggedScenarioId=card.dataset.scenarioCard;card.classList.add("dragging")}});
 $("scenarioGrid").addEventListener("dragend",e=>{e.target.closest("[data-scenario-card]")?.classList.remove("dragging");draggedScenarioId=null});
 $("scenarioGrid").addEventListener("dragover",e=>{e.preventDefault();const target=e.target.closest("[data-scenario-card]");if(!target||!draggedScenarioId||target.dataset.scenarioCard===draggedScenarioId)return;const from=state.scenarios.findIndex(s=>s.id===draggedScenarioId),to=state.scenarios.findIndex(s=>s.id===target.dataset.scenarioCard);const [item]=state.scenarios.splice(from,1);state.scenarios.splice(to,0,item);renderScenarios()});
-$("scenarioGrid").addEventListener("drop",e=>{e.preventDefault();scheduleAutosave()});$("closeIncentiveDialog").onclick=$("cancelIncentives").onclick=()=>$("incentiveDialog").close();$("applyIncentives").onclick=applyPickedIncentives;
+$("scenarioGrid").addEventListener("drop",e=>{e.preventDefault();scheduleAutosave()});$("closeIncentiveDialog").onclick=$("cancelIncentives").onclick=()=>$("incentiveDialog").close();
+$("applyIncentives").onclick=applyPickedIncentives;
+$("addIncentiveToProgram").onclick=openAddProgramIncentiveDialog;
+$("availableIncentives").addEventListener("change",e=>{
+ if(e.target.matches("[data-pick-incentive]"))updateIncentivePickerButtons();
+});
+$("closeProgramIncentiveDialog").onclick=$("cancelProgramIncentive").onclick=()=>$("programIncentiveDialog").close();
+$("programIncentiveForm").onsubmit=e=>{
+ e.preventDefault();
+ saveProgramIncentiveFromDeal();
+};
 $("closeQuickProgram").onclick=$("cancelQuickProgram").onclick=()=>$("quickProgramDialog").close();$("quickProgramForm").onsubmit=e=>{e.preventDefault();saveQuickProgram()};
 $("closeImportReview").onclick=$("cancelImportReview").onclick=()=>$("importReviewDialog").close();$("saveImportedPrograms").onclick=saveApprovedImports;$("selectAllImported").onchange=e=>document.querySelectorAll("[data-import-row]").forEach(x=>x.checked=e.target.checked);
 $("importReviewTable").addEventListener("input",e=>{const i=e.target.dataset.importEdit;if(i!==undefined)importedProgramRows[num(i)][e.target.dataset.field]=e.target.type==="number"?num(e.target.value):e.target.value});
