@@ -1,1104 +1,300 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BMW Quote Pro 3.0 Alpha 5</title>
-  <link rel="stylesheet" href="css/styles.css" />
-  <link rel="stylesheet" href="css/cards.css" />
-  <link rel="stylesheet" href="css/print.css" />
-
-  <meta name="theme-color" content="#1c69d4" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="BMW Quote Pro" />
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="assets/icons/icon-192.svg" />
-
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0f2f57">
+  <title>BMW Quote Pro 3.0 Alpha 6</title>
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/print.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<main class="page">
-  <div class="app-header">
-    <div>
-      <h1>BMW Quote Pro 3.0 Alpha 5</h1>
-      <div class="app-subtitle">Portfolio desking, flexible scenarios, program management, and manager-ready worksheets.</div>
-    </div>
-  </div>
-  <div class="alpha-banner">
-    <strong>Version 3.0 Alpha 5 Development</strong>
-    <span>Continue using BMW Quote Pro 2.4.1 for live customer work.</span>
-  </div>
-
-  <div class="tabs">
-    <button type="button" class="tab-button" data-tab="setupTab">Deal Builder</button>
-    <button type="button" class="tab-button active" data-tab="dashboardTab">Dashboard</button>
-    <button type="button" class="tab-button" data-tab="clientsTab">Clients</button>
-    <button type="button" class="tab-button" data-tab="emailTab">Email Center</button>
-    <button type="button" class="tab-button" data-tab="programsTab">Program Center</button>
-    <button type="button" class="tab-button" data-tab="worksheetTab">Manager Worksheet</button>
-    <button type="button" class="tab-button" data-tab="dealerSettingsTab">Dealer Settings</button>
-    <button type="button" class="tab-button" data-tab="presentationTab">Customer Quote</button>
-    <button type="button" class="tab-button" data-tab="savedTab">Saved Quotes</button>
-    <button type="button" class="tab-button" data-tab="aboutTab">About & Backup</button>
-  </div>
-
-  <section id="setupTab" class="tab-panel">
-    <section class="scenario-workspace">
-      <div class="section-heading-row">
-        <div>
-          <div class="eyebrow">Deal Profile</div>
-          <h2>Build the deal once, then create flexible scenarios</h2>
-        </div>
-        <div class="scenario-toolbar">
-          <select id="quickScenarioType" aria-label="Scenario template">
-            <option value="lease">Lease</option>
-            <option value="onepay">One-Pay Lease</option>
-            <option value="finance">Finance</option>
-            <option value="cash">Cash Purchase</option>
-            <option value="select">BMW Select</option>
-          </select>
-          <button type="button" class="btn-primary" onclick="addScenarioTemplate()">+ Add Scenario</button>
-        </div>
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <h1>BMW Quote Pro 3.0 Alpha 6</h1>
+        <p>Clean desking architecture — no Version 2 calculator code.</p>
       </div>
+      <div class="build-chip">Alpha 6 · Development</div>
+    </header>
 
-      <div class="deal-profile-grid">
-        <div class="field">
-          <label for="v3FirstName">First Name</label>
-          <input id="v3FirstName" type="text" />
-        </div>
-        <div class="field">
-          <label for="v3LastName">Last Name</label>
-          <input id="v3LastName" type="text" />
-        </div>
-        <div class="field">
-          <label for="v3CoFirstName">Co-Buyer First</label>
-          <input id="v3CoFirstName" type="text" />
-        </div>
-        <div class="field">
-          <label for="v3CoLastName">Co-Buyer Last</label>
-          <input id="v3CoLastName" type="text" />
-        </div>
-        <div class="field">
-          <label for="v3Salesperson">Salesperson</label>
-          <select id="v3Salesperson">
-            <option value="">Select salesperson</option>
-            <option>Brian Macey</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="v3CurrentPayment">Current Payment</label>
-          <input id="v3CurrentPayment" type="number" min="0" step=".01" />
-        </div>
+    <nav class="main-nav" aria-label="Primary navigation">
+      <button data-page="dashboard" class="active">Dashboard</button>
+      <button data-page="deal">Deal Builder</button>
+      <button data-page="quote">Customer Quote</button>
+      <button data-page="worksheet">Manager Worksheet</button>
+      <button data-page="programs">Program Center</button>
+      <button data-page="saved">Saved Deals</button>
+      <button data-page="settings">Dealer Settings</button>
+      <button data-page="connection">Database</button>
+    </nav>
 
-        <div class="field">
-          <label for="v3StockNumber">Stock Number</label>
-          <input id="v3StockNumber" type="text" />
-        </div>
-        <div class="field">
-          <label for="v3Vin">VIN</label>
-          <div class="inline-control">
-            <input id="v3Vin" type="text" maxlength="17" />
-            <button type="button" class="btn-secondary" onclick="decodeV3Vin('vehicle')">Decode</button>
-          </div>
-        </div>
-        <div class="field">
-          <label for="v3Year">Year</label>
-          <input id="v3Year" type="number" min="1900" max="2100" />
-        </div>
-        <div class="field">
-          <label for="v3Make">Make</label>
-          <input id="v3Make" type="text" value="BMW" />
-        </div>
-        <div class="field">
-          <label for="v3Model">Model / Trim</label>
-          <input id="v3Model" type="text" />
-        </div>
-        <div class="field">
-          <label for="v3Mileage">Vehicle Mileage</label>
-          <input id="v3Mileage" type="number" min="0" step="1" />
-        </div>
+    <div id="toast" class="toast hidden"></div>
 
-        <div class="field">
-          <label for="v3Msrp">MSRP / Market Value</label>
-          <input id="v3Msrp" type="number" min="0" step=".01" />
-        </div>
-        <div class="field">
-          <label for="v3Discount">Dealer Discount</label>
-          <input id="v3Discount" type="number" min="0" step=".01" value="0" />
-        </div>
-        <div class="field">
-          <label>Adjusted Selling Price</label>
-          <div id="v3SellingPriceDisplay" class="readout">$0.00</div>
-        </div>
-        <div class="field required-field">
-          <label for="v3TaxRate">Sales Tax % <span>*</span></label>
-          <input id="v3TaxRate" type="number" min="0" step=".01" placeholder="Enter 0 if tax exempt" />
-        </div>
-        <div class="field">
-          <label for="v3DocFee">Document Fee</label>
-          <div class="fee-control">
-            <input id="v3DocFee" type="number" min="0" step=".01" />
-            <select id="v3DocFeeTreatment">
-              <option value="upfront">Pay Up Front</option>
-              <option value="capitalize">Include in Payment</option>
-              <option value="none">Not Applicable</option>
-            </select>
-          </div>
-        </div>
-        <div class="field">
-          <label for="v3RegFee">Registration / Title</label>
-          <div class="fee-control">
-            <input id="v3RegFee" type="number" min="0" step=".01" />
-            <select id="v3RegFeeTreatment">
-              <option value="upfront">Pay Up Front</option>
-              <option value="capitalize">Include in Payment</option>
-              <option value="none">Not Applicable</option>
-            </select>
-          </div>
-        </div>
-        <div class="field">
-          <label for="v3AcqFee">Lease Acquisition Fee</label>
-          <div class="fee-control">
-            <input id="v3AcqFee" type="number" min="0" step=".01" />
-            <select id="v3AcqFeeTreatment">
-              <option value="capitalize">Include in Payment</option>
-              <option value="upfront">Pay Up Front</option>
-              <option value="none">Not Applicable</option>
-            </select>
-          </div>
-        </div>
-        <div class="field">
-          <label for="v3MiscFee">Miscellaneous Fee</label>
-          <div class="fee-control">
-            <input id="v3MiscFee" type="number" min="0" step=".01" />
-            <select id="v3MiscFeeTreatment">
-              <option value="capitalize">Include in Payment</option>
-              <option value="upfront">Pay Up Front</option>
-              <option value="none">Not Applicable</option>
-            </select>
-          </div>
-        </div>
-        <div class="field">
-          <label for="v3VehicleCost">Vehicle Cost</label>
-          <input id="v3VehicleCost" type="number" min="0" step=".01" />
-        </div>
-        <div class="field">
-          <label for="v3Pack">Pack / Internal Cost</label>
-          <input id="v3Pack" type="number" min="0" step=".01" />
-        </div>
-
-        <div class="field">
-          <label for="v3TradeVin">Trade VIN</label>
-          <div class="inline-control">
-            <input id="v3TradeVin" type="text" maxlength="17" />
-            <button type="button" class="btn-secondary" onclick="decodeV3Vin('trade')">Decode</button>
-          </div>
-        </div>
-        <div class="field">
-          <label for="v3TradeVehicle">Trade Year / Make / Model</label>
-          <input id="v3TradeVehicle" type="text" />
-        </div>
-        <div class="field">
-          <label for="v3TradeAllowance">Trade Allowance</label>
-          <input id="v3TradeAllowance" type="number" min="0" step=".01" />
-        </div>
-        <div class="field">
-          <label for="v3TradeAcv">Trade ACV</label>
-          <input id="v3TradeAcv" type="number" min="0" step=".01" />
-        </div>
-        <div class="field">
-          <label for="v3TradePayoff">Trade Payoff</label>
-          <input id="v3TradePayoff" type="number" min="0" step=".01" />
-        </div>
-        <div class="field">
-          <label for="v3CashDown">Cash Up Front</label>
-          <input id="v3CashDown" type="number" min="0" step=".01" />
-        </div>
-
-        <div class="field">
-          <label for="v3EquityMethod">Lease Equity Treatment</label>
-          <select id="v3EquityMethod" onchange="updateEquityControls()">
-            <option value="cap">Use all as cap reduction</option>
-            <option value="cashback">Return all as cash back</option>
-            <option value="split">Split equity</option>
-          </select>
-        </div>
-        <div class="field" id="v3CashBackField">
-          <label for="v3EquityCashBack">Equity Returned to Client</label>
-          <input id="v3EquityCashBack" type="number" min="0" step=".01" value="0" />
-        </div>
-        <div class="field">
-          <label>Calculated Trade Equity</label>
-          <div id="v3TradeEquityDisplay" class="readout">$0.00</div>
-        </div>
-        <div class="field">
-          <label>Calculated Trade Gross</label>
-          <div id="v3TradeGrossDisplay" class="readout">$0.00</div>
-        </div>
-        <div class="field">
-          <label for="v3Notes">Manager Notes</label>
-          <textarea id="v3Notes"></textarea>
-        </div>
-        <div class="field">
-          <label>Customer Presentation</label>
-          <div class="checkbox-stack">
-            <label><input id="v3ShowPaymentComparison" type="checkbox" checked /> Show current-payment comparison</label>
-            <label><input id="v3ShowSignature" type="checkbox" /> Include signature lines</label>
-          </div>
-        </div>
-      </div>
-
-
-      <section class="deal-incentives">
-        <div class="section-heading-row">
+    <main>
+      <section id="page-dashboard" class="page active">
+        <div class="hero">
           <div>
-            <div class="eyebrow">Deal Incentives</div>
-            <h2>Enter each incentive once</h2>
+            <div class="eyebrow">Portfolio Desk</div>
+            <h2>Start a deal or reopen a recent quote</h2>
+            <p>Version 2.4.1 remains your live application while this build is tested.</p>
           </div>
-          <button type="button" class="btn-primary" onclick="addDealIncentiveRow()">+ Add Incentive</button>
+          <button class="primary large" id="newDealButton">+ New Deal</button>
         </div>
-        <div class="small-help">
-          Choose which quote types receive each incentive. Program Center incentives can also be loaded here.
+
+        <div class="quick-grid">
+          <button class="quick-card" data-page-link="deal"><strong>New Deal</strong><span>Build flexible scenarios</span></button>
+          <button class="quick-card" data-page-link="programs"><strong>Programs</strong><span>Rates, residuals and incentives</span></button>
+          <button class="quick-card" data-page-link="worksheet"><strong>Manager Worksheet</strong><span>Internal deal structure</span></button>
+          <button class="quick-card" data-page-link="saved"><strong>Saved Deals</strong><span>Reopen and revise quotes</span></button>
         </div>
-        <div id="dealIncentiveRows" class="incentive-list"></div>
-        <div class="incentive-total-line">
-          <span>Total incentives entered</span>
-          <strong id="dealIncentiveTotal">$0.00</strong>
+
+        <div class="section-heading">
+          <div><div class="eyebrow">Recent Deals</div><h2>Latest saved quotes</h2></div>
+          <button class="secondary" id="refreshDashboard">Refresh</button>
+        </div>
+        <div id="dashboardRecent" class="recent-list"><div class="empty-state">No saved deals yet.</div></div>
+      </section>
+
+      <section id="page-deal" class="page">
+        <div class="section-heading">
+          <div><div class="eyebrow">Deal Builder</div><h2>Build the deal once</h2></div>
+          <div class="button-row">
+            <button class="secondary" id="clearDealButton">Clear Deal</button>
+            <button class="primary" id="saveDealButton">Save Deal</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Customer & Vehicle</h3>
+          <div class="form-grid six">
+            <label>First Name<input id="firstName"></label>
+            <label>Last Name<input id="lastName"></label>
+            <label>Co-Buyer First<input id="coFirstName"></label>
+            <label>Co-Buyer Last<input id="coLastName"></label>
+            <label>Salesperson<select id="salesperson"></select></label>
+            <label>Current Payment<input id="currentPayment" type="number" min="0" step=".01"></label>
+
+            <label>Stock Number<input id="stockNumber"></label>
+            <label class="span2">VIN<div class="inline"><input id="vin" maxlength="17"><button class="secondary small" id="decodeVin">Decode</button></div></label>
+            <label>Year<input id="year" type="number"></label>
+            <label>Make<input id="make" value="BMW"></label>
+            <label>Model / Trim<input id="model"></label>
+
+            <label>MSRP / Market Value<input id="msrp" type="number" min="0" step=".01"></label>
+            <label>Dealer Discount<input id="discount" type="number" min="0" step=".01" value="0"></label>
+            <label>Adjusted Selling Price<div id="sellingPriceDisplay" class="readout">$0.00</div></label>
+            <label class="required">Sales Tax %<input id="taxRate" type="number" min="0" step=".01" placeholder="Enter 0 if tax exempt"></label>
+            <label>Vehicle Cost<input id="vehicleCost" type="number" min="0" step=".01"></label>
+            <label>Pack / Internal Cost<input id="pack" type="number" min="0" step=".01"></label>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Trade & Equity</h3>
+          <div class="form-grid six">
+            <label class="span2">Trade VIN<div class="inline"><input id="tradeVin" maxlength="17"><button class="secondary small" id="decodeTradeVin">Decode</button></div></label>
+            <label class="span2">Trade Year / Make / Model<input id="tradeVehicle"></label>
+            <label>Trade Allowance<input id="tradeAllowance" type="number" min="0" step=".01"></label>
+            <label>Trade ACV<input id="tradeAcv" type="number" min="0" step=".01"></label>
+            <label>Trade Payoff<input id="tradePayoff" type="number" min="0" step=".01"></label>
+            <label>Cash Up Front<input id="cashDown" type="number" min="0" step=".01"></label>
+            <label>Lease Equity Treatment<select id="equityMethod"><option value="cap">All as cap reduction</option><option value="cashback">All returned to client</option><option value="split">Split equity</option></select></label>
+            <label id="equityCashBackWrap">Equity Returned<input id="equityCashBack" type="number" min="0" step=".01" value="0"></label>
+            <label>Calculated Equity<div id="tradeEquityDisplay" class="readout">$0.00</div></label>
+            <label>Calculated Trade Gross<div id="tradeGrossDisplay" class="readout">$0.00</div></label>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Fees</h3>
+          <div class="fee-grid">
+            <div class="fee-row"><span>Document Fee</span><input id="docFee" type="number" min="0" step=".01"><select id="docTreatment"><option value="upfront">Pay Up Front</option><option value="capitalize">Include in Payment</option><option value="none">Not Applicable</option></select></div>
+            <div class="fee-row"><span>Registration / Title</span><input id="regFee" type="number" min="0" step=".01"><select id="regTreatment"><option value="upfront">Pay Up Front</option><option value="capitalize">Include in Payment</option><option value="none">Not Applicable</option></select></div>
+            <div class="fee-row"><span>Lease Acquisition Fee</span><input id="acqFee" type="number" min="0" step=".01"><select id="acqTreatment"><option value="capitalize">Include in Payment</option><option value="upfront">Pay Up Front</option><option value="none">Not Applicable</option></select></div>
+            <div class="fee-row"><span>Miscellaneous Fee</span><input id="miscFee" type="number" min="0" step=".01"><select id="miscTreatment"><option value="capitalize">Include in Payment</option><option value="upfront">Pay Up Front</option><option value="none">Not Applicable</option></select></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="section-heading compact">
+            <div><div class="eyebrow">Incentives</div><h3>Enter each incentive once</h3></div>
+            <button class="primary" id="addIncentiveButton">+ Add Incentive</button>
+          </div>
+          <div id="incentiveRows" class="incentive-list"></div>
+          <div class="total-line"><span>Total Incentives Entered</span><strong id="incentiveTotal">$0.00</strong></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-heading compact">
+            <div><div class="eyebrow">Scenario Engine</div><h3>Build up to six; present any three</h3></div>
+            <div class="button-row">
+              <select id="scenarioTemplate"><option value="lease">Lease</option><option value="onepay">One-Pay Lease</option><option value="finance">Finance</option><option value="cash">Cash Purchase</option><option value="select">BMW Select</option></select>
+              <button class="primary" id="addScenarioButton">+ Add Scenario</button>
+            </div>
+          </div>
+          <div id="scenarioSelectionCount" class="selection-count">0 of 3 selected</div>
+          <div id="scenarioGrid" class="scenario-grid"></div>
+        </div>
+
+        <div class="panel">
+          <div class="eyebrow">Roll Payment</div>
+          <h3>Solve a scenario to a target payment</h3>
+          <div class="form-grid four">
+            <label>Scenario<select id="rollerScenario"></select></label>
+            <label class="required">Target Payment<input id="rollerTarget" type="number" min="0" step=".01"></label>
+            <label>Adjust<select id="rollerVariable"><option value="discount">Dealer Discount</option><option value="cashDown">Cash Up Front</option><option value="tradeAllowance">Trade Allowance</option></select></label>
+            <label class="action-label">&nbsp;<button class="primary" id="rollPaymentButton">Calculate Adjustment</button></label>
+          </div>
+          <div id="rollerResult" class="result-box">Choose a scenario and target payment.</div>
+        </div>
+
+        <div class="panel">
+          <h3>Notes & Presentation</h3>
+          <div class="form-grid two">
+            <label>Manager Notes<textarea id="managerNotes"></textarea></label>
+            <div>
+              <label class="check"><input id="showPaymentComparison" type="checkbox" checked> Show current-payment comparison</label>
+              <label class="check"><input id="showSignature" type="checkbox"> Include signature lines</label>
+            </div>
+          </div>
         </div>
       </section>
 
-      <div class="scenario-section-heading">
-        <div>
-          <div class="eyebrow">Scenario Engine</div>
-          <h2>Build up to six; select any three to present</h2>
+      <section id="page-quote" class="page">
+        <div class="section-heading">
+          <div><div class="eyebrow">Customer Presentation</div><h2>Selected scenarios</h2></div>
+          <div class="button-row"><button class="secondary" id="refreshQuote">Refresh</button><button class="primary" id="printQuote">Print Quote</button></div>
         </div>
-        <div id="scenarioSelectionCount" class="selection-counter">0 of 3 selected</div>
-      </div>
-
-      <div id="scenarioPreviewGrid" class="scenario-preview-grid"></div>
-
-      <section class="payment-roller">
-        <div class="section-heading-row">
-          <div>
-            <div class="eyebrow">Roll Payment</div>
-            <h2>Solve a scenario to a target payment</h2>
-          </div>
-        </div>
-        <div class="roller-grid">
-          <div class="field">
-            <label for="rollerScenario">Scenario</label>
-            <select id="rollerScenario"></select>
-          </div>
-          <div class="field required-field">
-            <label for="rollerTarget">Target Payment <span>*</span></label>
-            <input id="rollerTarget" type="number" min="0" step=".01" />
-          </div>
-          <div class="field">
-            <label for="rollerVariable">Adjust</label>
-            <select id="rollerVariable">
-              <option value="discount">Dealer Discount</option>
-              <option value="cashDown">Cash Up Front</option>
-              <option value="tradeAllowance">Trade Allowance</option>
-            </select>
-          </div>
-          <div class="field roller-action">
-            <label>&nbsp;</label>
-            <button type="button" class="btn-primary" onclick="rollScenarioPayment()">Calculate Adjustment</button>
-          </div>
-        </div>
-        <div id="rollerResult" class="roller-result">Choose a scenario and target payment.</div>
+        <div id="quoteHeader" class="quote-header"></div>
+        <div id="quoteCards" class="quote-grid"><div class="empty-state">Select up to three complete scenarios.</div></div>
+        <div id="signatureArea" class="signature-area hidden"></div>
       </section>
 
-      <div class="alpha-note">
-        Alpha 2 calculations are for development testing. Continue using Version 2.4.1 for live customer quotes.
-      </div>
-    </section>
-
-    <dialog id="scenarioEditor" class="scenario-dialog">
-      <form method="dialog" onsubmit="return false;">
-        <div class="scenario-dialog-header">
-          <div>
-            <div class="eyebrow">Scenario Editor</div>
-            <h2 id="scenarioEditorHeading">Add Scenario</h2>
-          </div>
-          <button type="button" class="dialog-close" onclick="closeScenarioEditor()">×</button>
+      <section id="page-worksheet" class="page">
+        <div class="section-heading">
+          <div><div class="eyebrow">Internal Document</div><h2>Manager / Business Office Worksheet</h2></div>
+          <button class="primary" id="printWorksheet">Print Worksheet</button>
         </div>
+        <div id="worksheetOutput" class="worksheet"></div>
+      </section>
 
-        <input id="scenarioEditId" type="hidden" />
-        <div class="scenario-editor-grid">
-          <div class="field">
-            <label for="scenarioName">Scenario Name</label>
-            <input id="scenarioName" type="text" />
-          </div>
-          <div class="field">
-            <label for="scenarioType">Quote Type</label>
-            <select id="scenarioType" onchange="updateScenarioEditorFields()">
-              <option value="lease">Lease</option>
-              <option value="finance">Finance</option>
-              <option value="cash">Cash Purchase</option>
-              <option value="select">BMW Select</option>
-            </select>
-          </div>
-          <div class="field lease-only">
-            <label>Lease Structure</label>
-            <div class="checkbox-stack">
-              <label><input id="scenarioOnePay" type="checkbox" onchange="updateScenarioEditorFields()" /> One-Pay Lease</label>
-            </div>
-          </div>
-          <div class="field">
-            <label for="scenarioProgram">Load Saved Program</label>
-            <div class="inline-control">
-              <select id="scenarioProgram"><option value="">Choose saved program</option></select>
-              <button type="button" class="btn-secondary" onclick="applySelectedProgramToEditor()">Load</button>
-            </div>
-          </div>
-          <div class="field scenario-term-field">
-            <label for="scenarioTerm">Term</label>
-            <input id="scenarioTerm" type="number" min="1" step="1" />
-          </div>
-          <div class="field lease-only">
-            <label for="scenarioMiles">Annual Miles</label>
-            <select id="scenarioMiles">
-              <option value="">Select miles</option>
-              <option value="7500">7,500</option>
-              <option value="10000">10,000</option>
-              <option value="12000">12,000</option>
-              <option value="15000">15,000</option>
-            </select>
-          </div>
-          <div class="field lease-only required-field">
-            <label for="scenarioResidual">Base Residual % <span>*</span></label>
-            <input id="scenarioResidual" type="number" min="0" max="100" step=".01" />
-          </div>
-          <div class="field lease-only">
-            <label>Included-Mileage Adjustment</label>
-            <div id="scenarioMileageAdjustmentDisplay" class="readout">+0.00%</div>
-          </div>
-          <div class="field lease-only">
-            <label for="scenarioInceptionMileage">In-Service / Inception Mileage</label>
-            <input id="scenarioInceptionMileage" type="number" min="0" step="1" value="0" />
-          </div>
-          <div class="field lease-only">
-            <label for="scenarioInceptionCharge">Mileage Residual Deduction Per Mile</label>
-            <input id="scenarioInceptionCharge" type="number" min="0" step=".01" value=".20" />
-          </div>
-          <div class="field lease-only">
-            <label for="scenarioCustomMiles">Additional Custom Miles</label>
-            <input id="scenarioCustomMiles" type="number" min="0" step="1" value="0" />
-          </div>
-          <div class="field lease-only">
-            <label for="scenarioCustomMileageCharge">Custom-Mile Residual Deduction</label>
-            <input id="scenarioCustomMileageCharge" type="number" min="0" step=".01" value=".20" />
-          </div>
-          <div class="field lease-only">
-            <label>Adjusted Residual</label>
-            <div id="scenarioAdjustedResidualDisplay" class="readout">0.00%</div>
-          </div>
-          <div class="field lease-only required-field">
-            <label for="scenarioMoneyFactor">Money Factor <span>*</span></label>
-            <input id="scenarioMoneyFactor" type="number" min="0" step=".00001" />
-          </div>
-          <div class="field finance-rate required-field">
-            <label for="scenarioApr">APR % <span>*</span></label>
-            <input id="scenarioApr" type="number" min="0" step=".01" />
-          </div>
-          <div class="field select-only required-field">
-            <label for="scenarioBalloon">Balloon % <span>*</span></label>
-            <input id="scenarioBalloon" type="number" min="0" max="100" step=".01" />
-          </div>
-          <div class="field">
-            <label for="scenarioPriceAdjustment">Scenario Price Adjustment</label>
-            <input id="scenarioPriceAdjustment" type="number" step=".01" value="0" />
-          </div>
-          <div class="field">
-            <label for="scenarioCashAdjustment">Scenario Cash Adjustment</label>
-            <input id="scenarioCashAdjustment" type="number" step=".01" value="0" />
-          </div>
-          <div class="field">
-            <label for="scenarioTradeAdjustment">Scenario Trade Adjustment</label>
-            <input id="scenarioTradeAdjustment" type="number" step=".01" value="0" />
-          </div>
-          <div class="field">
-            <label for="scenarioIncentives">Additional Scenario Incentive / Adjustment</label>
-            <input id="scenarioIncentives" type="number" min="0" step=".01" value="0" />
-          </div>
-          <div class="field">
-            <label>Customer Quote Display</label>
-            <div class="checkbox-stack">
-              <label><input id="scenarioShowRate" type="checkbox" /> Show APR / Money Factor</label>
-              <label><input id="scenarioShowResidual" type="checkbox" /> Show Residual / Balloon</label>
-              <label><input id="scenarioShowFeeDetails" type="checkbox" checked /> Itemize Due Up Front</label>
-            </div>
+      <section id="page-programs" class="page">
+        <div class="section-heading">
+          <div><div class="eyebrow">Program Center</div><h2>Monthly rates, residuals and incentives</h2></div>
+          <div class="button-row"><button class="secondary" id="copyPriorProgram">Copy Prior</button><button class="primary" id="saveProgram">Save Program</button></div>
+        </div>
+        <div class="panel">
+          <div class="form-grid five">
+            <label>Program Month<input id="programMonth" type="month"></label>
+            <label>Manufacturer<input id="programManufacturer" value="BMW"></label>
+            <label>Model Year<input id="programYear" type="number"></label>
+            <label>Model / Trim<input id="programModel"></label>
+            <label>Status<select id="programStatus"><option value="confirmed">Confirmed from PDF</option><option value="carried">Carried forward</option><option value="management">Entered by management</option><option value="expired">Expired</option></select></label>
+            <label>Lease Term<input id="programLeaseTerm" type="number" value="36"></label>
+            <label>Base Residual %<input id="programResidual" type="number" step=".01"></label>
+            <label>Money Factor<input id="programMf" type="number" step=".00001"></label>
+            <label>One-Pay MF Reduction<input id="programOnePayReduction" type="number" step=".00001" value=".00080"></label>
+            <label>Finance APR %<input id="programFinanceApr" type="number" step=".01"></label>
+            <label>Finance Term<input id="programFinanceTerm" type="number" value="60"></label>
+            <label>Select APR %<input id="programSelectApr" type="number" step=".01"></label>
+            <label>Select Term<input id="programSelectTerm" type="number" value="60"></label>
+            <label>Select Balloon %<input id="programBalloon" type="number" step=".01"></label>
+            <label>Program Code<input id="programCode"></label>
           </div>
         </div>
-        <div id="scenarioValidationMessage" class="validation-message"></div>
-        <div class="dialog-actions">
-          <button type="button" class="btn-secondary" onclick="closeScenarioEditor()">Cancel</button>
-          <button type="button" class="btn-primary" onclick="saveScenarioFromEditor()">Save Scenario</button>
+        <div class="panel">
+          <h3>Saved Program History</h3>
+          <input id="programSearch" type="search" placeholder="Search month or model">
+          <div id="programHistory" class="program-history"></div>
         </div>
-      </form>
-    </dialog>
-  
+      </section>
 
-    <div class="private-notes-section">
-    <h2>Customer Notes</h2>
-    <div class="grid">
-      <div class="field col-12 notes-field">
-        <label for="quoteNotes">Notes</label>
-        <textarea id="quoteNotes" placeholder="Customer preferences, follow-up details, requested equipment, next steps..."></textarea>
-      </div>
-    </div>
-    </div>
-
-    <div id="currentRecordBanner" class="current-record-banner"></div>
-
-    <div class="database-save-actions actions">
-      <button type="button" class="btn-secondary" onclick="duplicateCurrentQuote()">Duplicate as New</button>
-      <button type="button" class="btn-secondary" onclick="saveQuoteRevision()">Save Revision</button>
-      <button type="button" class="btn-primary" onclick="saveQuoteToDatabase()">Save Quote</button>
-    </div>
-
-  </section>
-
-    <div class="screen-results" style="display:none !important;">
-    <h2>Payment Comparison</h2>
-    <div class="comparison">
-      <div id="screenLeaseCard" class="result-card">
-        <div class="result-head">
-          <h3>Lease</h3>
-          <div class="payment" id="screenLeasePayment">$0.00</div>
+      <section id="page-saved" class="page">
+        <div class="section-heading">
+          <div><div class="eyebrow">Saved Deals</div><h2>Quotes and revisions</h2></div>
+          <button class="secondary" id="refreshSaved">Refresh</button>
         </div>
-        <div class="result-body">
-          <div class="result-line"><span>Term</span><strong id="screenLeaseTerm">0 months</strong></div>
-          <div class="result-line"><span>Residual Value</span><strong id="screenResidual">$0.00</strong></div>
-          <div class="result-line"><span>Money Factor</span><strong id="screenMF">0.00000</strong></div>
-          <div class="result-line"><span>Due at Signing</span><strong id="screenLeaseDue">$0.00</strong></div>
-        </div>
-      </div>
+        <div id="savedDealsList" class="saved-list"></div>
+      </section>
 
-      <div id="screenRetailCard" class="result-card">
-        <div class="result-head">
-          <h3 id="screenRetailTitle">Finance</h3>
-          <div class="payment" id="screenRetailPayment">$0.00</div>
+      <section id="page-settings" class="page">
+        <div class="section-heading">
+          <div><div class="eyebrow">Dealer Defaults</div><h2>Dealer Settings</h2></div>
+          <button class="primary" id="saveSettings">Save Settings</button>
         </div>
-        <div class="result-body">
-          <div class="result-line"><span>Term</span><strong id="screenRetailTerm">0 months</strong></div>
-          <div class="result-line"><span>APR</span><strong id="screenRetailApr">0.00%</strong></div>
-          <div class="result-line"><span>Amount Financed</span><strong id="screenRetailAmount">$0.00</strong></div>
-          <div class="result-line"><span>Cash Due</span><strong id="screenRetailDue">$0.00</strong></div>
+        <div class="panel">
+          <div class="form-grid four">
+            <label>Dealership Name<input id="dealerName" value="BMW of Peabody"></label>
+            <label>Default Tax %<input id="defaultTax" type="number" step=".01" value="6.25"></label>
+            <label>Reserve Share %<input id="reserveShare" type="number" step=".01" value="70"></label>
+            <label>Default Salesperson<input id="defaultSalesperson" value="Brian Macey"></label>
+            <label>Default Doc Fee<input id="defaultDocFee" type="number" value="595"></label>
+            <label>Default Registration<input id="defaultRegFee" type="number" value="130"></label>
+            <label>Default Acquisition<input id="defaultAcqFee" type="number" value="925"></label>
+            <label>Default Misc Fee<input id="defaultMiscFee" type="number" value="0"></label>
+            <label class="span2">Salespeople — one per line<textarea id="salespeople">Brian Macey</textarea></label>
+            <label class="span2">Quote Disclaimer<textarea id="disclaimer">Figures are estimates and remain subject to credit approval, vehicle availability, final appraisal, and current manufacturer programs.</textarea></label>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div id="screenSelectCard" class="result-card">
-        <div class="result-head">
-          <h3>BMW Select</h3>
-          <div class="payment" id="screenSelectPayment">$0.00</div>
+      <section id="page-connection" class="page">
+        <div class="section-heading"><div><div class="eyebrow">Development Database</div><h2>Supabase Connection</h2></div></div>
+        <div class="panel">
+          <div class="form-grid two">
+            <label>Project URL<input id="supabaseUrl" placeholder="https://...supabase.co"></label>
+            <label>Publishable Key<input id="supabaseKey" type="password"></label>
+            <label>Email<input id="authEmail" type="email"></label>
+            <label>Password<input id="authPassword" type="password"></label>
+          </div>
+          <div class="button-row">
+            <button class="secondary" id="saveConnection">Save Connection</button>
+            <button class="secondary" id="testConnection">Test Connection</button>
+            <button class="primary" id="createAccount">Create Account</button>
+            <button class="primary" id="signIn">Sign In</button>
+            <button class="secondary" id="signOut">Sign Out</button>
+          </div>
+          <div id="connectionStatus" class="result-box">Not connected.</div>
         </div>
-        <div class="result-body">
-          <div class="result-line"><span>Term</span><strong id="screenSelectTerm">0 months</strong></div>
-          <div class="result-line"><span>APR</span><strong id="screenSelectApr">0.00%</strong></div>
-          <div class="result-line"><span>Balloon</span><strong id="screenBalloon">$0.00</strong></div>
-          <div class="result-line"><span>Cash Due</span><strong id="screenSelectDue">$0.00</strong></div>
-        </div>
-      </div>
-    </div>
+      </section>
+    </main>
   </div>
 
+  <dialog id="scenarioDialog">
+    <form method="dialog" id="scenarioForm">
+      <div class="dialog-header"><div><div class="eyebrow">Scenario Editor</div><h2 id="scenarioDialogTitle">Add Scenario</h2></div><button type="button" class="icon-button" id="closeScenarioDialog">×</button></div>
+      <input id="scenarioId" type="hidden">
+      <div class="form-grid four">
+        <label>Scenario Name<input id="scenarioName"></label>
+        <label>Quote Type<select id="scenarioType"><option value="lease">Lease</option><option value="finance">Finance</option><option value="cash">Cash Purchase</option><option value="select">BMW Select</option></select></label>
+        <label>Saved Program<select id="scenarioProgram"><option value="">None</option></select></label>
+        <label class="lease-field check"><input id="scenarioOnePay" type="checkbox"> One-Pay Lease</label>
+        <label class="term-field">Term<input id="scenarioTerm" type="number"></label>
+        <label class="lease-field">Annual Miles<select id="scenarioMiles"><option value="">Select</option><option value="7500">7,500</option><option value="10000">10,000</option><option value="12000">12,000</option><option value="15000">15,000</option></select></label>
+        <label class="lease-field required">Base Residual %<input id="scenarioResidual" type="number" step=".01"></label>
+        <label class="lease-field required">Money Factor<input id="scenarioMf" type="number" step=".00001"></label>
+        <label class="lease-field">One-Pay MF Reduction<input id="scenarioOnePayReduction" type="number" step=".00001" value=".00080"></label>
+        <label class="lease-field">In-Service Mileage<input id="scenarioInceptionMileage" type="number" value="0"></label>
+        <label class="lease-field">Deduction Per Mile<input id="scenarioInceptionCharge" type="number" step=".01" value=".20"></label>
+        <label class="lease-field">Custom Miles<input id="scenarioCustomMiles" type="number" value="0"></label>
+        <label class="lease-field">Custom Deduction Per Mile<input id="scenarioCustomCharge" type="number" step=".01" value=".20"></label>
+        <label class="rate-field required">APR %<input id="scenarioApr" type="number" step=".01"></label>
+        <label class="select-field required">Balloon %<input id="scenarioBalloon" type="number" step=".01"></label>
+        <label>Price Adjustment<input id="scenarioPriceAdjustment" type="number" step=".01" value="0"></label>
+        <label>Cash Adjustment<input id="scenarioCashAdjustment" type="number" step=".01" value="0"></label>
+        <label>Trade Adjustment<input id="scenarioTradeAdjustment" type="number" step=".01" value="0"></label>
+        <label>Additional Incentive<input id="scenarioExtraIncentive" type="number" step=".01" value="0"></label>
+        <label class="check"><input id="scenarioShowRate" type="checkbox"> Show APR / Money Factor</label>
+        <label class="check"><input id="scenarioShowResidual" type="checkbox"> Show Residual / Balloon</label>
+        <label class="check"><input id="scenarioShowFees" type="checkbox" checked> Itemize Due Up Front</label>
+      </div>
+      <div id="scenarioPreview" class="result-box"></div>
+      <div class="dialog-actions"><button type="button" class="secondary" id="cancelScenario">Cancel</button><button type="submit" class="primary">Save Scenario</button></div>
+    </form>
+  </dialog>
 
-  <section id="dashboardTab" class="tab-panel active">
-    <div class="dashboard-hero">
-      <div>
-        <div class="eyebrow">BMW Quote Pro 3.0</div>
-        <h2>Your Portfolio Desk</h2>
-        <p>Start a deal, reopen a recent quote, manage programs, or prepare a manager worksheet.</p>
-      </div>
-      <button type="button" class="btn-primary dashboard-new-deal" onclick="showTab('setupTab'); clearForm();">+ New Deal</button>
-    </div>
-
-    <div class="quick-action-grid">
-      <button type="button" class="quick-action-card" onclick="showTab('setupTab'); clearForm();"><strong>New Deal</strong><span>Build flexible quote scenarios</span></button>
-      <button type="button" class="quick-action-card" onclick="showTab('clientsTab')"><strong>Find Client</strong><span>Open clients and quote history</span></button>
-      <button type="button" class="quick-action-card" onclick="showTab('programsTab')"><strong>Programs</strong><span>Rates, residuals, incentives, history</span></button>
-      <button type="button" class="quick-action-card" onclick="showTab('worksheetTab')"><strong>Manager Worksheet</strong><span>Clear internal deal structure</span></button>
-    </div>
-
-    <div class="dashboard-metrics">
-      <div class="metric-card"><span>Quotes Today</span><strong id="metricQuotesToday">0</strong></div>
-      <div class="metric-card"><span>Pending Deals</span><strong id="metricPending">0</strong></div>
-      <div class="metric-card"><span>Clients</span><strong id="metricClients">0</strong></div>
-      <div class="metric-card"><span>Sold Quotes</span><strong id="metricSold">0</strong></div>
-    </div>
-
-    <h2>Recent Quotes</h2>
-    <div id="dashboardRecentQuotes" class="dashboard-list">
-      <div class="empty-state">Sign in to load your dashboard.</div>
-    </div>
-  </section>
-
-  <section id="clientsTab" class="tab-panel">
-    <div class="results-toolbar">
-      <h2>Clients & Quote History</h2>
-      <div class="results-actions">
-        <button type="button" class="btn-secondary" onclick="loadClients()">Refresh</button>
-      </div>
-    </div>
-
-    <div class="client-search-bar">
-      <input id="clientSearch" type="search" placeholder="Search name, email, phone, VIN, vehicle, or quote number" />
-      <button type="button" class="btn-primary" onclick="searchClients()">Search</button>
-      <button type="button" class="btn-secondary" onclick="document.getElementById('clientSearch').value=''; loadClients();">Show All</button>
-    </div>
-
-    <div class="client-layout">
-      <div id="clientList" class="client-list">
-        <div class="empty-state">No clients loaded.</div>
-      </div>
-
-      <div id="clientDetail" class="client-detail">
-        <div class="empty-state">Select a client to see all of their quotes together.</div>
-      </div>
-    </div>
-  </section>
-
-  <section id="emailTab" class="tab-panel">
-    <div class="results-toolbar">
-      <h2>Email Center</h2>
-      <div class="results-actions">
-        <button type="button" class="btn-secondary" onclick="loadEmailHistory()">Refresh History</button>
-      </div>
-    </div>
-
-    <div class="email-composer">
-      <div class="grid">
-        <div class="field col-6">
-          <label for="emailTo">To</label>
-          <input id="emailTo" type="email" />
-        </div>
-        <div class="field col-6">
-          <label for="emailSubject">Subject</label>
-          <input id="emailSubject" type="text" value="Your BMW Quote" />
-        </div>
-        <div class="field col-4">
-          <label for="emailTemplate">Template</label>
-          <select id="emailTemplate" onchange="applyEmailTemplate()">
-            <option value="">Choose a template</option>
-            <option value="initial">Initial Quote</option>
-            <option value="revised">Revised Quote</option>
-            <option value="lease">Lease Quote</option>
-            <option value="finance">Finance Quote</option>
-            <option value="cash">Cash Purchase</option>
-            <option value="followup">Follow-Up</option>
-          </select>
-        </div>
-        <div class="field col-4">
-          <label>Email Options</label>
-          <div class="checkbox-row">
-            <label><input id="includeQuoteSummary" type="checkbox" checked /> Include Quote Summary</label>
-          </div>
-        </div>
-        <div class="field col-4">
-          <label>Current Quote</label>
-          <div id="emailQuoteReference" class="email-reference">No quote selected</div>
-        </div>
-        <div class="field col-12 notes-field">
-          <label for="emailMessage">Message / Personal Note</label>
-          <textarea id="emailMessage" placeholder="Write a personal note to the customer..."></textarea>
-        </div>
-      </div>
-
-      <div class="email-actions">
-        <button type="button" class="btn-secondary" onclick="copyEmailText()">Copy Email</button>
-        <button type="button" class="btn-primary" onclick="openEmailApplication()">Open Email App</button>
-        <button type="button" class="btn-secondary" onclick="openGmailComposer()">Open Gmail</button>
-        <button type="button" class="btn-secondary" onclick="recordEmailAsSent()">Record as Sent</button>
-      </div>
-      <div id="emailMessageStatus" class="database-message"></div>
-    </div>
-
-    <h2>Email History</h2>
-    <div id="emailHistory" class="email-history">
-      <div class="empty-state">Open a saved quote or client to view communication history.</div>
-    </div>
-  </section>
-
-  <section id="programsTab" class="tab-panel">
-    <div class="section-heading-row">
-      <div>
-        <div class="eyebrow">Program Center</div>
-        <h2>Monthly Rates, Residuals & Incentives</h2>
-      </div>
-      <div class="results-actions">
-        <button type="button" class="btn-secondary" onclick="copyPriorProgram()">Copy Prior Program</button>
-        <button type="button" class="btn-primary" onclick="saveProgramRecord()">Save Program</button>
-      </div>
-    </div>
-
-    <div class="program-editor-grid">
-      <div class="field">
-        <label for="programMonth">Program Month</label>
-        <input id="programMonth" type="month" />
-      </div>
-      <div class="field">
-        <label for="programManufacturer">Manufacturer</label>
-        <input id="programManufacturer" type="text" value="BMW" />
-      </div>
-      <div class="field">
-        <label for="programYear">Model Year</label>
-        <input id="programYear" type="number" min="2000" max="2100" />
-      </div>
-      <div class="field">
-        <label for="programModel">Model / Trim</label>
-        <input id="programModel" type="text" placeholder="X5 xDrive40i" />
-      </div>
-      <div class="field">
-        <label for="programStatus">Source Status</label>
-        <select id="programStatus">
-          <option value="confirmed">Confirmed from current PDF</option>
-          <option value="carried">Carried forward — not confirmed</option>
-          <option value="management">Entered from management</option>
-          <option value="expired">Expired</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="programNotes">Program Notes</label>
-        <input id="programNotes" type="text" />
-      </div>
-
-      <div class="field">
-        <label for="programLeaseTerm">Lease Term</label>
-        <input id="programLeaseTerm" type="number" min="1" value="36" />
-      </div>
-      <div class="field">
-        <label for="programBaseResidual">Base Residual %</label>
-        <input id="programBaseResidual" type="number" min="0" max="100" step=".01" />
-      </div>
-      <div class="field">
-        <label for="programMoneyFactor">Money Factor</label>
-        <input id="programMoneyFactor" type="number" min="0" step=".00001" />
-      </div>
-      <div class="field">
-        <label for="programOnePayMfReduction">One-Pay MF Reduction</label>
-        <input id="programOnePayMfReduction" type="number" min="0" step=".00001" value=".00080" />
-      </div>
-      <div class="field">
-        <label for="programFinanceTerm">Finance Term</label>
-        <input id="programFinanceTerm" type="number" min="1" value="60" />
-      </div>
-      <div class="field">
-        <label for="programFinanceApr">Finance APR %</label>
-        <input id="programFinanceApr" type="number" min="0" step=".01" />
-      </div>
-      <div class="field">
-        <label for="programSelectTerm">BMW Select Term</label>
-        <input id="programSelectTerm" type="number" min="1" value="60" />
-      </div>
-      <div class="field">
-        <label for="programSelectApr">BMW Select APR %</label>
-        <input id="programSelectApr" type="number" min="0" step=".01" />
-      </div>
-      <div class="field">
-        <label for="programBalloon">BMW Select Balloon %</label>
-        <input id="programBalloon" type="number" min="0" max="100" step=".01" />
-      </div>
-      <div class="field">
-        <label for="programCode">Program Code</label>
-        <input id="programCode" type="text" />
-      </div>
-    </div>
-
-    <h2>Program Incentives</h2>
-    <div id="programIncentiveRows" class="incentive-list"></div>
-    <button type="button" class="btn-secondary" onclick="addProgramIncentiveRow()">+ Add Program Incentive</button>
-
-    <div id="programMessage" class="database-message"></div>
-
-    <h2>Saved Program History</h2>
-    <div class="program-filter-row">
-      <input id="programSearch" type="search" placeholder="Search month, model, or status" oninput="renderProgramHistory()" />
-    </div>
-    <div id="programHistory" class="program-history">
-      <div class="empty-state">No programs saved yet.</div>
-    </div>
-  </section>
-
-  <section id="worksheetTab" class="tab-panel">
-    <div class="section-heading-row"><div><div class="eyebrow">Internal Document</div><h2>Manager / Business Office Worksheet</h2></div><button type="button" class="btn-primary" onclick="printV3ManagerWorksheet()">Print Manager Worksheet</button></div>
-    <div class="worksheet-preview">
-      <div class="worksheet-preview-header">BMW QUOTE WORKSHEET</div>
-      <div class="worksheet-client-line">
-        <strong id="wsClient">Client: —</strong>
-        <strong id="wsSalesperson">Salesperson: —</strong>
-      </div>
-      <div class="worksheet-preview-grid">
-        <div><span>Vehicle</span><strong id="wsVehicle">Stock · VIN · Year · Make · Model</strong></div>
-        <div><span>Vehicle Pricing</span><strong id="wsPricing">MSRP · Cost · Selling Price</strong></div>
-        <div><span>Trade Structure</span><strong id="wsTrade">Allowance · ACV · Payoff · Equity · Gross</strong></div>
-        <div><span>Lease</span><strong id="wsLease">Base/Used MF · Residual · Taxes · Payment</strong></div>
-        <div><span>Finance</span><strong id="wsFinance">Base/Used APR · Term · Reserve · Payment</strong></div>
-        <div><span>BMW Select</span><strong id="wsSelect">Base/Used APR · Balloon % · Balloon Amount</strong></div>
-        <div><span>Profit</span><strong id="wsProfit">Front Gross · Trade Gross · Reserve · 70% Share</strong></div>
-        <div><span>Notes</span><strong id="wsNotes">—</strong></div>
-      </div>
-    </div>
-    <div class="empty-state">This preview defines the worksheet structure. Calculations will be connected in a later Alpha.</div>
-  </section>
-
-
-  <section id="presentationTab" class="tab-panel">
-    <div class="section-heading-row">
-      <div>
-        <div class="eyebrow">Customer Presentation</div>
-        <h2>Selected Quote Scenarios</h2>
-      </div>
-      <div class="results-actions">
-        <button type="button" class="btn-secondary" onclick="renderCustomerPresentation()">Refresh Quote</button>
-        <button type="button" class="btn-primary" onclick="printV3CustomerQuote()">Print Customer Quote</button>
-      </div>
-    </div>
-
-    <div id="v3CustomerHeader" class="customer-quote-header"></div>
-    <div id="v3CustomerQuoteCards" class="customer-quote-grid">
-      <div class="empty-state">Select up to three ready scenarios in Deal Builder.</div>
-    </div>
-    <div id="v3SignatureArea" class="signature-area hidden">
-      <p>I acknowledge that these figures are estimates and remain subject to final approval, vehicle availability, appraisal, and current manufacturer programs.</p>
-      <div class="signature-grid">
-        <div>Client Signature: ______________________________</div>
-        <div>Co-Buyer Signature: ___________________________</div>
-        <div>Date: ________________________________________</div>
-      </div>
-    </div>
-  </section>
-
-  <section id="dealerSettingsTab" class="tab-panel">
-    <div class="section-heading-row">
-      <div>
-        <div class="eyebrow">Dealer Defaults</div>
-        <h2>Dealer Settings</h2>
-      </div>
-      <button type="button" class="btn-primary" onclick="saveDealerSettings()">Save Dealer Settings</button>
-    </div>
-
-    <div class="dealer-settings-grid">
-      <div class="field">
-        <label for="dealerName">Dealership Name</label>
-        <input id="dealerName" type="text" value="BMW of Peabody" />
-      </div>
-      <div class="field">
-        <label for="dealerDefaultTax">Default Sales Tax %</label>
-        <input id="dealerDefaultTax" type="number" min="0" step=".01" value="6.25" />
-      </div>
-      <div class="field">
-        <label for="dealerReserveShare">Reserve Share %</label>
-        <input id="dealerReserveShare" type="number" min="0" max="100" step=".01" value="70" />
-      </div>
-      <div class="field">
-        <label for="dealerDefaultSalesperson">Default Salesperson</label>
-        <input id="dealerDefaultSalesperson" type="text" value="Brian Macey" />
-      </div>
-
-      <div class="field">
-        <label for="dealerDocFee">Default Document Fee</label>
-        <input id="dealerDocFee" type="number" min="0" step=".01" value="595" />
-      </div>
-      <div class="field">
-        <label for="dealerDocTreatment">Document Fee Treatment</label>
-        <select id="dealerDocTreatment">
-          <option value="upfront">Pay Up Front</option>
-          <option value="capitalize">Include in Payment</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="dealerRegFee">Default Registration / Title</label>
-        <input id="dealerRegFee" type="number" min="0" step=".01" value="130" />
-      </div>
-      <div class="field">
-        <label for="dealerRegTreatment">Registration Treatment</label>
-        <select id="dealerRegTreatment">
-          <option value="upfront">Pay Up Front</option>
-          <option value="capitalize">Include in Payment</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="dealerAcqFee">Default Acquisition Fee</label>
-        <input id="dealerAcqFee" type="number" min="0" step=".01" value="925" />
-      </div>
-      <div class="field">
-        <label for="dealerAcqTreatment">Acquisition Treatment</label>
-        <select id="dealerAcqTreatment">
-          <option value="capitalize">Include in Payment</option>
-          <option value="upfront">Pay Up Front</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="dealerMiscFee">Default Miscellaneous Fee</label>
-        <input id="dealerMiscFee" type="number" min="0" step=".01" value="0" />
-      </div>
-      <div class="field">
-        <label for="dealerMiscTreatment">Miscellaneous Treatment</label>
-        <select id="dealerMiscTreatment">
-          <option value="capitalize">Include in Payment</option>
-          <option value="upfront">Pay Up Front</option>
-        </select>
-      </div>
-
-      <div class="field dealer-wide-field">
-        <label for="dealerSalespeople">Salespeople — one name per line</label>
-        <textarea id="dealerSalespeople">Brian Macey</textarea>
-      </div>
-      <div class="field dealer-wide-field">
-        <label for="dealerDisclaimer">Customer Quote Disclaimer</label>
-        <textarea id="dealerDisclaimer">Figures are estimates and remain subject to credit approval, vehicle availability, final appraisal, and current manufacturer programs.</textarea>
-      </div>
-    </div>
-    <div id="dealerSettingsMessage" class="database-message"></div>
-  </section>
-
-  
-
-
-  <section id="savedTab" class="tab-panel">
-    <div id="connectionSetupSection">
-    <h2>Supabase Connection</h2>
-
-    <div class="connection-card">
-      <div class="grid">
-        <div class="field col-6">
-          <label for="supabaseUrl">Supabase Project URL</label>
-          <input id="supabaseUrl" type="text" placeholder="https://your-project.supabase.co" />
-        </div>
-        <div class="field col-6">
-          <label for="supabaseKey">Supabase Publishable / Anon Key</label>
-          <input id="supabaseKey" type="password" placeholder="Paste the publishable key — never use service_role" />
-        </div>
-      </div>
-      <div class="database-toolbar">
-        <button type="button" class="btn-primary" onclick="saveSupabaseSettings()">Save Connection</button>
-        <button type="button" class="btn-secondary" onclick="testSupabaseConnection()">Test Connection</button>
-        <button type="button" class="btn-secondary" onclick="forgetSupabaseConnection()">Forget Connection</button>
-        <span id="connectionStatus" class="connection-status">Checking saved connection…</span>
-      </div>
-      <div class="small-help">
-        Your connection and login session are remembered in this browser. Use only the project URL and publishable/anon key—never a service-role key.
-      </div>
-    </div>
-    </div>
-
-    <div id="accountSetupSection">
-    <h2>Account</h2>
-    <div class="auth-card">
-      <div id="signedOutArea">
-        <div class="grid">
-          <div class="field col-4">
-            <label for="authEmail">Email</label>
-            <input id="authEmail" type="email" autocomplete="email" />
-          </div>
-          <div class="field col-4">
-            <label for="authPassword">Password</label>
-            <input id="authPassword" type="password" autocomplete="current-password" />
-          </div>
-          <div class="field col-4">
-            <label>Account Actions</label>
-            <div class="database-toolbar" style="margin-top:0;">
-              <button type="button" class="btn-primary" onclick="signInUser()">Sign In</button>
-              <button type="button" class="btn-secondary" onclick="signUpUser()">Create Account</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div id="signedInArea" class="hidden-auth">
-        <strong>Signed in as:</strong> <span id="signedInEmail"></span>
-        <button type="button" class="btn-secondary" style="margin-left:12px;" onclick="signOutUser()">Sign Out</button>
-      </div>
-      <div id="authMessage" class="database-message"></div>
-    </div>
-    </div>
-
-    <div id="databaseReadyBar" class="database-ready-bar" hidden>
-      <div>
-        <strong>Database connected</strong>
-        <span id="databaseReadyEmail"></span>
-      </div>
-      <button type="button" class="btn-secondary" onclick="showDatabaseSettings()">
-        Connection Settings
-      </button>
-    </div>
-
-    <h2>Saved Quotes</h2>
-    <div class="saved-quotes-card">
-      <div class="database-toolbar">
-        <input id="savedQuoteSearch" type="search" placeholder="Search customer, VIN, quote number, or vehicle" />
-        <select id="savedStatusFilter">
-          <option value="">All Statuses</option>
-          <option value="Quoted">Quoted</option>
-          <option value="Pending">Pending</option>
-          <option value="Sold">Sold</option>
-          <option value="Lost">Lost</option>
-        </select>
-        <button type="button" class="btn-primary" onclick="searchSavedQuotes()">Search</button>
-        <button type="button" class="btn-secondary" onclick="loadSavedQuotes()">Show Recent</button>
-      </div>
-
-      <div id="databaseMessage" class="database-message"></div>
-
-      <div class="quote-table-wrap">
-        <table class="quote-table">
-          <thead>
-            <tr>
-              <th>Quote #</th>
-              <th>Date</th>
-              <th>Customer</th>
-              <th>Vehicle</th>
-              <th>VIN</th>
-              <th>Status</th>
-              <th>Updated</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="savedQuotesBody">
-            <tr><td colspan="8">Connect and sign in to view saved quotes.</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <section id="aboutTab" class="tab-panel">
-    <h2>About BMW Quote Pro</h2>
-    <div class="about-grid">
-      <div class="about-card"><div class="about-label">BMW Quote Pro Version</div><div id="aboutVersion" class="about-value"></div></div>
-      <div class="about-card"><div class="about-label">Build Date</div><div id="aboutBuildDate" class="about-value"></div></div>
-      <div class="about-card"><div class="about-label">Database Status</div><div id="aboutDatabaseStatus" class="about-value">Checking…</div></div>
-      <div class="about-card"><div class="about-label">Signed-In User</div><div id="aboutSignedInUser" class="about-value">Not signed in</div></div>
-      <div class="about-card about-card-wide"><div class="about-label">Connected Supabase Project</div><div id="aboutSupabaseProject" class="about-value about-monospace">Not configured</div></div>
-    </div>
-    <h2>Changelog</h2>
-    <div class="changelog-card">
-      <h3>3.0.0 Alpha 5</h3>
-      <ul>
-        <li>Fixed the startup error that left the scenario workspace empty.</li>
-        <li>Restored default scenarios and Add Scenario controls.</li>
-        <li>Restored Cash Purchase and One-Pay Lease templates.</li>
-        <li>Removed the legacy calculator and legacy results completely.</li>
-      </ul>
-      <h3>3.0.0 Alpha 4</h3>
-      <ul>
-        <li>Restored automatic lease residual adjustments by included annual mileage.</li>
-        <li>Added in-service and custom-mile residual deductions.</li>
-        <li>Added individual deal incentives by quote type.</li>
-        <li>Added Cash and One-Pay Lease scenario templates.</li>
-        <li>Added monthly Program Center with saved history and copy-prior workflow.</li>
-        <li>Added program loading into scenario fields.</li>
-      </ul>
-      <h3>3.0.0 Alpha 3</h3>
-      <ul>
-        <li>Added Dealer Settings and default fees.</li>
-        <li>Changed Deal Builder pricing from Selling Price to Dealer Discount.</li>
-        <li>Added calculated adjusted selling price.</li>
-        <li>Added fee treatment: upfront, capitalized, or not applicable.</li>
-        <li>Added real customer presentation from selected scenarios.</li>
-        <li>Added optional rate, residual, balloon, and due-upfront detail display.</li>
-        <li>Added printable customer quote and manager worksheet.</li>
-      </ul>
-      <h3>3.0.0 Alpha 2</h3>
-      <ul>
-        <li>Added working Lease, Finance, Cash, and BMW Select scenario calculations.</li>
-        <li>Added rename, duplicate, delete, edit, and present-any-three controls.</li>
-        <li>Added required-field validation.</li>
-        <li>Added working Roll Payment calculations for selling price, cash, and trade allowance.</li>
-        <li>Added first/last name, co-buyer, salesperson, vehicle, trade, ACV, cost, notes, and signature settings.</li>
-        <li>Added lease trade-equity allocation.</li>
-      </ul>
-      <h3>3.0.0 Alpha 1</h3>
-      <ul>
-        <li>Dashboard is now the landing page.</li>
-        <li>Recent Quotes remain on the dashboard.</li>
-        <li>Added colored flexible-scenario previews.</li>
-        <li>Added Program Center and Manager Worksheet foundations.</li>
-        <li>Version 2.4.1 remains separate for production.</li>
-      </ul>
-      <h3>v2.4.1</h3>
-      <ul>
-        <li>Restored the Email Quote button on the Results screen.</li>
-        <li>Added a mobile Email shortcut.</li>
-        <li>Email Quote now pre-fills the customer, subject, quote reference, and message template.</li>
-      </ul>
-      <h3>v2.4.0</h3>
-      <ul>
-        <li>Added responsive mobile layouts and touch-friendly controls.</li>
-        <li>Added installable Progressive Web App support.</li>
-        <li>Added swipeable result cards on phones.</li>
-        <li>Added a mobile bottom navigation bar.</li>
-        <li>Removed the unreliable custom PDF button; use Print Results → Save as PDF.</li>
-      </ul>
-      <h3>v2.3.3</h3><ul><li>Fixed Create PDF so the quote always fits on one landscape Letter page.</li></ul>
-      <h3>v2.3.2</h3><ul><li>Restored landscape full-page quote printing.</li><li>Added Create PDF download.</li><li>Corrected lease upfront tax to exclude trade equity.</li></ul>
-      <h3>v2.3.1</h3><ul><li>Fixed Save Quote and Email buttons.</li><li>Added Open Gmail browser option.</li><li>Added clearer runtime error notifications.</li></ul>
-      <h3>v2.2.2</h3><ul><li>Added Cash Purchase inside Finance.</li><li>Renamed cards to Lease, Finance, and BMW Select.</li><li>Added About & Backup diagnostics.</li><li>Added quote export and settings backup.</li></ul>
-      <h3>v2.2.1</h3><ul><li>Persistent login and automatic reconnection.</li><li>Collapsed connection settings after sign-in.</li><li>Save/update confirmations.</li><li>One-page printing and private notes excluded.</li></ul>
-    </div>
-    <h2>Backup & Export</h2>
-    <div class="backup-card">
-      <div class="backup-actions"><button type="button" class="btn-primary" onclick="exportDatabaseQuotes()">Export Saved Quotes</button><button type="button" class="btn-secondary" onclick="backupApplicationSettings()">Back Up Settings</button></div>
-      <div class="small-help">Export Saved Quotes downloads your accessible quotes as JSON. Back Up Settings downloads your local connection, presets, and display settings.</div>
-      <div id="backupMessage" class="database-message"></div>
-    </div>
-  </section>
-
-  <div class="actions">
-    <button type="button" class="btn-secondary" onclick="clearForm()">Clear Form</button>
-    <button type="button" class="btn-secondary" onclick="printWorksheet()">Print Worksheet</button>
-    <button type="button" class="btn-secondary" onclick="saveQuoteToDatabase()">Save Quote</button>
-    <button type="button" class="btn-primary" onclick="showTab('resultsTab')">View Results</button>
-  </div>
-  <div id="appToast" class="app-toast" role="status" aria-live="polite"></div>
-
-  <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
-    <button type="button" onclick="showTab('dashboardTab')">
-      <span aria-hidden="true">⌂</span>
-      <small>Home</small>
-    </button>
-    <button type="button" onclick="showTab('setupTab')">
-      <span aria-hidden="true">＋</span>
-      <small>Quote</small>
-    </button>
-    <button type="button" onclick="showTab('resultsTab')">
-      <span aria-hidden="true">▤</span>
-      <small>Results</small>
-    </button>
-    <button type="button" onclick="showTab('clientsTab')">
-      <span aria-hidden="true">👤</span>
-      <small>Clients</small>
-    </button>
-    <button type="button" onclick="emailCurrentQuote()">
-      <span aria-hidden="true">✉</span>
-      <small>Email</small>
-    </button>
-  </nav>
-
-</main>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
-<script src="js/config.js"></script>
-<script src="js/presets.js"></script>
-<script src="js/calculations.js"></script>
-<script src="js/database.js"></script>
-<script src="js/customers.js"></script>
-<script src="js/dashboard.js"></script>
-<script src="js/email.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/app.js"></script>
-<script src="js/alpha.js"></script>
-<script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", function() {
-      navigator.serviceWorker.register("./service-worker.js").catch(function(error) {
-        console.warn("Service worker registration failed:", error);
-      });
-    });
-  }
-</script>
+  <script src="js/app.js"></script>
 </body>
 </html>
