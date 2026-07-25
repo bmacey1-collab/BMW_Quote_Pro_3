@@ -1,4 +1,4 @@
-# BMW Quote Pro 3.0 Alpha 6
+# BMW Quote Pro 3.0 Alpha 7
 
 Build date: 2026-07-24
 
@@ -28,3 +28,11 @@ Run `supabase/001_v3_clean_deals.sql` in the Version 3 development project.
 Alpha 6 always saves locally first. When connected and signed in, it also saves the same complete deal object to Supabase.
 
 Continue using Version 2.4.1 for live customer work until calculation parity and printing are fully tested.
+
+
+## Alpha 7
+
+- Manager Worksheet lists every incentive, amount, applicable quote type, and program code.
+- Manager Worksheet includes total incentives and scenario-specific applied incentive totals.
+- Added an option to combine dealer discount and incentives on the customer quote.
+- The combine option changes presentation only; calculations remain unchanged.
