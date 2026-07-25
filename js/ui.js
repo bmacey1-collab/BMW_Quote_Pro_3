@@ -77,7 +77,7 @@ function clearForm() {
     selectMonths: "60",
     acquisitionFee: "925",
     regFees: "135",
-    docFee: "595",
+    docFee: "600",
     includedMiles: "0"
   };
 
