@@ -175,3 +175,18 @@
   background:#eaf7ef;
   color:#1f6a41;
 }
+
+.program-sync-status{
+  margin-bottom:12px;
+  padding:10px 13px;
+  border:1px solid #d9e1e9;
+  border-radius:9px;
+  background:#f8fafc;
+  color:#66717d;
+  font-size:12px;
+  font-weight:800;
+}
+.program-sync-status.working{border-color:#edc36a;background:#fff8df;color:#684d00}
+.program-sync-status.success{border-color:#9bd1ad;background:#eaf7ef;color:#1f6a41}
+.program-sync-status.error{border-color:#efb1ad;background:#fff1f0;color:#a11}
+.program-sync-status.local{border-color:#cdddf2;background:#f2f7fd;color:#315a88}

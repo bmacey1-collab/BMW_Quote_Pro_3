@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0f2f57">
-  <title>BMW Quote Pro 3.0 Beta 3</title>
+  <title>BMW Quote Pro 3.0 Beta 4</title>
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/print.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13,10 +13,10 @@
   <div class="app-shell">
     <header class="app-header">
       <div>
-        <h1>BMW Quote Pro 3.0 Beta 3</h1>
+        <h1>BMW Quote Pro 3.0 Beta 4</h1>
         <p>Clean desking architecture — no Version 2 calculator code.</p>
       </div>
-      <div class="build-chip">Beta 3 · Testing</div>
+      <div class="build-chip">Beta 4 · Testing</div>
     </header>
 
     <nav class="main-nav" aria-label="Primary navigation">
@@ -199,9 +199,14 @@
             <input id="programPdfFile" type="file" accept="application/pdf,.pdf" class="hidden">
             <button class="secondary" id="importProgramPdf">Import BMW Program PDF</button>
             <span id="pdfImportStatus" class="pdf-import-status">Importer ready</span>
+            <button class="secondary" id="syncProgramsButton">Sync Programs</button>
+            <button class="secondary" id="uploadLocalProgramsButton">Upload Local Programs</button>
             <button class="secondary" id="copyPriorProgram">Copy Prior</button>
             <button class="primary" id="saveProgram">Save Program</button>
           </div>
+        </div>
+        <div id="programSyncStatus" class="program-sync-status">
+          Programs are currently loaded from this browser. Sign in and run the Supabase setup to share them across devices.
         </div>
         <div class="import-help-panel">
           <strong>PDF import workflow:</strong>

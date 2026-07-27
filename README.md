@@ -1,4 +1,4 @@
-# BMW Quote Pro 3.0 Beta 3
+# BMW Quote Pro 3.0 Beta 4
 
 Beta 1 is based on the clean Version 3 architecture and includes the complete Alpha 9 workflow with a repaired BMW program PDF importer.
 
@@ -55,3 +55,24 @@ Continue using Version 2.4.1 for live work until Beta calculations and importing
 - Selected rows cannot be saved until their residual is corrected.
 - Residual edits update the review status immediately.
 - Normal lease mileage adjustments continue to be applied later in the scenario calculation.
+
+
+## Beta 4 — Shared Program Center
+
+Run `supabase/002_v3_programs_and_incentives.sql` in the BMW Quote Pro 3 Dev SQL Editor.
+
+After deploying Beta 4:
+
+1. Open the app on the work laptop where the programs currently appear.
+2. Confirm Database shows that you are signed in.
+3. Open Program Center.
+4. Click **Upload Local Programs** once.
+5. Wait for the successful upload message.
+6. Open the app on the phone or home computer and click **Sync Programs**.
+
+Program Center now reads and writes:
+
+- `v3_programs`
+- `v3_program_incentives`
+
+Local storage remains a cache so the program can still open quickly. Supabase is the shared source across devices.
