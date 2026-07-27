@@ -132,3 +132,46 @@
     display:none;
   }
 }
+
+.residual-review-count{
+  font-size:11px;
+  font-weight:900;
+}
+.residual-review-count.warning{
+  color:#a15c00;
+}
+.residual-review-count.success{
+  color:#1f6a41;
+}
+.residual-missing{
+  background:#fff5ed;
+}
+.residual-review-cell{
+  display:grid;
+  gap:3px;
+}
+.residual-review-cell span{
+  color:#66717d;
+  font-size:9px;
+  font-weight:800;
+}
+.residual-missing .residual-review-cell input{
+  border-color:#d97706;
+  background:#fffaf4;
+}
+.import-status-warning,
+.import-status-ready{
+  display:inline-block;
+  padding:4px 7px;
+  border-radius:999px;
+  font-size:9px;
+  font-weight:900;
+}
+.import-status-warning{
+  background:#fff0e5;
+  color:#a15c00;
+}
+.import-status-ready{
+  background:#eaf7ef;
+  color:#1f6a41;
+}

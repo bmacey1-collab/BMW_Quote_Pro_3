@@ -573,26 +573,35 @@ function currencyValue(token){const s=String(token||"").replace(/[$,\s]/g,"");re
 function parseProgramRow(rawLine,meta){
  const line=normalizePdfLine(rawLine)
    .replace(/\$\s*-\s*/g,"$ - ")
-   .replace(/(\d)%/g,"$1%")
+   .replace(/(\d)\s*%/g,"$1%")
    .replace(/\s+/g," ");
 
- const header=line.match(/^([0-9]{2}[A-Z0-9]{2})\s+(.+?)\s+(Yes|No)\s+(\d+)%\s+(.*)$/);
+ // BMW PDFs may extract the base residual as 55%, 55 %, or 55.0%.
+ const header=line.match(
+   /^([0-9]{2}[A-Z0-9]{2})\s+(.+?)\s+(Yes|No)\s+(\d+(?:\.\d+)?)\s*%\s+(.*)$/
+ );
  if(!header)return null;
 
- const code=header[1],model=header[2].trim(),lease39=header[3]==="Yes",residual=num(header[4]);
- let rest=header[5];
+ const code=header[1];
+ const model=header[2].trim();
+ const lease39=header[3]==="Yes";
+ const residualText=header[4];
+ const residual=Number.parseFloat(residualText);
+ const rest=header[5];
 
- const tokenPattern=/\$\s*(?:[\d,]+|-)|0\.\d{5}|[\d.]+%/g;
- const tokens=[...rest.matchAll(tokenPattern)].map(match=>normalizePdfLine(match[0]));
+ const tokenPattern=/\$\s*(?:[\d,]+|-)|0\.\d{5}|[\d.]+\s*%/g;
+ const tokens=[...rest.matchAll(tokenPattern)].map(match=>
+   normalizePdfLine(match[0]).replace(/\s+%/g,"%")
+ );
 
- // Expected table order after residual:
+ // Expected table order after the 36-month/15K residual:
  // lease credit, MF, retail 24-60, retail 61-72, purchase credit,
  // Select, OwnersChoice, cash credit, conquest, loyalty,
  // dealer contribution, total loyalty, GKL loyalty, GKL conquest.
  if(tokens.length<14)return null;
 
- const moneyToken=t=>currencyValue(t.replace("$",""));
- const percentToken=t=>num(t.replace("%",""));
+ const moneyToken=token=>currencyValue(token.replace("$",""));
+ const percentToken=token=>num(token.replace(/\s*%/,""));
  const year=2000+num(code.slice(0,2));
 
  const leaseCredit=moneyToken(tokens[0]);
@@ -621,9 +630,15 @@ function parseProgramRow(rawLine,meta){
    ["GKL Loyalty",gklLoyalty,"all"],
    ["GKL Conquest",gklConquest,"all"]
  ].map(([name,amount,appliesTo])=>({
-   id:crypto.randomUUID(),name,amount,appliesTo,
-   category:"customer",programCode:code
+   id:crypto.randomUUID(),
+   name,
+   amount,
+   appliesTo,
+   category:"customer",
+   programCode:code
  })).filter(item=>item.amount>0);
+
+ const residualValid=Number.isFinite(residual) && residual>0 && residual<=100;
 
  return {
    id:crypto.randomUUID(),
@@ -632,12 +647,15 @@ function parseProgramRow(rawLine,meta){
    year,
    modelCode:code,
    model,
-   status:"review",
+   status:residualValid?"review":"review",
    effectiveDate:meta.effectiveDate,
    expirationDate:meta.expirationDate,
    restrictions:meta.restrictions,
    leaseTerm:36,
-   residual,
+   residual:residualValid?residual:"",
+   residualSourceText:residualText,
+   residualNeedsReview:!residualValid,
+   residualBasis:"36 months / 15,000 miles",
    moneyFactor,
    onePayReduction:.00080,
    financeApr:retailApr,
@@ -737,6 +755,10 @@ async function importProgramPdf(file){
    if(!meta.month)warnings.push("The program month was not detected.");
    if(!meta.effectiveDate||!meta.expirationDate)warnings.push("The effective dates need review.");
    if(!importedProgramRows.length)warnings.push("No program rows were detected.");
+   const missingResidualRows=importedProgramRows.filter(row=>!num(row.residual));
+   if(missingResidualRows.length){
+     warnings.push(`${missingResidualRows.length} row${missingResidualRows.length===1?" has":"s have"} a missing or invalid residual and must be corrected before saving.`);
+   }
    const warningsEl=$("importWarnings");
    warningsEl.classList.toggle("hidden",warnings.length===0);
    warningsEl.innerHTML=warnings.map(w=>`<div>⚠ ${esc(w)}</div>`).join("");
@@ -762,15 +784,103 @@ async function importProgramPdf(file){
 }
 function toIsoDate(value){const [m,d,y]=value.split("/").map(Number);return `20${String(y).padStart(2,"0")}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`}
 function renderImportReview(){
+ const missingResidualCount=importedProgramRows.filter(row=>!num(row.residual)).length;
  $("importRowCount").textContent=`${importedProgramRows.length} program rows detected`;
- $("importReviewTable").innerHTML=importedProgramRows.length?`<table><thead><tr><th>Use</th><th>Year</th><th>Code</th><th>Model</th><th>RV</th><th>MF</th><th>APR</th><th>Select</th><th>Incentives</th></tr></thead><tbody>${importedProgramRows.map((p,i)=>`<tr><td><input type="checkbox" data-import-row="${i}" checked></td><td>${p.year}</td><td>${esc(p.modelCode)}</td><td><input data-import-edit="${i}" data-field="model" value="${esc(p.model)}"></td><td><input type="number" data-import-edit="${i}" data-field="residual" value="${p.residual}"></td><td><input type="number" step=".00001" data-import-edit="${i}" data-field="moneyFactor" value="${p.moneyFactor}"></td><td><input type="number" step=".01" data-import-edit="${i}" data-field="financeApr" value="${p.financeApr}"></td><td><input type="number" step=".01" data-import-edit="${i}" data-field="selectApr" value="${p.selectApr}"></td><td>${p.incentives.length}</td></tr>`).join("")}</tbody></table>`:'<div class="empty-state">No program rows could be detected. The PDF layout may need a parser update.</div>';
+ $("residualReviewCount").textContent=missingResidualCount
+   ? `${missingResidualCount} residual${missingResidualCount===1?"":"s"} require review`
+   : "All residuals detected";
+ $("residualReviewCount").className=
+   "residual-review-count"+(missingResidualCount?" warning":" success");
+
+ $("importReviewTable").innerHTML=importedProgramRows.length
+   ? `<table>
+       <thead>
+         <tr>
+           <th>Use</th><th>Year</th><th>Code</th><th>Model</th>
+           <th>36/15K Base RV</th><th>MF</th><th>APR</th>
+           <th>Select</th><th>Incentives</th><th>Status</th>
+         </tr>
+       </thead>
+       <tbody>
+         ${importedProgramRows.map((program,index)=>{
+           const residualMissing=!num(program.residual);
+           return `<tr class="${residualMissing?"residual-missing":""}">
+             <td>
+               <input type="checkbox" data-import-row="${index}"
+                 ${residualMissing?"":"checked"}>
+             </td>
+             <td>${program.year}</td>
+             <td>${esc(program.modelCode)}</td>
+             <td><input data-import-edit="${index}" data-field="model"
+               value="${esc(program.model)}"></td>
+             <td>
+               <div class="residual-review-cell">
+                 <input type="number" min="1" max="100" step=".01"
+                   data-import-edit="${index}" data-field="residual"
+                   value="${program.residual}">
+                 <span>${residualMissing
+                   ?"Required"
+                   :"36 mo / 15K"}</span>
+               </div>
+             </td>
+             <td><input type="number" step=".00001"
+               data-import-edit="${index}" data-field="moneyFactor"
+               value="${program.moneyFactor}"></td>
+             <td><input type="number" step=".01"
+               data-import-edit="${index}" data-field="financeApr"
+               value="${program.financeApr}"></td>
+             <td><input type="number" step=".01"
+               data-import-edit="${index}" data-field="selectApr"
+               value="${program.selectApr}"></td>
+             <td>${program.incentives.length}</td>
+             <td><span class="${residualMissing
+               ?"import-status-warning"
+               :"import-status-ready"}">${residualMissing
+                 ?"Residual missing"
+                 :"Ready for review"}</span></td>
+           </tr>`;
+         }).join("")}
+       </tbody>
+     </table>`
+   : '<div class="empty-state">No program rows could be detected. The PDF layout may need a parser update.</div>';
 }
 function saveApprovedImports(){
- const checked=[...document.querySelectorAll("[data-import-row]:checked")].map(x=>importedProgramRows[num(x.dataset.importRow)]);
- if(!checked.length){toast("No rows selected.");return}
+ const selectedIndexes=[...document.querySelectorAll("[data-import-row]:checked")]
+   .map(box=>num(box.dataset.importRow));
+ const checked=selectedIndexes.map(index=>importedProgramRows[index]);
+
+ if(!checked.length){
+   toast("No rows selected.");
+   return;
+ }
+
+ const invalid=checked.filter(program=>!num(program.residual));
+ if(invalid.length){
+   toast(`Correct the residual for ${invalid.length} selected row${invalid.length===1?"":"s"}, or deselect them.`);
+   const firstIndex=importedProgramRows.indexOf(invalid[0]);
+   const input=document.querySelector(
+     `[data-import-edit="${firstIndex}"][data-field="residual"]`
+   );
+   input?.focus();
+   return;
+ }
+
  const rows=programs();
- checked.forEach(p=>{const existing=rows.findIndex(x=>x.month===p.month&&x.modelCode===p.modelCode);existing>=0?rows[existing]=p:rows.push(p)});
- localStorage.setItem(KEYS.programs,JSON.stringify(rows));renderPrograms();$("importReviewDialog").close();$("programPdfFile").value="";setPdfImportStatus(`${checked.length} programs saved`,"success");toast(`${checked.length} programs imported.`);
+ checked.forEach(program=>{
+   program.residualNeedsReview=false;
+   const existing=rows.findIndex(row=>
+     row.month===program.month &&
+     row.modelCode===program.modelCode
+   );
+   existing>=0?rows[existing]=program:rows.push(program);
+ });
+
+ localStorage.setItem(KEYS.programs,JSON.stringify(rows));
+ renderPrograms();
+ $("importReviewDialog").close();
+ $("programPdfFile").value="";
+ setPdfImportStatus(`${checked.length} programs saved`,"success");
+ toast(`${checked.length} programs imported with residuals.`);
 }
 function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("rollPaymentButton").onclick=rollPayment;$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=renderDashboard;$("refreshSaved").onclick=renderSaved;$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=programs().sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p){editProgram(p.id);$("programId").value="";$("programStatus").value="carried";toast("Prior program copied. Change the month.")}};$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{
  const id=e.target.dataset.removeIncentive;
@@ -812,7 +922,23 @@ $("programIncentiveForm").onsubmit=e=>{
 };
 $("closeQuickProgram").onclick=$("cancelQuickProgram").onclick=()=>$("quickProgramDialog").close();$("quickProgramForm").onsubmit=e=>{e.preventDefault();saveQuickProgram()};
 $("closeImportReview").onclick=$("cancelImportReview").onclick=()=>$("importReviewDialog").close();$("saveImportedPrograms").onclick=saveApprovedImports;$("selectAllImported").onchange=e=>document.querySelectorAll("[data-import-row]").forEach(x=>x.checked=e.target.checked);
-$("importReviewTable").addEventListener("input",e=>{const i=e.target.dataset.importEdit;if(i!==undefined)importedProgramRows[num(i)][e.target.dataset.field]=e.target.type==="number"?num(e.target.value):e.target.value});
+$("importReviewTable").addEventListener("input",e=>{
+ const index=e.target.dataset.importEdit;
+ if(index===undefined)return;
+ const program=importedProgramRows[num(index)];
+ const field=e.target.dataset.field;
+ program[field]=e.target.type==="number"
+   ? (e.target.value===""?"":num(e.target.value))
+   : e.target.value;
+ if(field==="residual"){
+   program.residualNeedsReview=!num(program.residual);
+   renderImportReview();
+   const edited=document.querySelector(
+     `[data-import-edit="${index}"][data-field="residual"]`
+   );
+   edited?.focus();
+ }
+});
 $("programIncentiveRows").addEventListener("click",e=>{if(e.target.dataset.removeProgramIncentive)e.target.closest(".program-incentive-row").remove()});
 document.body.addEventListener("click",e=>{if(e.target.dataset.loadDeal)loadDeal(e.target.dataset.loadDeal);if(e.target.dataset.duplicateDeal)loadDeal(e.target.dataset.duplicateDeal,true);if(e.target.dataset.useProgram){const p=programs().find(x=>x.id===e.target.dataset.useProgram);if(p){state.vehicle.year=p.year;state.vehicle.model=p.model;writeStateToForm();showPage("deal");openIncentivePicker(p.id)}}if(e.target.dataset.editProgram)editProgram(e.target.dataset.editProgram);if(e.target.dataset.archiveProgram){let rows=programs(),p=rows.find(x=>x.id===e.target.dataset.archiveProgram);p.status=p.status==="expired"?"confirmed":"expired";localStorage.setItem(KEYS.programs,JSON.stringify(rows));renderPrograms()}});$("saveConnection").onclick=()=>{localStorage.setItem(KEYS.connection,JSON.stringify({url:$("supabaseUrl").value.trim(),key:$("supabaseKey").value.trim()}));initializeSupabase();updateConnectionStatus("Connection saved.")};$("testConnection").onclick=async()=>{if(!supabaseClient&&!initializeSupabase()){updateConnectionStatus("Enter and save connection details.");return}const r=await supabaseClient.auth.getSession();updateConnectionStatus(r.error?r.error.message:"Connection works.")};$("createAccount").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signUp({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Account created. Check email if confirmation is enabled.")};$("signIn").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signInWithPassword({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Signed in.")};$("signOut").onclick=async()=>{if(supabaseClient)await supabaseClient.auth.signOut();currentUser=null;updateConnectionStatus()};}
 function init(){loadSettingsForm();const c=JSON.parse(localStorage.getItem(KEYS.connection)||"null");if(c){$("supabaseUrl").value=c.url||"";$("supabaseKey").value=c.key||"";initializeSupabase()}applySettingsToDeal(true);if(!restoreAutosaveDraft()){state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);writeStateToForm();setAutosaveStatus("Draft ready")}bindEvents();renderIncentives();renderScenarios();renderDashboard();renderPrograms();renderProgramIncentiveEditor([]);updateClientHistoryDisplays();setPdfImportStatus("Importer ready");$("programMonth").value=new Date().toISOString().slice(0,7);}
