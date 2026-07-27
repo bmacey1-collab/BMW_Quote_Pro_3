@@ -3,7 +3,7 @@
 const $ = id => document.getElementById(id);
 const money = new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"});
 const KEYS={settings:"bqp3_settings",programs:"bqp3_programs",deals:"bqp3_deals",connection:"bqp3_connection",draft:"bqp3_autosave_draft"};
-let supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,draggedScenarioId=null,importedProgramRows=[],pdfJsModulePromise=null,currentIncentiveProgramIds=[];
+let supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,draggedScenarioId=null,importedProgramRows=[],pdfJsModulePromise=null,currentIncentiveProgramIds=[],currentProgramPickerRows=[];
 let state=createEmptyDeal();
 
 function createEmptyDeal(){
@@ -178,7 +178,221 @@ function renderWorksheet(){
  </div>`;
 }
 function ws(a,b){return `<div class="worksheet-line"><span>${esc(a)}</span><strong>${esc(b||"—")}</strong></div>`}
-function openScenario(s=null){const type=s?s.type:$("scenarioTemplate").value,s2=s?structuredClone(s):defaultScenario(type);$("scenarioId").value=s2.id;$("scenarioName").value=s2.name;$("scenarioType").value=s2.type;$("scenarioProgram").innerHTML='<option value="">None</option>'+programs().map(p=>`<option value="${p.id}">${esc(p.month+" · "+p.year+" "+p.model)}</option>`).join("");$("scenarioProgram").value=s2.programId||"";$("scenarioOnePay").checked=s2.onePay;$("scenarioTerm").value=s2.term;$("scenarioMiles").value=s2.miles;$("scenarioResidual").value=s2.residual;$("scenarioBaseMf").value=s2.baseMoneyFactor??"";$("scenarioMf").value=s2.moneyFactor;$("scenarioOnePayReduction").value=s2.onePayReduction;$("scenarioInceptionMileage").value=s2.inceptionMileage;$("scenarioInceptionCharge").value=s2.inceptionCharge;$("scenarioCustomMiles").value=s2.customMiles;$("scenarioCustomCharge").value=s2.customCharge;$("scenarioBuyApr").value=s2.buyApr??"";$("scenarioApr").value=s2.apr;$("scenarioBalloon").value=s2.balloon;$("scenarioPriceAdjustment").value=s2.priceAdjustment;$("scenarioCashAdjustment").value=s2.cashAdjustment;$("scenarioTradeAdjustment").value=s2.tradeAdjustment;$("scenarioExtraIncentive").value=s2.extraIncentive;$("scenarioShowRate").checked=s2.showRate;$("scenarioShowResidual").checked=s2.showResidual;$("scenarioShowFees").checked=s2.showFees;updateScenarioFields();updateScenarioPreview();$("scenarioDialog").showModal();}
+function normalizeModelName(value){
+ return String(value||"")
+   .toLowerCase()
+   .replace(/\bbmw\b/g,"")
+   .replace(/\b20\d{2}\b/g,"")
+   .replace(/[^a-z0-9]+/g," ")
+   .replace(/\s+/g," ")
+   .trim();
+}
+
+function programMatchScore(program){
+ const vehicleYear=num(state.vehicle.year);
+ const programYear=num(program.year);
+ const vehicleModel=normalizeModelName(state.vehicle.model);
+ const programModel=normalizeModelName(program.model);
+ let score=0;
+
+ if(vehicleYear&&programYear===vehicleYear)score+=100;
+ else if(vehicleYear&&programYear!==vehicleYear)score-=100;
+
+ if(vehicleModel&&programModel){
+   if(programModel===vehicleModel)score+=100;
+   else if(programModel.includes(vehicleModel)||vehicleModel.includes(programModel))score+=70;
+
+   const vehicleSeries=vehicleModel.match(/\b(x[1-7]|xm|i[457x]|m[23458])\b/)?.[1];
+   const programSeries=programModel.match(/\b(x[1-7]|xm|i[457x]|m[23458])\b/)?.[1];
+   if(vehicleSeries&&programSeries&&vehicleSeries===programSeries)score+=35;
+ }
+ return score;
+}
+
+function matchingPrograms(){
+ return programs()
+   .filter(program=>program.status!=="expired")
+   .map(program=>({program,score:programMatchScore(program)}))
+   .filter(item=>item.score>0)
+   .sort((a,b)=>
+     b.score-a.score ||
+     String(b.program.month).localeCompare(String(a.program.month)) ||
+     String(a.program.model).localeCompare(String(b.program.model))
+   )
+   .map(item=>item.program);
+}
+
+function populateScenarioProgramOptions(selectedId=""){
+ const select=$("scenarioProgram");
+ const matches=matchingPrograms();
+ const allActive=programs()
+   .filter(program=>program.status!=="expired")
+   .sort((a,b)=>String(b.month).localeCompare(String(a.month)));
+
+ const rows=matches.length?matches:allActive;
+ select.innerHTML=
+   '<option value="">Choose matching program</option>'+
+   rows.map(program=>{
+     const matchLabel=matches.includes(program)?"Best Match · ":"";
+     return `<option value="${program.id}">${matchLabel}${esc(program.month)} · ${program.year} ${esc(program.model)}${program.modelCode?" · "+esc(program.modelCode):""}</option>`;
+   }).join("");
+
+ select.value=selectedId||"";
+}
+
+function mergeProgramIncentivesIntoDeal(program){
+ const existingKeys=new Set(state.incentives.map(item=>
+   `${item.sourceProgramId||""}|${item.sourceIncentiveId||item.name}`
+ ));
+ let added=0;
+
+ (program.incentives||[]).forEach(item=>{
+   const key=`${program.id}|${item.id||item.name}`;
+   if(existingKeys.has(key))return;
+   state.incentives.push({
+     ...item,
+     id:crypto.randomUUID(),
+     sourceProgramId:program.id,
+     sourceIncentiveId:item.id||""
+   });
+   existingKeys.add(key);
+   added++;
+ });
+ return added;
+}
+
+function applyProgramToScenarioObject(scenario,program){
+ scenario.programId=program.id;
+
+ if(scenario.type==="lease"){
+   scenario.term=num(program.leaseTerm)||scenario.term||36;
+   scenario.residual=program.residual===""?"":num(program.residual);
+   scenario.baseMoneyFactor=program.moneyFactor===""?"":num(program.moneyFactor);
+   if(scenario.moneyFactor===""||num(scenario.moneyFactor)<num(program.moneyFactor)){
+     scenario.moneyFactor=program.moneyFactor===""?"":num(program.moneyFactor);
+   }
+   scenario.onePayReduction=num(program.onePayReduction)||scenario.onePayReduction||.00080;
+ }else if(scenario.type==="finance"){
+   scenario.term=num(program.financeTerm)||scenario.term||60;
+   scenario.buyApr=program.financeApr===""?"":num(program.financeApr);
+   if(scenario.apr===""||num(scenario.apr)<num(program.financeApr)){
+     scenario.apr=program.financeApr===""?"":num(program.financeApr);
+   }
+ }else if(scenario.type==="select"){
+   scenario.term=num(program.selectTerm)||scenario.term||60;
+   scenario.buyApr=program.selectApr===""?"":num(program.selectApr);
+   if(scenario.apr===""||num(scenario.apr)<num(program.selectApr)){
+     scenario.apr=program.selectApr===""?"":num(program.selectApr);
+   }
+   if(program.balloon!==""&&program.balloon!=null)scenario.balloon=num(program.balloon);
+ }
+ return scenario;
+}
+
+function applyProgramToDeal(programId,options={}){
+ readFormToState();
+ const program=programs().find(item=>item.id===programId);
+ if(!program){
+   toast("The selected program could not be found.");
+   return;
+ }
+
+ if(!state.vehicle.year)state.vehicle.year=program.year;
+ if(!state.vehicle.model)state.vehicle.model=program.model;
+
+ let updated=0;
+ state.scenarios.forEach(scenario=>{
+   if(["lease","finance","select"].includes(scenario.type)){
+     applyProgramToScenarioObject(scenario,program);
+     updated++;
+   }
+ });
+
+ const incentivesAdded=mergeProgramIncentivesIntoDeal(program);
+ writeStateToForm();
+ renderIncentives();
+ renderScenarios();
+ renderWorksheet();
+ scheduleAutosave();
+
+ if($("programPickerDialog")?.open)$("programPickerDialog").close();
+ if(options.openDeal!==false)showPage("deal");
+
+ toast(
+   `${program.month} ${program.year} ${program.model} applied to ${updated} scenario${updated===1?"":"s"}${incentivesAdded?` and ${incentivesAdded} incentive${incentivesAdded===1?"":"s"}`:""}.`
+ );
+}
+
+function openProgramPicker(){
+ readFormToState();
+ const all=programs().filter(program=>program.status!=="expired");
+ const matches=matchingPrograms();
+
+ const months=[...new Set(all.map(program=>program.month).filter(Boolean))]
+   .sort((a,b)=>String(b).localeCompare(String(a)));
+ const years=[...new Set(all.map(program=>String(program.year)).filter(Boolean))]
+   .sort((a,b)=>Number(b)-Number(a));
+
+ $("programPickerMonth").innerHTML=
+   '<option value="">All Months</option>'+
+   months.map(month=>`<option value="${month}">${month}</option>`).join("");
+ $("programPickerYear").innerHTML=
+   '<option value="">All Years</option>'+
+   years.map(year=>`<option value="${year}">${year}</option>`).join("");
+
+ if(matches.length){
+   $("programPickerMonth").value=matches[0].month||"";
+   $("programPickerYear").value=String(state.vehicle.year||matches[0].year||"");
+ }
+ $("programPickerSearch").value=state.vehicle.model||"";
+ $("programPickerSummary").textContent=
+   `${matches.length} matching program${matches.length===1?"":"s"} found for ${state.vehicle.year||"vehicle year not entered"} ${state.vehicle.model||"vehicle model not entered"}.`;
+
+ renderProgramPickerResults();
+ $("programPickerDialog").showModal();
+}
+
+function renderProgramPickerResults(){
+ const month=$("programPickerMonth").value;
+ const year=$("programPickerYear").value;
+ const query=normalizeModelName($("programPickerSearch").value);
+
+ currentProgramPickerRows=programs()
+   .filter(program=>program.status!=="expired")
+   .filter(program=>!month||program.month===month)
+   .filter(program=>!year||String(program.year)===year)
+   .filter(program=>{
+     if(!query)return true;
+     const haystack=normalizeModelName(`${program.model||""} ${program.modelCode||""}`);
+     return haystack.includes(query)||query.includes(haystack);
+   })
+   .sort((a,b)=>
+     programMatchScore(b)-programMatchScore(a) ||
+     String(b.month).localeCompare(String(a.month))
+   );
+
+ $("programPickerResults").innerHTML=currentProgramPickerRows.length
+   ? currentProgramPickerRows.map(program=>{
+       const incentiveCount=(program.incentives||[]).length;
+       return `<article class="program-pick-card">
+         <div>
+           <strong>${esc(program.month)} · ${program.year} ${esc(program.model)}</strong>
+           <span>${esc(program.modelCode||"No model code")} · ${esc(program.status)}</span>
+         </div>
+         <div class="program-pick-values">
+           <span>Residual <strong>${program.residual===""?"—":program.residual+"%"}</strong></span>
+           <span>MF <strong>${program.moneyFactor===""?"—":program.moneyFactor}</strong></span>
+           <span>Finance <strong>${program.financeApr===""?"—":program.financeApr+"%"}</strong></span>
+           <span>Select <strong>${program.selectApr===""?"—":program.selectApr+"%"}</strong></span>
+           <span>Incentives <strong>${incentiveCount}</strong></span>
+         </div>
+         <button type="button" class="primary" data-apply-program="${program.id}">Use Program</button>
+       </article>`;
+     }).join("")
+   : '<div class="empty-state">No matching programs. Adjust the month, year or model search.</div>';
+}
+
+function openScenario(s=null){const type=s?s.type:$("scenarioTemplate").value,s2=s?structuredClone(s):defaultScenario(type);$("scenarioId").value=s2.id;$("scenarioName").value=s2.name;$("scenarioType").value=s2.type;populateScenarioProgramOptions(s2.programId||"");$("scenarioOnePay").checked=s2.onePay;$("scenarioTerm").value=s2.term;$("scenarioMiles").value=s2.miles;$("scenarioResidual").value=s2.residual;$("scenarioBaseMf").value=s2.baseMoneyFactor??"";$("scenarioMf").value=s2.moneyFactor;$("scenarioOnePayReduction").value=s2.onePayReduction;$("scenarioInceptionMileage").value=s2.inceptionMileage;$("scenarioInceptionCharge").value=s2.inceptionCharge;$("scenarioCustomMiles").value=s2.customMiles;$("scenarioCustomCharge").value=s2.customCharge;$("scenarioBuyApr").value=s2.buyApr??"";$("scenarioApr").value=s2.apr;$("scenarioBalloon").value=s2.balloon;$("scenarioPriceAdjustment").value=s2.priceAdjustment;$("scenarioCashAdjustment").value=s2.cashAdjustment;$("scenarioTradeAdjustment").value=s2.tradeAdjustment;$("scenarioExtraIncentive").value=s2.extraIncentive;$("scenarioShowRate").checked=s2.showRate;$("scenarioShowResidual").checked=s2.showResidual;$("scenarioShowFees").checked=s2.showFees;updateScenarioFields();updateScenarioPreview();$("scenarioDialog").showModal();}
 function updateScenarioFields(){const t=$("scenarioType").value;document.querySelectorAll(".lease-field").forEach(e=>e.classList.toggle("hidden",t!=="lease"));document.querySelectorAll(".rate-field").forEach(e=>e.classList.toggle("hidden",!["finance","select"].includes(t)));document.querySelectorAll(".select-field").forEach(e=>e.classList.toggle("hidden",t!=="select"));document.querySelectorAll(".term-field").forEach(e=>e.classList.toggle("hidden",t==="cash"));}
 function scenarioFromDialog(){return {id:$("scenarioId").value||crypto.randomUUID(),name:$("scenarioName").value.trim()||"Scenario",type:$("scenarioType").value,programId:$("scenarioProgram").value,onePay:$("scenarioOnePay").checked,term:num($("scenarioTerm").value),miles:$("scenarioMiles").value?num($("scenarioMiles").value):"",residual:$("scenarioResidual").value===""?"":num($("scenarioResidual").value),baseMoneyFactor:$("scenarioBaseMf").value===""?"":num($("scenarioBaseMf").value),moneyFactor:$("scenarioMf").value===""?"":num($("scenarioMf").value),onePayReduction:num($("scenarioOnePayReduction").value),inceptionMileage:num($("scenarioInceptionMileage").value),inceptionCharge:num($("scenarioInceptionCharge").value),customMiles:num($("scenarioCustomMiles").value),customCharge:num($("scenarioCustomCharge").value),buyApr:$("scenarioBuyApr").value===""?"":num($("scenarioBuyApr").value),apr:$("scenarioApr").value===""?"":num($("scenarioApr").value),balloon:$("scenarioBalloon").value===""?"":num($("scenarioBalloon").value),priceAdjustment:num($("scenarioPriceAdjustment").value),cashAdjustment:num($("scenarioCashAdjustment").value),tradeAdjustment:num($("scenarioTradeAdjustment").value),extraIncentive:num($("scenarioExtraIncentive").value),showRate:$("scenarioShowRate").checked,showResidual:$("scenarioShowResidual").checked,showFees:$("scenarioShowFees").checked,selected:state.scenarios.find(s=>s.id===$("scenarioId").value)?.selected||false};}
 function updateScenarioPreview(){const old=state.scenarios.findIndex(s=>s.id===$("scenarioId").value),draft=scenarioFromDialog();if(old>=0)state.scenarios[old]=draft;else state.scenarios.push(draft);const r=calcScenario(draft);$("scenarioPreview").textContent=r.ready?(draft.onePay?`One-Pay ${money.format(r.onePayTotal)} · Equivalent ${money.format(r.equivalentMonthly)}`:`Estimated ${money.format(r.payment)}`):"Missing: "+r.missing.join(", ");if(old>=0)state.scenarios[old]=draft;else state.scenarios.pop();}
@@ -499,7 +713,30 @@ function editProgram(id){
  renderProgramIncentiveEditor(p.incentives||[]);
  showPage("programs");
 }
-function applyProgramToDialog(){const p=programs().find(x=>x.id===$("scenarioProgram").value),t=$("scenarioType").value;if(!p)return;if(t==="lease"){$("scenarioTerm").value=p.leaseTerm;$("scenarioResidual").value=p.residual;$("scenarioBaseMf").value=p.moneyFactor;$("scenarioMf").value=p.moneyFactor;$("scenarioOnePayReduction").value=p.onePayReduction}else if(t==="finance"){$("scenarioTerm").value=p.financeTerm;$("scenarioBuyApr").value=p.financeApr;$("scenarioApr").value=p.financeApr}else if(t==="select"){$("scenarioTerm").value=p.selectTerm;$("scenarioBuyApr").value=p.selectApr;$("scenarioApr").value=p.selectApr;$("scenarioBalloon").value=p.balloon}updateScenarioPreview();}
+function applyProgramToDialog(){
+ const program=programs().find(item=>item.id===$("scenarioProgram").value);
+ if(!program)return;
+
+ const draft=scenarioFromDialog();
+ applyProgramToScenarioObject(draft,program);
+
+ $("scenarioTerm").value=draft.term||"";
+ $("scenarioResidual").value=draft.residual??"";
+ $("scenarioBaseMf").value=draft.baseMoneyFactor??"";
+ $("scenarioMf").value=draft.moneyFactor??"";
+ $("scenarioOnePayReduction").value=draft.onePayReduction??.00080;
+ $("scenarioBuyApr").value=draft.buyApr??"";
+ $("scenarioApr").value=draft.apr??"";
+ $("scenarioBalloon").value=draft.balloon??"";
+
+ const added=mergeProgramIncentivesIntoDeal(program);
+ renderIncentives();
+ renderScenarios();
+ updateScenarioPreview();
+ scheduleAutosave();
+
+ toast(`Program rates and residuals loaded${added?` with ${added} new incentive${added===1?"":"s"}`:""}.`);
+}
 function loadSettingsForm(){const s=settings();$("dealerName").value=s.dealerName;$("defaultTax").value=s.defaultTax;$("reserveShare").value=s.reserveShare;$("defaultSalesperson").value=s.defaultSalesperson;$("defaultDocFee").value=s.docFee;$("defaultRegFee").value=s.regFee;$("defaultAcqFee").value=s.acqFee;$("defaultMiscFee").value=s.miscFee;$("salespeople").value=s.salespeople.join("\n");$("disclaimer").value=s.disclaimer;}
 function saveSettings(){const s={dealerName:$("dealerName").value,defaultTax:num($("defaultTax").value),reserveShare:num($("reserveShare").value),defaultSalesperson:$("defaultSalesperson").value,docFee:num($("defaultDocFee").value),regFee:num($("defaultRegFee").value),acqFee:num($("defaultAcqFee").value),miscFee:num($("defaultMiscFee").value),salespeople:$("salespeople").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),disclaimer:$("disclaimer").value};localStorage.setItem(KEYS.settings,JSON.stringify(s));applySettingsToDeal(false);toast("Dealer settings saved.");}
 function initializeSupabase(){
@@ -1109,7 +1346,7 @@ function saveApprovedImports(){
  setPdfImportStatus(`${checked.length} programs saved`,"success");
  toast(`${checked.length} programs imported with residuals.`);
 }
-function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("rollPaymentButton").onclick=rollPayment;$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=renderDashboard;$("refreshSaved").onclick=renderSaved;$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=programs().sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p){editProgram(p.id);$("programId").value="";$("programStatus").value="carried";toast("Prior program copied. Change the month.")}};$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{
+function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=renderDashboard;$("refreshSaved").onclick=renderSaved;$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=programs().sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p){editProgram(p.id);$("programId").value="";$("programStatus").value="carried";toast("Prior program copied. Change the month.")}};$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{
  const id=e.target.dataset.removeIncentive;
  if(!id)return;
  const incentive=state.incentives.find(x=>x.id===id);
@@ -1136,7 +1373,15 @@ $("scenarioGrid").addEventListener("change",e=>{
 $("scenarioGrid").addEventListener("dragstart",e=>{const card=e.target.closest("[data-scenario-card]");if(card){draggedScenarioId=card.dataset.scenarioCard;card.classList.add("dragging")}});
 $("scenarioGrid").addEventListener("dragend",e=>{e.target.closest("[data-scenario-card]")?.classList.remove("dragging");draggedScenarioId=null});
 $("scenarioGrid").addEventListener("dragover",e=>{e.preventDefault();const target=e.target.closest("[data-scenario-card]");if(!target||!draggedScenarioId||target.dataset.scenarioCard===draggedScenarioId)return;const from=state.scenarios.findIndex(s=>s.id===draggedScenarioId),to=state.scenarios.findIndex(s=>s.id===target.dataset.scenarioCard);const [item]=state.scenarios.splice(from,1);state.scenarios.splice(to,0,item);renderScenarios()});
-$("scenarioGrid").addEventListener("drop",e=>{e.preventDefault();scheduleAutosave()});$("closeIncentiveDialog").onclick=$("cancelIncentives").onclick=()=>$("incentiveDialog").close();
+$("scenarioGrid").addEventListener("drop",e=>{e.preventDefault();scheduleAutosave()});$("closeProgramPicker").onclick=$("cancelProgramPicker").onclick=()=>$("programPickerDialog").close();
+$("programPickerMonth").onchange=renderProgramPickerResults;
+$("programPickerYear").onchange=renderProgramPickerResults;
+$("programPickerSearch").oninput=renderProgramPickerResults;
+$("programPickerResults").addEventListener("click",event=>{
+ const id=event.target.dataset.applyProgram;
+ if(id)applyProgramToDeal(id);
+});
+$("closeIncentiveDialog").onclick=$("cancelIncentives").onclick=()=>$("incentiveDialog").close();
 $("applyIncentives").onclick=applyPickedIncentives;
 $("addIncentiveToProgram").onclick=openAddProgramIncentiveDialog;
 $("availableIncentives").addEventListener("change",e=>{
@@ -1167,7 +1412,7 @@ $("importReviewTable").addEventListener("input",e=>{
  }
 });
 $("programIncentiveRows").addEventListener("click",e=>{if(e.target.dataset.removeProgramIncentive)e.target.closest(".program-incentive-row").remove()});
-document.body.addEventListener("click",e=>{if(e.target.dataset.loadDeal)loadDeal(e.target.dataset.loadDeal);if(e.target.dataset.duplicateDeal)loadDeal(e.target.dataset.duplicateDeal,true);if(e.target.dataset.useProgram){const p=programs().find(x=>x.id===e.target.dataset.useProgram);if(p){state.vehicle.year=p.year;state.vehicle.model=p.model;writeStateToForm();showPage("deal");openIncentivePicker(p.id)}}if(e.target.dataset.editProgram)editProgram(e.target.dataset.editProgram);if(e.target.dataset.archiveProgram){let rows=programs(),p=rows.find(x=>x.id===e.target.dataset.archiveProgram);p.status=p.status==="expired"?"confirmed":"expired";saveProgramsLocal(rows);renderPrograms();
+document.body.addEventListener("click",e=>{if(e.target.dataset.loadDeal)loadDeal(e.target.dataset.loadDeal);if(e.target.dataset.duplicateDeal)loadDeal(e.target.dataset.duplicateDeal,true);if(e.target.dataset.useProgram){applyProgramToDeal(e.target.dataset.useProgram)}if(e.target.dataset.editProgram)editProgram(e.target.dataset.editProgram);if(e.target.dataset.archiveProgram){let rows=programs(),p=rows.find(x=>x.id===e.target.dataset.archiveProgram);p.status=p.status==="expired"?"confirmed":"expired";saveProgramsLocal(rows);renderPrograms();
  if(supabaseClient&&currentUser)saveProgramToSupabase(p)}});$("saveConnection").onclick=()=>{localStorage.setItem(KEYS.connection,JSON.stringify({url:$("supabaseUrl").value.trim(),key:$("supabaseKey").value.trim()}));initializeSupabase();updateConnectionStatus("Connection saved.")};$("testConnection").onclick=async()=>{if(!supabaseClient&&!initializeSupabase()){updateConnectionStatus("Enter and save connection details.");return}const r=await supabaseClient.auth.getSession();updateConnectionStatus(r.error?r.error.message:"Connection works.")};$("createAccount").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signUp({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Account created. Check email if confirmation is enabled.")};$("signIn").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signInWithPassword({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Signed in.");if(!r.error){currentUser=r.data.user;await loadProgramsFromSupabase(true)}};$("signOut").onclick=async()=>{if(supabaseClient)await supabaseClient.auth.signOut();currentUser=null;updateConnectionStatus()};}
 function init(){loadSettingsForm();const c=JSON.parse(localStorage.getItem(KEYS.connection)||"null");if(c){$("supabaseUrl").value=c.url||"";$("supabaseKey").value=c.key||"";initializeSupabase()}applySettingsToDeal(true);if(!restoreAutosaveDraft()){state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);writeStateToForm();setAutosaveStatus("Draft ready")}bindEvents();renderIncentives();renderScenarios();renderDashboard();renderPrograms();renderProgramIncentiveEditor([]);updateClientHistoryDisplays();setPdfImportStatus("Importer ready");setProgramSyncStatus(currentUser?"Loading shared programs…":"Programs are local until you sign in and sync.");$("programMonth").value=new Date().toISOString().slice(0,7);}
 document.addEventListener("DOMContentLoaded",init);

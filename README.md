@@ -1,4 +1,4 @@
-# BMW Quote Pro 3.0 Beta 4
+# BMW Quote Pro 3.0 Beta 5
 
 Beta 1 is based on the clean Version 3 architecture and includes the complete Alpha 9 workflow with a repaired BMW program PDF importer.
 
@@ -76,3 +76,18 @@ Program Center now reads and writes:
 - `v3_program_incentives`
 
 Local storage remains a cache so the program can still open quickly. Supabase is the shared source across devices.
+
+
+## Beta 5 — Apply BMW Program Workflow
+
+- Added Apply BMW Program to Deal Builder.
+- Program picker filters by vehicle year, model and program month.
+- Current and best matching programs are sorted first.
+- Program cards preview residual, money factor, Finance APR, Select APR and incentive count.
+- Use Program now applies the full program to every Lease, Finance and BMW Select scenario.
+- Lease scenarios receive base residual, base money factor and one-pay reduction.
+- Finance scenarios receive buy APR and a default customer APR.
+- BMW Select scenarios receive buy APR, customer APR and balloon when stored.
+- Program incentives are merged into the deal without duplicates.
+- Program Center Use now returns to Deal Builder and applies rates, residuals and incentives.
+- The scenario editor program dropdown is filtered to matching programs.

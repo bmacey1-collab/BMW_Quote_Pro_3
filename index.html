@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0f2f57">
-  <title>BMW Quote Pro 3.0 Beta 4</title>
+  <title>BMW Quote Pro 3.0 Beta 5</title>
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/print.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13,10 +13,10 @@
   <div class="app-shell">
     <header class="app-header">
       <div>
-        <h1>BMW Quote Pro 3.0 Beta 4</h1>
+        <h1>BMW Quote Pro 3.0 Beta 5</h1>
         <p>Clean desking architecture — no Version 2 calculator code.</p>
       </div>
-      <div class="build-chip">Beta 4 · Testing</div>
+      <div class="build-chip">Beta 5 · Testing</div>
     </header>
 
     <nav class="main-nav" aria-label="Primary navigation">
@@ -141,6 +141,7 @@
           <div class="section-heading compact">
             <div><div class="eyebrow">Scenario Engine</div><h3>Build up to six; present any three</h3></div>
             <div class="button-row">
+              <button class="secondary" id="applyBmwProgramButton">Apply BMW Program</button>
               <select id="scenarioTemplate"><option value="lease">Lease</option><option value="onepay">One-Pay Lease</option><option value="finance">Finance</option><option value="cash">Cash Purchase</option><option value="select">BMW Select</option></select>
               <button class="primary" id="addScenarioButton">+ Add Scenario</button>
             </div>
@@ -335,6 +336,29 @@
     </form>
   </dialog>
 
+
+
+  <dialog id="programPickerDialog">
+    <form method="dialog">
+      <div class="dialog-header">
+        <div>
+          <div class="eyebrow">BMW Program Center</div>
+          <h2>Apply BMW Program</h2>
+        </div>
+        <button type="button" class="icon-button" id="closeProgramPicker">×</button>
+      </div>
+      <div id="programPickerSummary" class="result-box"></div>
+      <div class="program-picker-filters">
+        <label>Program Month<select id="programPickerMonth"></select></label>
+        <label>Model Year<select id="programPickerYear"></select></label>
+        <label class="span2">Search Model<input id="programPickerSearch" type="search" placeholder="X3, X5 xDrive40i, model code..."></label>
+      </div>
+      <div id="programPickerResults" class="program-picker-results"></div>
+      <div class="dialog-actions">
+        <button type="button" class="secondary" id="cancelProgramPicker">Cancel</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="incentiveDialog">
     <form method="dialog">
