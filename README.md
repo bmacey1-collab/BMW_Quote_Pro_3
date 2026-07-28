@@ -1,4 +1,4 @@
-# BMW Quote Pro 3.0 Beta 5
+# BMW Quote Pro 3.0 Beta 6
 
 Beta 1 is based on the clean Version 3 architecture and includes the complete Alpha 9 workflow with a repaired BMW program PDF importer.
 
@@ -91,3 +91,13 @@ Local storage remains a cache so the program can still open quickly. Supabase is
 - Program incentives are merged into the deal without duplicates.
 - Program Center Use now returns to Deal Builder and applies rates, residuals and incentives.
 - The scenario editor program dropdown is filtered to matching programs.
+
+
+## Beta 6 — Consolidated Repair Build
+- Program picker count and visible results now use the same filters.
+- Scenario program edits never overwrite the master Program Center record.
+- Roll Payment preserves the selected scenario and resets stale results on new/opened deals.
+- Total Loyalty is excluded from PDF imports.
+- FS Purchase Credit applies to Finance and BMW Select.
+- Loyalty and Loyalty Dealer Contribution apply to Lease, Finance and BMW Select.
+- Manager Worksheet shows only incentives applicable to the accepted deal type.

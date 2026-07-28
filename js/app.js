@@ -38,7 +38,10 @@ state.notes=$("managerNotes").value;state.presentation={showPaymentComparison:$(
 function writeStateToForm(){const map={firstName:state.customer.firstName,lastName:state.customer.lastName,coFirstName:state.customer.coFirstName,coLastName:state.customer.coLastName,customerEmail:state.customer.email||"",customerPhone:state.customer.phone||"",currentPayment:state.customer.currentPayment||"",stockNumber:state.vehicle.stockNumber,vin:state.vehicle.vin,year:state.vehicle.year,make:state.vehicle.make,model:state.vehicle.model,msrp:state.vehicle.msrp||"",discount:state.vehicle.discount||0,taxRate:state.vehicle.taxRate??"",vehicleCost:state.vehicle.cost||"",pack:state.vehicle.pack||"",tradeVin:state.trade.vin,tradeVehicle:state.trade.vehicle,tradeAllowance:state.trade.allowance||"",tradeAcv:state.trade.acv||"",tradePayoff:state.trade.payoff||"",cashDown:state.trade.cashDown||"",equityCashBack:state.trade.equityCashBack||0,docFee:state.fees.doc.amount,regFee:state.fees.reg.amount,acqFee:state.fees.acq.amount,miscFee:state.fees.misc.amount,managerNotes:state.notes};Object.entries(map).forEach(([id,v])=>{if($(id))$(id).value=v});$("equityMethod").value=state.trade.equityMethod;$("docTreatment").value=state.fees.doc.treatment;$("regTreatment").value=state.fees.reg.treatment;$("acqTreatment").value=state.fees.acq.treatment;$("miscTreatment").value=state.fees.misc.treatment;$("showPaymentComparison").checked=state.presentation.showPaymentComparison!==false;$("combineDiscountIncentives").checked=Boolean(state.presentation.combineDiscountIncentives);$("showSignature").checked=Boolean(state.presentation.showSignature);populateSalespeople();$("salesperson").value=state.customer.salesperson||"";updateComputed();updateClientHistoryDisplays();}
 function updateComputed(){readFormToState();const selling=Math.max(0,state.vehicle.msrp-state.vehicle.discount),equity=state.trade.allowance-state.trade.payoff,gross=state.trade.allowance-state.trade.acv;$("sellingPriceDisplay").textContent=money.format(selling);$("tradeEquityDisplay").textContent=money.format(equity);$("tradeGrossDisplay").textContent=money.format(gross);$("equityCashBackWrap").classList.toggle("hidden",state.trade.equityMethod!=="split");renderIncentives();renderScenarios();renderWorksheet();}
 function mileageAdjustment(m){return ({7500:4,10000:3,12000:2,15000:0})[Number(m)]||0;}
-function dealIncentives(type){return state.incentives.filter(i=>i.amount>0&&(i.appliesTo==="all"||i.appliesTo===type)).reduce((s,i)=>s+num(i.amount),0);}
+function incentiveAppliesTo(item,type){const a=item.appliesToTypes||item.appliesTo||"all";return Array.isArray(a)?a.includes("all")||a.includes(type):a==="all"||a===type;}
+function dealIncentives(type){return state.incentives.filter(i=>num(i.amount)>0&&incentiveAppliesTo(i,type)).reduce((s,i)=>s+num(i.amount),0);}
+function appliedIncentivesForType(type){return state.incentives.filter(i=>num(i.amount)>0&&incentiveAppliesTo(i,type));}
+function incentiveAppliesLabel(item){const a=item.appliesToTypes||item.appliesTo||"all",v=Array.isArray(a)?a:[a],l={all:"All Types",lease:"Lease",finance:"Finance",cash:"Cash",select:"BMW Select"};return v.map(x=>l[x]||x).join(", ");}
 function feeTotals(type){const rows=[["Document Fee",state.fees.doc,true],["Registration / Title",state.fees.reg,true],["Acquisition Fee",state.fees.acq,type==="lease"],["Miscellaneous Fee",state.fees.misc,true]].filter(r=>r[2]&&r[1].treatment!=="none"&&r[1].amount>0);return {rows,cap:rows.filter(r=>r[1].treatment==="capitalize").reduce((s,r)=>s+r[1].amount,0),upfront:rows.filter(r=>r[1].treatment==="upfront").reduce((s,r)=>s+r[1].amount,0)};}
 function tradeAllocation(allowance=state.trade.allowance){const equity=allowance-state.trade.payoff;let cashBack=0,cap=Math.max(0,equity);if(state.trade.equityMethod==="cashback"){cashBack=Math.max(0,equity);cap=0}else if(state.trade.equityMethod==="split"){cashBack=Math.min(Math.max(0,state.trade.equityCashBack),Math.max(0,equity));cap=Math.max(0,equity-cashBack)}return {equity,cashBack,cap};}
 function validateScenario(s){const missing=[];if(!state.vehicle.msrp)missing.push("MSRP");if(state.vehicle.taxRate===null)missing.push("tax rate");if(s.type==="lease"){if(!s.term)missing.push("term");if(!s.miles)missing.push("mileage");if(s.residual===""||s.residual==null)missing.push("residual");if(s.baseMoneyFactor===""||s.baseMoneyFactor==null)missing.push("base money factor");if(s.moneyFactor===""||s.moneyFactor==null)missing.push("used money factor")}if(s.type==="finance"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR")}if(s.type==="select"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR");if(s.balloon===""||s.balloon==null)missing.push("balloon %")}return missing;}
@@ -48,7 +51,7 @@ const taxable=Math.max(0,selling-allowance),salesTax=taxable*tax,principal=selli
 function defaultScenario(type){const base={id:crypto.randomUUID(),name:"",type:type==="onepay"?"lease":type,selected:false,term:type==="cash"?1:(type==="lease"||type==="onepay"?36:60),miles:type==="lease"||type==="onepay"?10000:"",residual:"",baseMoneyFactor:"",moneyFactor:"",onePay:type==="onepay",onePayReduction:.00080,inceptionMileage:0,inceptionCharge:.20,customMiles:0,customCharge:.20,buyApr:"",apr:"",balloon:"",priceAdjustment:0,cashAdjustment:0,tradeAdjustment:0,extraIncentive:0,showRate:false,showResidual:false,showFees:true,programId:""};base.name=type==="onepay"?"One-Pay Lease 10K":type==="lease"?"Lease 10K":type==="finance"?"Finance 60":type==="cash"?"Cash Purchase":"BMW Select 60";return base;}
 function renderIncentives(){
  const c=$("incentiveRows");
- c.innerHTML=state.incentives.length?state.incentives.map(i=>`<div class="selected-incentive-row"><div><strong>${esc(i.name)}</strong><span>${esc(i.appliesTo==="all"?"All Types":i.appliesTo)}${i.programCode?" · "+esc(i.programCode):""}</span></div><strong>${money.format(num(i.amount))}</strong><button type="button" class="danger remove-incentive-button" data-remove-incentive="${i.id}">Remove Incentive</button></div>`).join(""):'<div class="empty-state">No program incentives selected.</div>';
+ c.innerHTML=state.incentives.length?state.incentives.map(i=>`<div class="selected-incentive-row"><div><strong>${esc(i.name)}</strong><span>${esc(incentiveAppliesLabel(i))}${i.programCode?" · "+esc(i.programCode):""}</span></div><strong>${money.format(num(i.amount))}</strong><button type="button" class="danger remove-incentive-button" data-remove-incentive="${i.id}">Remove Incentive</button></div>`).join(""):'<div class="empty-state">No program incentives selected.</div>';
  $("incentiveTotal").textContent=money.format(state.incentives.reduce((s,i)=>s+num(i.amount),0));
 }
 function renderScenarios(){
@@ -73,7 +76,7 @@ function renderScenarios(){
  }).join(""):'<div class="empty-state">No scenarios. Use Add Scenario.</div>';
  const selected=state.scenarios.filter(s=>s.selected).length;
  $("scenarioSelectionCount").textContent=`${selected} of 3 selected${state.acceptedScenarioId?" · Accepted deal selected":""}`;
- $("rollerScenario").innerHTML=state.scenarios.filter(s=>s.type!=="cash").map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("");
+ const previousRollScenario=$("rollerScenario").value;const rollScenarios=state.scenarios.filter(s=>s.type!=="cash");$("rollerScenario").innerHTML=rollScenarios.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("");if(rollScenarios.some(s=>s.id===previousRollScenario))$("rollerScenario").value=previousRollScenario;
  renderQuote();
 }
 function moveScenario(id,direction){
@@ -138,8 +141,9 @@ function renderWorksheet(){
  const tradeGross=state.trade.allowance-state.trade.acv;
  const accepted=state.scenarios.find(s=>s.id===state.acceptedScenarioId);
  const result=accepted?calcScenario(accepted):null;
- const totalIncentives=state.incentives.reduce((sum,item)=>sum+num(item.amount),0);
- const incentiveLines=state.incentives.length?state.incentives.map(item=>`<div class="worksheet-line"><span>${esc(item.name)}<small> (${esc(item.appliesTo==="all"?"All Types":item.appliesTo)}${item.programCode?" · "+esc(item.programCode):""})</small></span><strong>${money.format(num(item.amount))}</strong></div>`).join("")+`<div class="worksheet-line worksheet-total"><span>Total Selected Incentives</span><strong>${money.format(totalIncentives)}</strong></div>`:'<div class="item-meta">No incentives selected.</div>';
+ const acceptedIncentives=accepted?appliedIncentivesForType(accepted.type):[];
+ const totalIncentives=acceptedIncentives.reduce((sum,item)=>sum+num(item.amount),0);
+ const incentiveLines=acceptedIncentives.length?acceptedIncentives.map(item=>`<div class="worksheet-line"><span>${esc(item.name)}<small> (${esc(incentiveAppliesLabel(item))}${item.programCode?" · "+esc(item.programCode):""})</small></span><strong>${money.format(num(item.amount))}</strong></div>`).join("")+`<div class="worksheet-line worksheet-total"><span>Total Applied Incentives</span><strong>${money.format(totalIncentives)}</strong></div>`:'<div class="item-meta">No incentives selected.</div>';
 
  if(!accepted||!result?.ready){
    $("worksheetOutput").innerHTML=`<h2>BMW QUOTE WORKSHEET</h2><div class="empty-state manager-empty">Select one complete scenario as the Accepted Deal in Deal Builder. Only that scenario will appear on this worksheet.</div>`;
@@ -262,29 +266,30 @@ function mergeProgramIncentivesIntoDeal(program){
 }
 
 function applyProgramToScenarioObject(scenario,program){
- scenario.programId=program.id;
+ const source=structuredClone(program);
+ scenario.programId=source.id;
 
  if(scenario.type==="lease"){
-   scenario.term=num(program.leaseTerm)||scenario.term||36;
-   scenario.residual=program.residual===""?"":num(program.residual);
-   scenario.baseMoneyFactor=program.moneyFactor===""?"":num(program.moneyFactor);
-   if(scenario.moneyFactor===""||num(scenario.moneyFactor)<num(program.moneyFactor)){
-     scenario.moneyFactor=program.moneyFactor===""?"":num(program.moneyFactor);
+   scenario.term=num(source.leaseTerm)||scenario.term||36;
+   scenario.residual=source.residual===""?"":num(source.residual);
+   scenario.baseMoneyFactor=source.moneyFactor===""?"":num(source.moneyFactor);
+   if(scenario.moneyFactor===""||num(scenario.moneyFactor)<num(source.moneyFactor)){
+     scenario.moneyFactor=source.moneyFactor===""?"":num(source.moneyFactor);
    }
-   scenario.onePayReduction=num(program.onePayReduction)||scenario.onePayReduction||.00080;
+   scenario.onePayReduction=num(source.onePayReduction)||scenario.onePayReduction||.00080;
  }else if(scenario.type==="finance"){
-   scenario.term=num(program.financeTerm)||scenario.term||60;
-   scenario.buyApr=program.financeApr===""?"":num(program.financeApr);
-   if(scenario.apr===""||num(scenario.apr)<num(program.financeApr)){
-     scenario.apr=program.financeApr===""?"":num(program.financeApr);
+   scenario.term=num(source.financeTerm)||scenario.term||60;
+   scenario.buyApr=source.financeApr===""?"":num(source.financeApr);
+   if(scenario.apr===""||num(scenario.apr)<num(source.financeApr)){
+     scenario.apr=source.financeApr===""?"":num(source.financeApr);
    }
  }else if(scenario.type==="select"){
-   scenario.term=num(program.selectTerm)||scenario.term||60;
-   scenario.buyApr=program.selectApr===""?"":num(program.selectApr);
-   if(scenario.apr===""||num(scenario.apr)<num(program.selectApr)){
-     scenario.apr=program.selectApr===""?"":num(program.selectApr);
+   scenario.term=num(source.selectTerm)||scenario.term||60;
+   scenario.buyApr=source.selectApr===""?"":num(source.selectApr);
+   if(scenario.apr===""||num(scenario.apr)<num(source.selectApr)){
+     scenario.apr=source.selectApr===""?"":num(source.selectApr);
    }
-   if(program.balloon!==""&&program.balloon!=null)scenario.balloon=num(program.balloon);
+   if(source.balloon!==""&&source.balloon!=null)scenario.balloon=num(source.balloon);
  }
  return scenario;
 }
@@ -344,9 +349,8 @@ function openProgramPicker(){
    $("programPickerMonth").value=matches[0].month||"";
    $("programPickerYear").value=String(state.vehicle.year||matches[0].year||"");
  }
- $("programPickerSearch").value=state.vehicle.model||"";
- $("programPickerSummary").textContent=
-   `${matches.length} matching program${matches.length===1?"":"s"} found for ${state.vehicle.year||"vehicle year not entered"} ${state.vehicle.model||"vehicle model not entered"}.`;
+ $("programPickerSearch").value="";
+ 
 
  renderProgramPickerResults();
  $("programPickerDialog").showModal();
@@ -371,6 +375,7 @@ function renderProgramPickerResults(){
      String(b.month).localeCompare(String(a.month))
    );
 
+ $("programPickerSummary").textContent=`${currentProgramPickerRows.length} program${currentProgramPickerRows.length===1?"":"s"} shown for ${year||"all years"}${month?` · ${month}`:""}${state.vehicle.model?` · ${state.vehicle.model}`:""}.`;
  $("programPickerResults").innerHTML=currentProgramPickerRows.length
    ? currentProgramPickerRows.map(program=>{
        const incentiveCount=(program.incentives||[]).length;
@@ -380,10 +385,10 @@ function renderProgramPickerResults(){
            <span>${esc(program.modelCode||"No model code")} · ${esc(program.status)}</span>
          </div>
          <div class="program-pick-values">
-           <span>Residual <strong>${program.residual===""?"—":program.residual+"%"}</strong></span>
-           <span>MF <strong>${program.moneyFactor===""?"—":program.moneyFactor}</strong></span>
-           <span>Finance <strong>${program.financeApr===""?"—":program.financeApr+"%"}</strong></span>
-           <span>Select <strong>${program.selectApr===""?"—":program.selectApr+"%"}</strong></span>
+           <span>Residual <strong>${source.residual===""?"—":source.residual+"%"}</strong></span>
+           <span>MF <strong>${source.moneyFactor===""?"—":source.moneyFactor}</strong></span>
+           <span>Finance <strong>${source.financeApr===""?"—":source.financeApr+"%"}</strong></span>
+           <span>Select <strong>${source.selectApr===""?"—":source.selectApr+"%"}</strong></span>
            <span>Incentives <strong>${incentiveCount}</strong></span>
          </div>
          <button type="button" class="primary" data-apply-program="${program.id}">Use Program</button>
@@ -397,6 +402,7 @@ function updateScenarioFields(){const t=$("scenarioType").value;document.querySe
 function scenarioFromDialog(){return {id:$("scenarioId").value||crypto.randomUUID(),name:$("scenarioName").value.trim()||"Scenario",type:$("scenarioType").value,programId:$("scenarioProgram").value,onePay:$("scenarioOnePay").checked,term:num($("scenarioTerm").value),miles:$("scenarioMiles").value?num($("scenarioMiles").value):"",residual:$("scenarioResidual").value===""?"":num($("scenarioResidual").value),baseMoneyFactor:$("scenarioBaseMf").value===""?"":num($("scenarioBaseMf").value),moneyFactor:$("scenarioMf").value===""?"":num($("scenarioMf").value),onePayReduction:num($("scenarioOnePayReduction").value),inceptionMileage:num($("scenarioInceptionMileage").value),inceptionCharge:num($("scenarioInceptionCharge").value),customMiles:num($("scenarioCustomMiles").value),customCharge:num($("scenarioCustomCharge").value),buyApr:$("scenarioBuyApr").value===""?"":num($("scenarioBuyApr").value),apr:$("scenarioApr").value===""?"":num($("scenarioApr").value),balloon:$("scenarioBalloon").value===""?"":num($("scenarioBalloon").value),priceAdjustment:num($("scenarioPriceAdjustment").value),cashAdjustment:num($("scenarioCashAdjustment").value),tradeAdjustment:num($("scenarioTradeAdjustment").value),extraIncentive:num($("scenarioExtraIncentive").value),showRate:$("scenarioShowRate").checked,showResidual:$("scenarioShowResidual").checked,showFees:$("scenarioShowFees").checked,selected:state.scenarios.find(s=>s.id===$("scenarioId").value)?.selected||false};}
 function updateScenarioPreview(){const old=state.scenarios.findIndex(s=>s.id===$("scenarioId").value),draft=scenarioFromDialog();if(old>=0)state.scenarios[old]=draft;else state.scenarios.push(draft);const r=calcScenario(draft);$("scenarioPreview").textContent=r.ready?(draft.onePay?`One-Pay ${money.format(r.onePayTotal)} · Equivalent ${money.format(r.equivalentMonthly)}`:`Estimated ${money.format(r.payment)}`):"Missing: "+r.missing.join(", ");if(old>=0)state.scenarios[old]=draft;else state.scenarios.pop();}
 async function decodeVin(target){const id=target==="trade"?"tradeVin":"vin",vin=$(id).value.trim().toUpperCase();if(vin.length!==17){toast("Enter a 17-character VIN.");return}try{const res=await fetch("https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValuesExtended/"+encodeURIComponent(vin)+"?format=json"),data=await res.json(),r=data.Results?.[0];if(target==="trade")$("tradeVehicle").value=[r.ModelYear,r.Make,r.Model,r.Trim].filter(Boolean).join(" ");else{$("year").value=r.ModelYear||"";$("make").value=r.Make||"BMW";$("model").value=[r.Model,r.Trim].filter(Boolean).join(" ")}updateComputed();toast("VIN decoded.")}catch(e){toast("VIN decoding failed.")}}
+function resetRollPayment(options={}){if(!options.preserveScenario&&$("rollerScenario").options.length)$("rollerScenario").selectedIndex=0;$("rollerTarget").value="";$("rollerVariable").value="discount";$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box";}
 function rollPayment(){readFormToState();const s=state.scenarios.find(x=>x.id===$("rollerScenario").value),target=num($("rollerTarget").value),variable=$("rollerVariable").value,out=$("rollerResult");if(!s||target<=0){out.textContent="Choose a scenario and target payment.";out.className="result-box error";return}const r0=calcScenario(s);if(!r0.ready){out.textContent="Complete the scenario first: "+r0.missing.join(", ");out.className="result-box error";return}let low=0,high=Math.max(state.vehicle.msrp*2,100000),best=null;for(let i=0;i<100;i++){const mid=(low+high)/2,o={};o[variable]=mid;const r=calcScenario(s,o);if(!r.ready)break;best={value:mid,payment:r.payment};if(Math.abs(r.payment-target)<.01)break;if(r.payment>target)low=mid;else high=mid}const current=variable==="discount"?state.vehicle.discount:variable==="cashDown"?state.trade.cashDown:state.trade.allowance,label=variable==="discount"?"Required dealer discount":variable==="cashDown"?"Required cash up front":"Required trade allowance";out.innerHTML=`<strong>${label}: ${money.format(best.value)}</strong><br>Change: ${best.value-current>=0?"+":"−"}${money.format(Math.abs(best.value-current))} · Payment ${money.format(best.payment)}`;out.className="result-box success";}
 function normalizeClientText(value){return String(value||"").trim().toLowerCase().replace(/\s+/g," ")}
 function findMatchingClient(deals){
@@ -494,7 +500,7 @@ async function renderSaved(){
  }).join("")||'<div class="empty-state">No saved deals yet.</div>';
 }
 function savedCard(d,full=false){const name=[d.customer.firstName,d.customer.lastName].filter(Boolean).join(" ")||"Unnamed Client",vehicle=[d.vehicle.year,d.vehicle.make,d.vehicle.model].filter(Boolean).join(" ")||"Vehicle";return `<div class="${full?"saved-item":"recent-item"}"><div><strong>${esc(name)}</strong><div class="item-meta">${esc(vehicle)} · ${esc(d.quoteNumber)} · ${new Date(d.updatedAt).toLocaleString()}</div></div><div class="button-row"><button class="secondary" data-load-deal="${d.id}">Open</button>${full?`<button class="secondary" data-duplicate-deal="${d.id}">Duplicate</button>`:""}</div></div>`}
-async function loadDeal(id,duplicate=false){const rows=await loadAllDeals(),d=rows.find(x=>x.id===id);if(!d)return;state=structuredClone(d);if(duplicate){state.id=crypto.randomUUID();state.quoteNumber="Q-"+new Date().toISOString().replace(/\D/g,"").slice(0,14);state.createdAt=new Date().toISOString();state.updatedAt=state.createdAt}writeStateToForm();renderIncentives();renderScenarios();showPage("deal");toast(duplicate?"Deal duplicated.":"Deal opened.");}
+async function loadDeal(id,duplicate=false){const rows=await loadAllDeals(),d=rows.find(x=>x.id===id);if(!d)return;state=structuredClone(d);if(duplicate){state.id=crypto.randomUUID();state.quoteNumber="Q-"+new Date().toISOString().replace(/\D/g,"").slice(0,14);state.createdAt=new Date().toISOString();state.updatedAt=state.createdAt}writeStateToForm();renderIncentives();renderScenarios();resetRollPayment();showPage("deal");toast(duplicate?"Deal duplicated.":"Deal opened.");}
 function setProgramSyncStatus(message,kind=""){
  const el=$("programSyncStatus");
  if(!el)return;
@@ -805,7 +811,7 @@ function openIncentivePicker(programId=""){
            ${alreadyApplied?"checked":""}>
          <span>
            <strong>${esc(i.name)}</strong>
-           <small>${esc(i.sourceLabel)} · ${esc(i.appliesTo==="all"?"All Types":i.appliesTo)}${alreadyApplied?" · Currently applied":""}</small>
+           <small>${esc(i.sourceLabel)} · ${esc(incentiveAppliesLabel(i))}${alreadyApplied?" · Currently applied":""}</small>
          </span>
          <strong>${money.format(i.amount)}</strong>
        </label>`;
@@ -942,15 +948,15 @@ function openQuickProgram(){
  $("quickMonth").value=new Date().toISOString().slice(0,7);$("quickYear").value=state.vehicle.year||"";$("quickModel").value=state.vehicle.model||"";$("quickModelCode").value="";["quickResidual","quickMf","quickRetailApr","quickRetailAprLong","quickSelectApr","quickLeaseCredit","quickPurchaseCredit","quickCashCredit","quickConquest","quickLoyalty","quickDealerContribution","quickEffectiveDate","quickExpirationDate","quickRestrictions"].forEach(id=>$(id).value="");
  $("quickProgramDialog").showModal();
 }
-function quickIncentive(name,amount,appliesTo){return amount>0?{id:crypto.randomUUID(),name,amount,appliesTo,category:"customer",programCode:$("quickModelCode").value.trim()}:null}
+function quickIncentive(name,amount,appliesTo){const t=Array.isArray(appliesTo)?appliesTo:[appliesTo];return amount>0?{id:crypto.randomUUID(),name,amount,appliesToTypes:t,appliesTo:t.length===1?t[0]:"all",category:name==="Loyalty Dealer Contribution"?"dealer":"customer",programCode:$("quickModelCode").value.trim()}:null}
 function saveQuickProgram(){
  const p={id:crypto.randomUUID(),month:$("quickMonth").value,manufacturer:"BMW",year:num($("quickYear").value),model:$("quickModel").value.trim(),modelCode:$("quickModelCode").value.trim(),status:"management",effectiveDate:$("quickEffectiveDate").value,expirationDate:$("quickExpirationDate").value,restrictions:$("quickRestrictions").value.trim(),leaseTerm:36,residual:num($("quickResidual").value),moneyFactor:num($("quickMf").value),onePayReduction:.00080,financeApr:num($("quickRetailApr").value),financeAprLong:num($("quickRetailAprLong").value),financeTerm:60,selectApr:num($("quickSelectApr").value),selectTerm:60,balloon:"",source:"quick",incentives:[
    quickIncentive("FS Lease Credit",num($("quickLeaseCredit").value),"lease"),
-   quickIncentive("FS Purchase Credit",num($("quickPurchaseCredit").value),"finance"),
+   quickIncentive("FS Purchase Credit",num($("quickPurchaseCredit").value),["finance","select"]),
    quickIncentive("Cash Purchase Credit",num($("quickCashCredit").value),"cash"),
    quickIncentive("Conquest Credit",num($("quickConquest").value),"all"),
-   quickIncentive("FS Lease/Purchase Loyalty",num($("quickLoyalty").value),"all"),
-   quickIncentive("Loyalty Dealer Contribution",num($("quickDealerContribution").value),"all")
+   quickIncentive("FS Lease/Purchase Loyalty",num($("quickLoyalty").value),["lease","finance","select"]),
+   quickIncentive("Loyalty Dealer Contribution",num($("quickDealerContribution").value),["lease","finance","select"])
  ].filter(Boolean)};
  if(!p.month||!p.year||!p.model){toast("Month, model year and model are required.");return}
  const rows=programs();rows.push(p);saveProgramsLocal(rows);renderPrograms();
@@ -1076,19 +1082,19 @@ function parseProgramRow(rawLine,meta){
 
  const incentives=[
    ["FS Lease Credit",leaseCredit,"lease"],
-   ["FS Purchase Credit",purchaseCredit,"finance"],
+   ["FS Purchase Credit",purchaseCredit,["finance","select"]],
    ["Cash Purchase Credit",cashCredit,"cash"],
    ["Conquest Credit",conquest,"all"],
-   ["FS Lease/Purchase Loyalty",loyalty,"all"],
-   ["Loyalty Dealer Contribution",dealerContribution,"all"],
-   ["Total Loyalty",totalLoyalty,"all"],
+   ["FS Lease/Purchase Loyalty",loyalty,["lease","finance","select"]],
+   ["Loyalty Dealer Contribution",dealerContribution,["lease","finance","select"]],
    ["GKL Loyalty",gklLoyalty,"all"],
    ["GKL Conquest",gklConquest,"all"]
  ].map(([name,amount,appliesTo])=>({
    id:crypto.randomUUID(),
    name,
    amount,
-   appliesTo,
+   appliesToTypes:Array.isArray(appliesTo)?appliesTo:[appliesTo],
+   appliesTo:Array.isArray(appliesTo)?(appliesTo.length===1?appliesTo[0]:"all"):appliesTo,
    category:"customer",
    programCode:code
  })).filter(item=>item.amount>0);
@@ -1258,7 +1264,7 @@ function renderImportReview(){
        </thead>
        <tbody>
          ${importedProgramRows.map((program,index)=>{
-           const residualMissing=!num(program.residual);
+           const residualMissing=!num(source.residual);
            return `<tr class="${residualMissing?"residual-missing":""}">
              <td>
                <input type="checkbox" data-import-row="${index}"
@@ -1272,7 +1278,7 @@ function renderImportReview(){
                <div class="residual-review-cell">
                  <input type="number" min="1" max="100" step=".01"
                    data-import-edit="${index}" data-field="residual"
-                   value="${program.residual}">
+                   value="${source.residual}">
                  <span>${residualMissing
                    ?"Required"
                    :"36 mo / 15K"}</span>
@@ -1280,13 +1286,13 @@ function renderImportReview(){
              </td>
              <td><input type="number" step=".00001"
                data-import-edit="${index}" data-field="moneyFactor"
-               value="${program.moneyFactor}"></td>
+               value="${source.moneyFactor}"></td>
              <td><input type="number" step=".01"
                data-import-edit="${index}" data-field="financeApr"
-               value="${program.financeApr}"></td>
+               value="${source.financeApr}"></td>
              <td><input type="number" step=".01"
                data-import-edit="${index}" data-field="selectApr"
-               value="${program.selectApr}"></td>
+               value="${source.selectApr}"></td>
              <td>${program.incentives.length}</td>
              <td><span class="${residualMissing
                ?"import-status-warning"
@@ -1309,7 +1315,7 @@ function saveApprovedImports(){
    return;
  }
 
- const invalid=checked.filter(program=>!num(program.residual));
+ const invalid=checked.filter(program=>!num(source.residual));
  if(invalid.length){
    toast(`Correct the residual for ${invalid.length} selected row${invalid.length===1?"":"s"}, or deselect them.`);
    const firstIndex=importedProgramRows.indexOf(invalid[0]);
@@ -1322,7 +1328,7 @@ function saveApprovedImports(){
 
  const rows=programs();
  checked.forEach(program=>{
-   program.residualNeedsReview=false;
+   source.residualNeedsReview=false;
    const existing=rows.findIndex(row=>
      row.month===program.month &&
      row.modelCode===program.modelCode
@@ -1346,7 +1352,7 @@ function saveApprovedImports(){
  setPdfImportStatus(`${checked.length} programs saved`,"success");
  toast(`${checked.length} programs imported with residuals.`);
 }
-function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=renderDashboard;$("refreshSaved").onclick=renderSaved;$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=programs().sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p){editProgram(p.id);$("programId").value="";$("programStatus").value="carried";toast("Prior program copied. Change the month.")}};$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{
+function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=renderDashboard;$("refreshSaved").onclick=renderSaved;$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=programs().sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p){editProgram(p.id);$("programId").value="";$("programStatus").value="carried";toast("Prior program copied. Change the month.")}};$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{
  const id=e.target.dataset.removeIncentive;
  if(!id)return;
  const incentive=state.incentives.find(x=>x.id===id);
@@ -1403,7 +1409,7 @@ $("importReviewTable").addEventListener("input",e=>{
    ? (e.target.value===""?"":num(e.target.value))
    : e.target.value;
  if(field==="residual"){
-   program.residualNeedsReview=!num(program.residual);
+   source.residualNeedsReview=!num(source.residual);
    renderImportReview();
    const edited=document.querySelector(
      `[data-import-edit="${index}"][data-field="residual"]`

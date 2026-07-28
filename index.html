@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0f2f57">
-  <title>BMW Quote Pro 3.0 Beta 5</title>
+  <title>BMW Quote Pro 3.0 Beta 6</title>
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/print.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13,10 +13,10 @@
   <div class="app-shell">
     <header class="app-header">
       <div>
-        <h1>BMW Quote Pro 3.0 Beta 5</h1>
+        <h1>BMW Quote Pro 3.0 Beta 6</h1>
         <p>Clean desking architecture — no Version 2 calculator code.</p>
       </div>
-      <div class="build-chip">Beta 5 · Testing</div>
+      <div class="build-chip">Beta 6 · Testing</div>
     </header>
 
     <nav class="main-nav" aria-label="Primary navigation">
@@ -157,7 +157,7 @@
             <label>Scenario<select id="rollerScenario"></select></label>
             <label class="required">Target Payment<input id="rollerTarget" type="number" min="0" step=".01"></label>
             <label>Adjust<select id="rollerVariable"><option value="discount">Dealer Discount</option><option value="cashDown">Cash Up Front</option><option value="tradeAllowance">Trade Allowance</option></select></label>
-            <label class="action-label">&nbsp;<button class="primary" id="rollPaymentButton">Calculate Adjustment</button></label>
+            <label class="action-label">&nbsp;<div class="button-row"><button class="primary" id="rollPaymentButton">Calculate Adjustment</button><button class="secondary" id="clearRollPaymentButton" type="button">Clear</button></div></label>
           </div>
           <div id="rollerResult" class="result-box">Choose a scenario and target payment.</div>
         </div>
