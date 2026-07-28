@@ -1,4 +1,4 @@
-# BMW Quote Pro 3.0 Beta 6
+# BMW Quote Pro 3.0 Beta 7
 
 Beta 1 is based on the clean Version 3 architecture and includes the complete Alpha 9 workflow with a repaired BMW program PDF importer.
 
@@ -101,3 +101,13 @@ Local storage remains a cache so the program can still open quickly. Supabase is
 - FS Purchase Credit applies to Finance and BMW Select.
 - Loyalty and Loyalty Dealer Contribution apply to Lease, Finance and BMW Select.
 - Manager Worksheet shows only incentives applicable to the accepted deal type.
+
+
+## Beta 7 — PDF Import Reliability
+
+- Displays the exact stage and browser error when importing fails.
+- Tries multiple PDF.js module sources.
+- Attempts PDF processing without a separate worker before retrying normally.
+- A malformed program row no longer stops the entire PDF import.
+- Skipped rows are reported while successfully parsed rows remain available for review.
+- Clears the previous import error when a new file is selected.

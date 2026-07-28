@@ -966,8 +966,15 @@ function saveQuickProgram(){
  });
  $("quickProgramDialog").close();openIncentivePicker(p.id);toast("Program saved. Select the applicable incentives.");
 }
-const PDFJS_MODULE_URL="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
-const PDFJS_WORKER_URL="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+const PDFJS_SOURCES=[
+ "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs",
+ "https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.min.mjs",
+ "https://esm.sh/pdfjs-dist@4.10.38/build/pdf.min.mjs"
+];
+const PDFJS_WORKER_SOURCES=[
+ "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs",
+ "https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs"
+];
 
 function setPdfImportStatus(message,kind=""){
  const el=$("pdfImportStatus");
@@ -976,19 +983,43 @@ function setPdfImportStatus(message,kind=""){
  el.className="pdf-import-status"+(kind?" "+kind:"");
 }
 
+function showPdfImportError(message=""){
+ const el=$("pdfImportError");
+ if(!el)return;
+ el.textContent=message;
+ el.classList.toggle("hidden",!message);
+}
+
 async function loadPdfJs(){
  if(window.pdfjsLib?.getDocument)return window.pdfjsLib;
- if(!pdfJsModulePromise){
-   setPdfImportStatus("Loading PDF reader…","working");
-   pdfJsModulePromise=import(PDFJS_MODULE_URL).then(module=>{
-     module.GlobalWorkerOptions.workerSrc=PDFJS_WORKER_URL;
-     window.pdfjsLib=module;
-     return module;
-   }).catch(error=>{
-     pdfJsModulePromise=null;
-     throw new Error("The PDF reader could not be loaded. Check the internet connection and try again.");
-   });
- }
+ if(pdfJsModulePromise)return pdfJsModulePromise;
+
+ pdfJsModulePromise=(async()=>{
+   const errors=[];
+   for(let index=0;index<PDFJS_SOURCES.length;index++){
+     const source=PDFJS_SOURCES[index];
+     try{
+       setPdfImportStatus(`Loading PDF reader ${index+1} of ${PDFJS_SOURCES.length}…`,"working");
+       const module=await import(source);
+       if(!module?.getDocument)throw new Error("PDF module loaded without getDocument.");
+       try{
+         module.GlobalWorkerOptions.workerSrc=PDFJS_WORKER_SOURCES[Math.min(index,PDFJS_WORKER_SOURCES.length-1)];
+       }catch(workerError){
+         console.warn("PDF worker source could not be assigned:",workerError);
+       }
+       window.pdfjsLib=module;
+       return module;
+     }catch(error){
+       console.warn("PDF reader source failed:",source,error);
+       errors.push(error?.message||String(error));
+     }
+   }
+   throw new Error(`The PDF reader could not be loaded. ${errors.join(" | ")}`);
+ })().catch(error=>{
+   pdfJsModulePromise=null;
+   throw error;
+ });
+
  return pdfJsModulePromise;
 }
 
@@ -1135,26 +1166,55 @@ function parseProgramRow(rawLine,meta){
 }
 async function importProgramPdf(file){
  if(!file)return;
+
+ showPdfImportError("");
+
  if(file.type && file.type!=="application/pdf" && !file.name.toLowerCase().endsWith(".pdf")){
    toast("Please select a PDF file.");
    setPdfImportStatus("Invalid file","error");
+   showPdfImportError("The selected file is not recognized as a PDF.");
    return;
  }
+
+ let stage="opening the file";
 
  try{
    setPdfImportStatus(`Opening ${file.name}…`,"working");
    toast("Reading BMW program PDF…");
-   const pdfjs=await loadPdfJs();
-   const bytes=new Uint8Array(await file.arrayBuffer());
 
-   setPdfImportStatus("Reading PDF pages…","working");
-   const loadingTask=pdfjs.getDocument({data:bytes});
-   const pdf=await loadingTask.promise;
+   stage="loading the PDF reader";
+   const pdfjs=await loadPdfJs();
+
+   stage="reading the selected file";
+   const bytes=new Uint8Array(await file.arrayBuffer());
+   if(!bytes.length)throw new Error("The selected PDF file is empty.");
+
+   stage="opening the PDF document";
+   setPdfImportStatus("Opening PDF document…","working");
+
+   let pdf;
+   try{
+     // Some corporate networks block PDF.js worker files.
+     // First attempt disables the worker dependency.
+     pdf=await pdfjs.getDocument({data:bytes,disableWorker:true}).promise;
+   }catch(firstError){
+     console.warn("PDF open without worker failed; retrying normally.",firstError);
+     pdf=await pdfjs.getDocument({data:bytes}).promise;
+   }
+
    const rawLines=[];
-   let meta={month:"",effectiveDate:"",expirationDate:"",restrictions:"",sourceFile:file.name};
+   let meta={
+     month:"",
+     effectiveDate:"",
+     expirationDate:"",
+     restrictions:"",
+     sourceFile:file.name
+   };
 
    for(let pageNo=1;pageNo<=pdf.numPages;pageNo++){
+     stage=`reading page ${pageNo} of ${pdf.numPages}`;
      setPdfImportStatus(`Reading page ${pageNo} of ${pdf.numPages}…`,"working");
+
      const page=await pdf.getPage(pageNo);
      const content=await page.getTextContent({includeMarkedContent:false});
      const groups=new Map();
@@ -1178,9 +1238,13 @@ async function importProgramPdf(file){
        });
    }
 
+   stage="combining PDF table rows";
    const lines=mergeWrappedProgramLines(rawLines);
    const full=lines.join("\n");
-   const title=full.match(/BMW\s+([A-Za-z]+)\s+Programs\s+(\d{4})\s+\(effective:\s*(\d{1,2}\/\d{1,2}\/\d{2})\s*-\s*(\d{1,2}\/\d{1,2}\/\d{2})\)/i);
+
+   const title=full.match(
+     /BMW\s+([A-Za-z]+)\s+Programs\s+(\d{4})\s+\(effective:\s*(\d{1,2}\/\d{1,2}\/\d{2})\s*-\s*(\d{1,2}\/\d{1,2}\/\d{2})\)/i
+   );
 
    if(title){
      const monthNumber=new Date(`${title[1]} 1, ${title[2]}`).getMonth()+1;
@@ -1192,14 +1256,28 @@ async function importProgramPdf(file){
    const restrictionLines=lines.filter(line=>
      /Not Lockable|Must deliver|final eligibility|Sales Support Inquiry by VIN/i.test(line)
    ).slice(0,3);
-   meta.restrictions=restrictionLines.join(" · ") ||
+
+   meta.restrictions=restrictionLines.join(" · ")||
      "Final eligibility must be confirmed by VIN.";
 
-   importedProgramRows=lines
-     .filter(line=>/^[0-9]{2}[A-Z0-9]{2}\s+/.test(line))
-     .map(line=>parseProgramRow(line,meta))
-     .filter(Boolean);
+   stage="parsing program rows";
+   const candidateLines=lines.filter(line=>/^[0-9]{2}[A-Z0-9]{2}\s+/.test(line));
+   const parsed=[];
+   const rowErrors=[];
 
+   candidateLines.forEach((line,index)=>{
+     try{
+       const row=parseProgramRow(line,meta);
+       if(row)parsed.push(row);
+     }catch(error){
+       console.error("Program row parse failed:",line,error);
+       rowErrors.push(`Row ${index+1}: ${error?.message||String(error)}`);
+     }
+   });
+
+   importedProgramRows=parsed;
+
+   stage="removing duplicate program rows";
    const unique=new Map();
    importedProgramRows.forEach(row=>{
      const key=`${row.month}|${row.modelCode}`;
@@ -1214,33 +1292,63 @@ async function importProgramPdf(file){
 
    const warnings=[];
    if(!meta.month)warnings.push("The program month was not detected.");
-   if(!meta.effectiveDate||!meta.expirationDate)warnings.push("The effective dates need review.");
-   if(!importedProgramRows.length)warnings.push("No program rows were detected.");
+   if(!meta.effectiveDate||!meta.expirationDate){
+     warnings.push("The effective dates need review.");
+   }
+   if(!importedProgramRows.length){
+     warnings.push(`No program rows were detected from ${candidateLines.length} possible rows.`);
+   }
+
    const missingResidualRows=importedProgramRows.filter(row=>!num(row.residual));
    if(missingResidualRows.length){
-     warnings.push(`${missingResidualRows.length} row${missingResidualRows.length===1?" has":"s have"} a missing or invalid residual and must be corrected before saving.`);
+     warnings.push(
+       `${missingResidualRows.length} row${missingResidualRows.length===1?" has":"s have"} `+
+       "a missing or invalid residual and must be corrected before saving."
+     );
    }
+
+   if(rowErrors.length){
+     warnings.push(
+       `${rowErrors.length} individual row${rowErrors.length===1?" was":"s were"} skipped. `+
+       "The remaining rows can still be reviewed and imported."
+     );
+   }
+
    const warningsEl=$("importWarnings");
    warningsEl.classList.toggle("hidden",warnings.length===0);
    warningsEl.innerHTML=warnings.map(w=>`<div>⚠ ${esc(w)}</div>`).join("");
 
+   stage="opening the import review";
    renderImportReview();
    $("importReviewDialog").showModal();
+
    setPdfImportStatus(
      importedProgramRows.length
        ? `${importedProgramRows.length} rows ready for review`
-       : "No rows detected",
+       : "PDF read; no rows detected",
      importedProgramRows.length?"success":"error"
    );
+
+   if(rowErrors.length){
+     showPdfImportError(
+       `${rowErrors.length} malformed row${rowErrors.length===1?" was":"s were"} skipped. `+
+       "Review the detected programs before saving."
+     );
+   }
+
    toast(
      importedProgramRows.length
        ? `Found ${importedProgramRows.length} program rows.`
        : "The PDF opened, but no program rows were detected."
    );
  }catch(error){
-   console.error("PDF import failed:",error);
+   console.error(`PDF import failed during ${stage}:`,error);
+   const detail=error?.message||String(error);
+   const message=`Import failed while ${stage}: ${detail}`;
+
    setPdfImportStatus("Import failed","error");
-   toast(error?.message||"The PDF could not be imported.");
+   showPdfImportError(message);
+   toast(message);
  }
 }
 function toIsoDate(value){const [m,d,y]=value.split("/").map(Number);return `20${String(y).padStart(2,"0")}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`}
@@ -1352,7 +1460,7 @@ function saveApprovedImports(){
  setPdfImportStatus(`${checked.length} programs saved`,"success");
  toast(`${checked.length} programs imported with residuals.`);
 }
-function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=renderDashboard;$("refreshSaved").onclick=renderSaved;$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=programs().sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p){editProgram(p.id);$("programId").value="";$("programStatus").value="carried";toast("Prior program copied. Change the month.")}};$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{
+function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=renderDashboard;$("refreshSaved").onclick=renderSaved;$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=programs().sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p){editProgram(p.id);$("programId").value="";$("programStatus").value="carried";toast("Prior program copied. Change the month.")}};$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{
  const id=e.target.dataset.removeIncentive;
  if(!id)return;
  const incentive=state.incentives.find(x=>x.id===id);

@@ -201,3 +201,15 @@
 @media(max-width:900px){.program-picker-filters,.program-pick-card{grid-template-columns:1fr}.program-pick-values{grid-template-columns:repeat(2,1fr)}}
 
 .program-protection-note{grid-column:1/-1;margin-top:-4px;padding:8px 10px;border:1px solid #cdddf2;border-radius:8px;background:#f2f7fd;color:#315a88;font-size:11px;font-weight:800}
+
+.pdf-import-error{
+  margin-bottom:12px;
+  padding:11px 13px;
+  border:1px solid #efb1ad;
+  border-radius:9px;
+  background:#fff1f0;
+  color:#8f1515;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.45;
+}
