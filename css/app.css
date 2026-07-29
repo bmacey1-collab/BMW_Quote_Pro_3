@@ -227,3 +227,12 @@
 .saved-badge{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;background:#eef3f8;color:#0f2f57;font-size:10px;font-weight:900;text-transform:capitalize}
 .recent-item{transition:transform .12s ease,box-shadow .12s ease}.recent-item:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(15,47,87,.1)}
 @media(max-width:700px){.saved-search-row{grid-template-columns:1fr}.saved-tools{position:static}.saved-filter{flex:1 1 auto}.recent-item,.saved-item{grid-template-columns:1fr}.recent-item .button-row,.saved-item .button-row{justify-content:flex-start}}
+
+/* Beta 7.11 calculation verification */
+.verification-block summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:.5rem}
+.verification-block summary::-webkit-details-marker{display:none}
+.verification-block summary h3{margin:0}
+.verification-block summary:before{content:"▾";font-weight:800}
+.verification-block:not([open]) summary:before{content:"▸"}
+.verification-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1.5rem;margin-top:.75rem}
+@media(max-width:760px){.verification-grid{grid-template-columns:1fr}}
