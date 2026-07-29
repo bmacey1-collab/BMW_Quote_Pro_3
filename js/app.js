@@ -1060,7 +1060,7 @@ function normalizePdfLine(line){
 }
 
 function likelyProgramRow(line){
- return /^[0-9]{2}[A-Z0-9]{2}\s+/.test(line) &&
+ return /^[0-9]{2}[A-Z][A-Z0-9]\s+/.test(line) &&
    /\s(?:Yes|No)\s+\d+%\s+\$/.test(line) &&
    /0\.\d{5}/.test(line);
 }
@@ -1070,12 +1070,12 @@ function mergeWrappedProgramLines(lines){
  for(let i=0;i<lines.length;i++){
    let line=normalizePdfLine(lines[i]);
    if(!line)continue;
-   if(/^[0-9]{2}[A-Z0-9]{2}\s+/.test(line)){
+   if(/^[0-9]{2}[A-Z][A-Z0-9]\s+/.test(line)){
      let combined=line;
      let look=i+1;
      while(look<lines.length && !likelyProgramRow(combined) && look<=i+3){
        const next=normalizePdfLine(lines[look]);
-       if(/^[0-9]{2}[A-Z0-9]{2}\s+/.test(next))break;
+       if(/^[0-9]{2}[A-Z][A-Z0-9]\s+/.test(next))break;
        if(next && !/^(BMW July Programs|Not Lockable|Rates apply|This document|Model Year|BEV|Lease|Loan|Non-FS|Conquest|Loyalty)/i.test(next)){
          combined+=" "+next;
        }
@@ -1098,7 +1098,7 @@ function parseProgramRow(rawLine,meta){
 
  // BMW PDFs may extract the base residual as 55%, 55 %, or 55.0%.
  const header=line.match(
-   /^([0-9]{2}[A-Z0-9]{2})\s+(.+?)\s+(Yes|No)\s+(\d+(?:\.\d+)?)\s*%\s+(.*)$/
+   /^([0-9]{2}[A-Z][A-Z0-9])\s+(.+?)\s+(Yes|No)\s+(\d+(?:\.\d+)?)\s*%\s+(.*)$/
  );
  if(!header)return null;
 
@@ -1299,7 +1299,7 @@ async function importProgramPdf(file){
    const addCandidate=recovered=>{
      recovered=normalizePdfLine(recovered);
      if(!recovered)return;
-     const codeMatch=recovered.match(/^([0-9]{2}[A-Z0-9]{2})\s+/);
+     const codeMatch=recovered.match(/^([0-9]{2}[A-Z][A-Z0-9])\s+/);
      if(!codeMatch)return;
      const key=codeMatch[1]+"|"+recovered.slice(0,160);
      if(!candidateKeys.has(key)){
@@ -1311,7 +1311,7 @@ async function importProgramPdf(file){
    // First pass: normal line-by-line recovery.
    lines.forEach(sourceLine=>{
      const line=normalizePdfLine(sourceLine);
-     const matches=[...line.matchAll(/(?:^|\s)([0-9]{2}[A-Z0-9]{2})\s+(.+?)\s+(?:Yes|No)\s+\d+(?:\.\d+)?\s*%/g)];
+     const matches=[...line.matchAll(/(?:^|\s)([0-9]{2}[A-Z][A-Z0-9])\s+(.+?)\s+(?:Yes|No)\s+\d+(?:\.\d+)?\s*%/g)];
      matches.forEach(match=>{
        const start=match.index+(match[0].startsWith(" ")?1:0);
        addCandidate(line.slice(start));
@@ -1325,7 +1325,7 @@ async function importProgramPdf(file){
    // the segment. This specifically recovers rows such as 26XG and 26XT, but is
    // intentionally generic for future monthly PDFs.
    const flatPdfText=normalizePdfLine(rawLines.join(" "));
-   const codeMatches=[...flatPdfText.matchAll(/(?:^|\s)([0-9]{2}[A-Z0-9]{2})\s+/g)];
+   const codeMatches=[...flatPdfText.matchAll(/(?:^|\s)([0-9]{2}[A-Z][A-Z0-9])\s+/g)];
    codeMatches.forEach((match,index)=>{
      const start=match.index+(match[0].startsWith(" ")?1:0);
      const next=codeMatches[index+1];
