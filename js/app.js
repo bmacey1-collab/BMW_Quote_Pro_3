@@ -655,7 +655,15 @@ async function loadProgramsFromSupabase(showMessages=true){
 
  saveProgramsLocal(remote);
  renderPrograms();
- renderProgramIncentiveEditor([]);
+ // Do not clear the incentive editor after a background sync. If the user has
+ // already opened a program for editing, clearing only this section makes the
+ // rates remain visible while its incentives appear to be missing. Refresh the
+ // open editor from the newly loaded record instead.
+ const editingProgramId=$("programId")?.value||"";
+ if(editingProgramId){
+   const editingProgram=remote.find(program=>program.id===editingProgramId);
+   if(editingProgram)renderProgramIncentiveEditor(editingProgram.incentives||[]);
+ }
  if(showMessages){
    setProgramSyncStatus(
      remote.length
