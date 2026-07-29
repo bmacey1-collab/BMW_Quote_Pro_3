@@ -764,9 +764,29 @@ function initializeSupabase(){
 }
 function updateConnectionStatus(msg){$("connectionStatus").textContent=msg||(supabaseClient?(currentUser?`Connected and signed in as ${currentUser.email}`:"Connected — not signed in"):"Not connected.");}
 
+function modelMatchParts(value){
+ const normalized=normalizeModelName(value)
+   .replace(/\b(xdrive|sdrive|edrive|xdr|sdr|edr)\b/g," ")
+   .replace(/\b(plug in hybrid|phev|hybrid)\b/g," ")
+   .replace(/\s+/g," ")
+   .trim();
+ const series=normalized.match(/\b(x[1-7]|xm|i[457x]|m[23458])\b/)?.[1]||"";
+ const trim=normalized.match(/\b(20|28|30|35|40|45|50|60|70)(?:i|e|d)?\b/)?.[1]||"";
+ return {normalized,series,trim};
+}
+function vehicleModelMatchesProgram(vehicleValue,programValue){
+ const vehicle=modelMatchParts(vehicleValue);
+ const program=modelMatchParts(programValue);
+ if(!vehicle.normalized)return true;
+ if(program.normalized===vehicle.normalized||program.normalized.includes(vehicle.normalized)||vehicle.normalized.includes(program.normalized))return true;
+ if(vehicle.series&&program.series&&vehicle.series!==program.series)return false;
+ if(vehicle.series&&program.series&&vehicle.trim&&program.trim)return vehicle.trim===program.trim;
+ if(vehicle.series&&program.series)return true;
+ return false;
+}
 function currentProgramMatches(){
- const y=num(state.vehicle.year),model=normalizeClientText(state.vehicle.model);
- return programs().filter(p=>p.status!=="expired"&&(!y||p.year===y)&&(!model||normalizeClientText(p.model).includes(model)||model.includes(normalizeClientText(p.model))));
+ const y=num(state.vehicle.year),model=state.vehicle.model;
+ return programs().filter(p=>p.status!=="expired"&&(!y||num(p.year)===y)&&vehicleModelMatchesProgram(model,p.model));
 }
 function updateIncentivePickerButtons(){
  const selectedCount=document.querySelectorAll("[data-pick-incentive]:checked").length;
