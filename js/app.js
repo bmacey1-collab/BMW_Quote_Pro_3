@@ -1289,7 +1289,27 @@ async function importProgramPdf(file){
      "Final eligibility must be confirmed by VIN.";
 
    stage="parsing program rows";
-   const candidateLines=lines.filter(line=>/^[0-9]{2}[A-Z0-9]{2}\s+/.test(line));
+
+   // PDF.js can occasionally place page-number or watermark fragments before a
+   // valid BMW model row (for example: "20 26XG X5 xDr40i ..."). The old
+   // anchored test silently skipped those rows. Recover the row by locating the
+   // first BMW model-code pattern that is followed by model text and Yes/No.
+   const candidateLines=[];
+   const candidateKeys=new Set();
+   lines.forEach(sourceLine=>{
+     const line=normalizePdfLine(sourceLine);
+     const matches=[...line.matchAll(/(?:^|\s)([0-9]{2}[A-Z0-9]{2})\s+(.+?)\s+(?:Yes|No)\s+\d+(?:\.\d+)?\s*%/g)];
+     matches.forEach(match=>{
+       const start=match.index+(match[0].startsWith(" ")?1:0);
+       const recovered=normalizePdfLine(line.slice(start));
+       const key=recovered.slice(0,120);
+       if(recovered&&!candidateKeys.has(key)){
+         candidateKeys.add(key);
+         candidateLines.push(recovered);
+       }
+     });
+   });
+
    const parsed=[];
    const rowErrors=[];
 
