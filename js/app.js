@@ -385,10 +385,10 @@ function renderProgramPickerResults(){
            <span>${esc(program.modelCode||"No model code")} · ${esc(program.status)}</span>
          </div>
          <div class="program-pick-values">
-           <span>Residual <strong>${source.residual===""?"—":source.residual+"%"}</strong></span>
-           <span>MF <strong>${source.moneyFactor===""?"—":source.moneyFactor}</strong></span>
-           <span>Finance <strong>${source.financeApr===""?"—":source.financeApr+"%"}</strong></span>
-           <span>Select <strong>${source.selectApr===""?"—":source.selectApr+"%"}</strong></span>
+           <span>Residual <strong>${program.residual===""?"—":program.residual+"%"}</strong></span>
+           <span>MF <strong>${program.moneyFactor===""?"—":program.moneyFactor}</strong></span>
+           <span>Finance <strong>${program.financeApr===""?"—":program.financeApr+"%"}</strong></span>
+           <span>Select <strong>${program.selectApr===""?"—":program.selectApr+"%"}</strong></span>
            <span>Incentives <strong>${incentiveCount}</strong></span>
          </div>
          <button type="button" class="primary" data-apply-program="${program.id}">Use Program</button>
@@ -1372,7 +1372,7 @@ function renderImportReview(){
        </thead>
        <tbody>
          ${importedProgramRows.map((program,index)=>{
-           const residualMissing=!num(source.residual);
+           const residualMissing=!num(program.residual);
            return `<tr class="${residualMissing?"residual-missing":""}">
              <td>
                <input type="checkbox" data-import-row="${index}"
@@ -1386,7 +1386,7 @@ function renderImportReview(){
                <div class="residual-review-cell">
                  <input type="number" min="1" max="100" step=".01"
                    data-import-edit="${index}" data-field="residual"
-                   value="${source.residual}">
+                   value="${program.residual}">
                  <span>${residualMissing
                    ?"Required"
                    :"36 mo / 15K"}</span>
@@ -1394,13 +1394,13 @@ function renderImportReview(){
              </td>
              <td><input type="number" step=".00001"
                data-import-edit="${index}" data-field="moneyFactor"
-               value="${source.moneyFactor}"></td>
+               value="${program.moneyFactor}"></td>
              <td><input type="number" step=".01"
                data-import-edit="${index}" data-field="financeApr"
-               value="${source.financeApr}"></td>
+               value="${program.financeApr}"></td>
              <td><input type="number" step=".01"
                data-import-edit="${index}" data-field="selectApr"
-               value="${source.selectApr}"></td>
+               value="${program.selectApr}"></td>
              <td>${program.incentives.length}</td>
              <td><span class="${residualMissing
                ?"import-status-warning"
@@ -1423,7 +1423,7 @@ function saveApprovedImports(){
    return;
  }
 
- const invalid=checked.filter(program=>!num(source.residual));
+ const invalid=checked.filter(program=>!num(program.residual));
  if(invalid.length){
    toast(`Correct the residual for ${invalid.length} selected row${invalid.length===1?"":"s"}, or deselect them.`);
    const firstIndex=importedProgramRows.indexOf(invalid[0]);
@@ -1436,7 +1436,7 @@ function saveApprovedImports(){
 
  const rows=programs();
  checked.forEach(program=>{
-   source.residualNeedsReview=false;
+   program.residualNeedsReview=false;
    const existing=rows.findIndex(row=>
      row.month===program.month &&
      row.modelCode===program.modelCode
@@ -1517,7 +1517,7 @@ $("importReviewTable").addEventListener("input",e=>{
    ? (e.target.value===""?"":num(e.target.value))
    : e.target.value;
  if(field==="residual"){
-   source.residualNeedsReview=!num(source.residual);
+   program.residualNeedsReview=!num(program.residual);
    renderImportReview();
    const edited=document.querySelector(
      `[data-import-edit="${index}"][data-field="residual"]`
