@@ -1296,18 +1296,42 @@ async function importProgramPdf(file){
    // first BMW model-code pattern that is followed by model text and Yes/No.
    const candidateLines=[];
    const candidateKeys=new Set();
+   const addCandidate=recovered=>{
+     recovered=normalizePdfLine(recovered);
+     if(!recovered)return;
+     const codeMatch=recovered.match(/^([0-9]{2}[A-Z0-9]{2})\s+/);
+     if(!codeMatch)return;
+     const key=codeMatch[1]+"|"+recovered.slice(0,160);
+     if(!candidateKeys.has(key)){
+       candidateKeys.add(key);
+       candidateLines.push(recovered);
+     }
+   };
+
+   // First pass: normal line-by-line recovery.
    lines.forEach(sourceLine=>{
      const line=normalizePdfLine(sourceLine);
      const matches=[...line.matchAll(/(?:^|\s)([0-9]{2}[A-Z0-9]{2})\s+(.+?)\s+(?:Yes|No)\s+\d+(?:\.\d+)?\s*%/g)];
      matches.forEach(match=>{
        const start=match.index+(match[0].startsWith(" ")?1:0);
-       const recovered=normalizePdfLine(line.slice(start));
-       const key=recovered.slice(0,120);
-       if(recovered&&!candidateKeys.has(key)){
-         candidateKeys.add(key);
-         candidateLines.push(recovered);
-       }
+       addCandidate(line.slice(start));
      });
+   });
+
+   // Second pass: rebuild rows from the complete PDF text stream. Some BMW
+   // pages split one table row across several y-coordinates, so the model code,
+   // model name and rate columns never exist in a single extracted line. Slice
+   // from each BMW model code to the next code and let parseProgramRow validate
+   // the segment. This specifically recovers rows such as 26XG and 26XT, but is
+   // intentionally generic for future monthly PDFs.
+   const flatPdfText=normalizePdfLine(rawLines.join(" "));
+   const codeMatches=[...flatPdfText.matchAll(/(?:^|\s)([0-9]{2}[A-Z0-9]{2})\s+/g)];
+   codeMatches.forEach((match,index)=>{
+     const start=match.index+(match[0].startsWith(" ")?1:0);
+     const next=codeMatches[index+1];
+     const end=next ? next.index+(next[0].startsWith(" ")?1:0) : Math.min(flatPdfText.length,start+1200);
+     const segment=flatPdfText.slice(start,end);
+     if(/\s(?:Yes|No)\s+\d+(?:\.\d+)?\s*%/.test(segment))addCandidate(segment);
    });
 
    const parsed=[];
@@ -1332,6 +1356,17 @@ async function importProgramPdf(file){
      if(!unique.has(key))unique.set(key,row);
    });
    importedProgramRows=[...unique.values()];
+
+   // Keep an explicit audit trail for rows that have repeatedly been missed in
+   // BMW PDFs. This does not fabricate programs; it only reports whether the
+   // actual PDF text produced a parsed row.
+   const x5AuditCodes=["26XG","26XT"];
+   const parsedCodes=new Set(importedProgramRows.map(row=>row.modelCode));
+   const missingAuditCodes=x5AuditCodes.filter(code=>flatPdfText.includes(code)&&!parsedCodes.has(code));
+   if(missingAuditCodes.length){
+     console.error("PDF rows found in text but not parsed:",missingAuditCodes);
+     rowErrors.push(`Found in PDF text but not parsed: ${missingAuditCodes.join(", ")}`);
+   }
 
    $("importMetadata").textContent=
      `${file.name} · ${pdf.numPages} pages · `+
