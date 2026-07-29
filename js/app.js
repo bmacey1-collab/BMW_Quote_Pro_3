@@ -530,7 +530,25 @@ function programRowForSupabase(program){
 
 async function saveProgramToSupabase(program){
  if(!supabaseClient||!currentUser)return {skipped:true};
+ if(!program.month||!program.modelCode)return {error:{message:"Program month and program code are required."}};
+
+ // Resolve the database record by the same columns used by the unique index.
+ // This makes repeat imports and copied months update the existing record rather
+ // than failing because the local UUID differs from the Supabase UUID.
+ let canonicalId=program.id||crypto.randomUUID();
+ const existingResult=await supabaseClient
+   .from("v3_programs")
+   .select("id")
+   .eq("user_id",currentUser.id)
+   .eq("program_month",program.month)
+   .eq("model_code",program.modelCode)
+   .maybeSingle();
+ if(existingResult.error)return {error:existingResult.error};
+ if(existingResult.data?.id)canonicalId=existingResult.data.id;
+ program.id=canonicalId;
+
  const row=programRowForSupabase(program);
+ row.id=canonicalId;
  const programResult=await supabaseClient.from("v3_programs").upsert({
    id:row.id,
    user_id:row.user_id,
@@ -541,29 +559,29 @@ async function saveProgramToSupabase(program){
    status:row.status,
    effective_date:row.effective_date,
    expiration_date:row.expiration_date,
-   program_data:row.program_data,
+   program_data:{...row.program_data,id:canonicalId},
    updated_at:row.updated_at
- });
+ },{onConflict:"user_id,program_month,model_code"});
  if(programResult.error)return {error:programResult.error};
 
  const deleteResult=await supabaseClient
    .from("v3_program_incentives")
    .delete()
-   .eq("program_id",program.id)
+   .eq("program_id",canonicalId)
    .eq("user_id",currentUser.id);
  if(deleteResult.error)return {error:deleteResult.error};
 
  if(row.incentives.length){
    const incentiveRows=row.incentives.map(item=>({
      id:item.id||crypto.randomUUID(),
-     program_id:program.id,
+     program_id:canonicalId,
      user_id:currentUser.id,
      name:item.name||"",
      amount:num(item.amount),
      applies_to:item.appliesTo||"all",
      category:item.category||"customer",
-     program_code:item.programCode||"",
-     incentive_data:item,
+     program_code:item.programCode||program.modelCode||"",
+     incentive_data:{...item,programCode:item.programCode||program.modelCode||""},
      updated_at:new Date().toISOString()
    }));
    const incentiveResult=await supabaseClient
@@ -571,7 +589,7 @@ async function saveProgramToSupabase(program){
      .upsert(incentiveRows);
    if(incentiveResult.error)return {error:incentiveResult.error};
  }
- return {ok:true};
+ return {ok:true,id:canonicalId};
 }
 
 async function uploadLocalProgramsToSupabase(){
@@ -685,7 +703,7 @@ async function syncPrograms(){
 }
 function renderPrograms(){
  const q=$("programSearch").value.toLowerCase(),rows=programs().filter(p=>JSON.stringify(p).toLowerCase().includes(q)).sort((a,b)=>String(b.month).localeCompare(String(a.month)));
- $("programHistory").innerHTML=rows.map(p=>`<div class="program-item"><div><strong>${esc(p.month+" · "+p.year+" "+p.model)}${p.modelCode?" · "+esc(p.modelCode):""}</strong><div class="item-meta">${esc(p.status)} · Residual ${p.residual||"—"}% · MF ${p.moneyFactor||"—"} · Finance ${p.financeApr||"—"}% · Select ${p.selectApr||"—"}% · ${(p.incentives||[]).length} incentives</div>${p.restrictions?`<div class="program-restriction">${esc(p.restrictions)}</div>`:""}</div><div class="button-row"><button class="secondary" data-use-program="${p.id}">Use</button><button class="secondary" data-edit-program="${p.id}">Edit</button><button class="secondary" data-archive-program="${p.id}">${p.status==="expired"?"Restore":"Archive"}</button></div></div>`).join("")||'<div class="empty-state">No programs saved.</div>';
+ $("programHistory").innerHTML=rows.map(p=>`<div class="program-item"><div><strong>${esc(p.month+" · "+p.year+" "+p.model)}${p.modelCode?" · "+esc(p.modelCode):""}</strong><div class="item-meta">${esc(p.status)} · Residual ${p.residual||"—"}% · MF ${p.moneyFactor||"—"} · Finance ${p.financeApr||"—"}% · Select ${p.selectApr||"—"}% · ${(p.incentives||[]).length} incentives</div>${p.restrictions?`<div class="program-restriction">${esc(p.restrictions)}</div>`:""}</div><div class="button-row"><button class="secondary" data-use-program="${p.id}">Use</button><button class="secondary" data-edit-program="${p.id}">Edit</button><button class="secondary" data-duplicate-program="${p.id}">Duplicate</button><button class="secondary" data-archive-program="${p.id}">${p.status==="expired"?"Restore":"Archive"}</button></div></div>`).join("")||'<div class="empty-state">No programs saved.</div>';
 }
 function readProgramIncentiveEditor(){
  return [...document.querySelectorAll("#programIncentiveRows .program-incentive-row")].map(row=>({
@@ -694,25 +712,121 @@ function readProgramIncentiveEditor(){
    category:row.querySelector("[data-field=category]").value,programCode:row.querySelector("[data-field=programCode]").value.trim()
  })).filter(i=>i.name||i.amount);
 }
-function saveProgram(){
- const p={id:$("programId")?.value||crypto.randomUUID(),month:$("programMonth").value,manufacturer:$("programManufacturer").value,year:num($("programYear").value),model:$("programModel").value.trim(),modelCode:$("programCode").value.trim(),status:$("programStatus").value,effectiveDate:$("programEffectiveDate").value,expirationDate:$("programExpirationDate").value,restrictions:$("programRestrictions").value.trim(),leaseTerm:num($("programLeaseTerm").value),residual:$("programResidual").value===""?"":num($("programResidual").value),moneyFactor:$("programMf").value===""?"":num($("programMf").value),onePayReduction:num($("programOnePayReduction").value),financeApr:$("programFinanceApr").value===""?"":num($("programFinanceApr").value),financeAprLong:"",financeTerm:num($("programFinanceTerm").value),selectApr:$("programSelectApr").value===""?"":num($("programSelectApr").value),selectTerm:num($("programSelectTerm").value),balloon:$("programBalloon").value===""?"":num($("programBalloon").value),incentives:readProgramIncentiveEditor(),source:"manual"};
- if(!p.month||!p.model){toast("Program month and model are required.");return}
- let rows=programs(),i=rows.findIndex(x=>x.id===p.id);i>=0?rows[i]=p:rows.push(p);saveProgramsLocal(rows);renderPrograms();
+async function saveProgram(){
+ const code=$("programCode").value.trim().toUpperCase();
+ const incentives=readProgramIncentiveEditor().map(item=>({...item,programCode:item.programCode||code}));
+ const requestedId=$("programId")?.value||"";
+ const p={id:requestedId||crypto.randomUUID(),month:$("programMonth").value,manufacturer:$("programManufacturer").value,year:num($("programYear").value),model:$("programModel").value.trim(),modelCode:code,status:$("programStatus").value,effectiveDate:$("programEffectiveDate").value,expirationDate:$("programExpirationDate").value,restrictions:$("programRestrictions").value.trim(),leaseTerm:num($("programLeaseTerm").value),residual:$("programResidual").value===""?"":num($("programResidual").value),moneyFactor:$("programMf").value===""?"":num($("programMf").value),onePayReduction:num($("programOnePayReduction").value),financeApr:$("programFinanceApr").value===""?"":num($("programFinanceApr").value),financeAprLong:"",financeTerm:num($("programFinanceTerm").value),selectApr:$("programSelectApr").value===""?"":num($("programSelectApr").value),selectTerm:num($("programSelectTerm").value),balloon:$("programBalloon").value===""?"":num($("programBalloon").value),incentives,source:"manual"};
+ if(!p.month||!p.model||!p.modelCode){toast("Program month, model, and program code are required.");return}
+
+ let rows=programs();
+ const sameKey=rows.find(x=>x.month===p.month&&String(x.modelCode||"").toUpperCase()===p.modelCode&&x.id!==p.id);
+ if(sameKey)p.id=sameKey.id;
+ const i=rows.findIndex(x=>x.id===p.id);
+ i>=0?rows[i]=p:rows.push(p);
+ saveProgramsLocal(rows);
+ renderPrograms();
+
  if(supabaseClient&&currentUser){
-   saveProgramToSupabase(p).then(result=>{
-     if(result.error){
-       setProgramSyncStatus("Saved locally; Supabase failed: "+result.error.message,"error");
-       toast("Program saved locally. Supabase: "+result.error.message);
-     }else{
-       setProgramSyncStatus("Program saved to Supabase.","success");
-       toast("Program saved and synced.");
-     }
-   });
+   const result=await saveProgramToSupabase(p);
+   if(result.error){
+     setProgramSyncStatus("Saved locally; Supabase failed: "+result.error.message,"error");
+     toast("Program saved locally. Supabase: "+result.error.message);
+   }else{
+     // saveProgramToSupabase may adopt the existing database UUID.
+     const refreshed=programs().filter(x=>!(x.month===p.month&&String(x.modelCode||"").toUpperCase()===p.modelCode&&x.id!==p.id));
+     const idx=refreshed.findIndex(x=>x.month===p.month&&String(x.modelCode||"").toUpperCase()===p.modelCode);
+     idx>=0?refreshed[idx]=p:refreshed.push(p);
+     saveProgramsLocal(refreshed);
+     renderPrograms();
+     if($("programId"))$("programId").value=p.id;
+     setProgramSyncStatus("Program saved to Supabase.","success");
+     toast("Program saved and synced.");
+   }
  }else{
    setProgramSyncStatus("Program saved only in this browser.","local");
    toast("Program saved locally. Sign in to sync it.");
  }
 }
+
+function duplicateProgram(id){
+ const source=programs().find(x=>x.id===id);if(!source)return;
+ const copy=structuredClone(source);
+ copy.id=crypto.randomUUID();
+ copy.status="carried";
+ copy.source="manual-copy";
+ copy.incentives=(copy.incentives||[]).map(i=>({...i,id:crypto.randomUUID()}));
+ editProgramFromObject(copy,true);
+ toast("Program duplicated. Change the month or program code, then save.");
+}
+
+function editProgramFromObject(p,isNew=false){
+ let hidden=$("programId");if(!hidden){hidden=document.createElement("input");hidden.type="hidden";hidden.id="programId";$("page-programs").appendChild(hidden)}hidden.value=isNew?"":p.id;
+ [["programMonth",p.month],["programManufacturer",p.manufacturer],["programYear",p.year],["programModel",p.model],["programStatus",p.status],["programEffectiveDate",p.effectiveDate],["programExpirationDate",p.expirationDate],["programRestrictions",p.restrictions],["programLeaseTerm",p.leaseTerm],["programResidual",p.residual],["programMf",p.moneyFactor],["programOnePayReduction",p.onePayReduction],["programFinanceApr",p.financeApr],["programFinanceTerm",p.financeTerm],["programSelectApr",p.selectApr],["programSelectTerm",p.selectTerm],["programBalloon",p.balloon],["programCode",p.modelCode||p.programCode]].forEach(x=>$(x[0]).value=x[1]??"");
+ renderProgramIncentiveEditor((p.incentives||[]).map(i=>({...i,programCode:i.programCode||p.modelCode||""})));
+ showPage("programs");
+}
+
+async function syncChangedPrograms(changed,message){
+ if(!supabaseClient||!currentUser){setProgramSyncStatus(message+" saved locally. Sign in to sync.","local");return}
+ setProgramSyncStatus(`Syncing ${changed.length} programs…`,"working");
+ for(let i=0;i<changed.length;i++){
+   const result=await saveProgramToSupabase(changed[i]);
+   if(result.error){setProgramSyncStatus("Sync stopped: "+result.error.message,"error");toast("Supabase sync failed: "+result.error.message);return}
+ }
+ saveProgramsLocal(programs());
+ setProgramSyncStatus(`${changed.length} programs synced.`,"success");
+ toast(message+" and synced.");
+}
+
+async function copyProgramMonth(){
+ const rows=programs();if(!rows.length){toast("No programs are available to copy.");return}
+ const latest=[...new Set(rows.map(p=>p.month).filter(Boolean))].sort().reverse()[0]||"";
+ const sourceMonth=prompt("Copy programs from which month? Use YYYY-MM.",latest);if(!sourceMonth)return;
+ const targetMonth=prompt("Copy programs to which month? Use YYYY-MM.","");if(!targetMonth)return;
+ if(!/^\d{4}-\d{2}$/.test(targetMonth)){toast("Use month format YYYY-MM.");return}
+ const sourceRows=rows.filter(p=>p.month===sourceMonth);if(!sourceRows.length){toast("No programs found for "+sourceMonth);return}
+ const existingCount=rows.filter(p=>p.month===targetMonth).length;
+ if(existingCount&&!confirm(`${targetMonth} already has ${existingCount} programs. Matching program codes will be updated. Continue?`))return;
+ const changed=sourceRows.map(source=>{const copy=structuredClone(source);const existing=rows.find(p=>p.month===targetMonth&&String(p.modelCode||"").toUpperCase()===String(source.modelCode||"").toUpperCase());copy.id=existing?.id||crypto.randomUUID();copy.month=targetMonth;copy.status="carried";copy.effectiveDate="";copy.expirationDate="";copy.source="month-copy";copy.incentives=(copy.incentives||[]).map(i=>({...i,id:crypto.randomUUID(),programCode:i.programCode||copy.modelCode||""}));return copy});
+ const keys=new Set(changed.map(p=>p.month+"|"+String(p.modelCode||"").toUpperCase()));
+ const merged=rows.filter(p=>!keys.has(p.month+"|"+String(p.modelCode||"").toUpperCase())).concat(changed);
+ saveProgramsLocal(merged);renderPrograms();
+ await syncChangedPrograms(changed,`${changed.length} programs copied to ${targetMonth}`);
+}
+
+async function bulkUpdatePrograms(){
+ const month=prompt("Month to update (YYYY-MM):",$("programMonth").value||"");if(!month)return;
+ const filter=(prompt("Optional model/code filter. Leave blank for every program in the month.","")||"").trim().toLowerCase();
+ const field=(prompt("Field: residual, moneyFactor, financeApr, selectApr, balloon, leaseTerm, financeTerm, selectTerm, or onePayReduction","moneyFactor")||"").trim();
+ const allowed=["residual","moneyFactor","financeApr","selectApr","balloon","leaseTerm","financeTerm","selectTerm","onePayReduction"];
+ if(!allowed.includes(field)){toast("That bulk-update field is not supported.");return}
+ const raw=prompt(`New value for ${field}:`,"");if(raw===null||raw.trim()==="")return;
+ const value=Number(raw);if(!Number.isFinite(value)){toast("Enter a valid number.");return}
+ const changed=programs().filter(p=>p.month===month&&(!filter||JSON.stringify([p.model,p.modelCode,p.year]).toLowerCase().includes(filter)));
+ if(!changed.length){toast("No matching programs found.");return}
+ if(!confirm(`Set ${field} to ${value} on ${changed.length} programs?`))return;
+ changed.forEach(p=>p[field]=value);saveProgramsLocal(programs());renderPrograms();
+ await syncChangedPrograms(changed,`${changed.length} programs updated`);
+}
+
+async function bulkUpdateIncentives(){
+ const month=prompt("Month to update (YYYY-MM):",$("programMonth").value||"");if(!month)return;
+ const filter=(prompt("Optional model/code filter. Leave blank for every program in the month.","")||"").trim().toLowerCase();
+ const name=(prompt("Incentive name to add or update:","")||"").trim();if(!name)return;
+ const raw=prompt("Incentive amount:","");if(raw===null)return;const amount=Number(raw);if(!Number.isFinite(amount)){toast("Enter a valid amount.");return}
+ const appliesTo=(prompt("Applies to: all, lease, finance, select, or cash","all")||"all").trim().toLowerCase();
+ if(!["all","lease","finance","select","cash"].includes(appliesTo)){toast("Invalid applies-to type.");return}
+ const category=(prompt("Category: customer, dealer, or rate","customer")||"customer").trim().toLowerCase();
+ if(!["customer","dealer","rate"].includes(category)){toast("Invalid category.");return}
+ const changed=programs().filter(p=>p.month===month&&(!filter||JSON.stringify([p.model,p.modelCode,p.year]).toLowerCase().includes(filter)));
+ if(!changed.length){toast("No matching programs found.");return}
+ if(!confirm(`${amount===0?"Remove":"Add/update"} “${name}” on ${changed.length} programs?`))return;
+ changed.forEach(p=>{p.incentives=Array.isArray(p.incentives)?p.incentives:[];const index=p.incentives.findIndex(i=>String(i.name||"").trim().toLowerCase()===name.toLowerCase());if(amount===0){if(index>=0)p.incentives.splice(index,1)}else{const item={id:index>=0?p.incentives[index].id:crypto.randomUUID(),name,amount,appliesTo,category,programCode:p.modelCode||""};index>=0?p.incentives[index]=item:p.incentives.push(item)}});
+ saveProgramsLocal(programs());renderPrograms();
+ await syncChangedPrograms(changed,`${changed.length} program incentives updated`);
+}
+
 function renderProgramIncentiveEditor(items=[]){
  const c=$("programIncentiveRows");
  c.innerHTML=items.length?items.map(i=>programIncentiveRowHtml(i)).join(""):'<div class="empty-state">No incentives added to this program.</div>';
@@ -722,11 +836,9 @@ function programIncentiveRowHtml(i={id:crypto.randomUUID(),name:"",amount:0,appl
 }
 function editProgram(id){
  const p=programs().find(x=>x.id===id);if(!p)return;
- let hidden=$("programId");if(!hidden){hidden=document.createElement("input");hidden.type="hidden";hidden.id="programId";$("page-programs").appendChild(hidden)}hidden.value=p.id;
- [["programMonth",p.month],["programManufacturer",p.manufacturer],["programYear",p.year],["programModel",p.model],["programStatus",p.status],["programEffectiveDate",p.effectiveDate],["programExpirationDate",p.expirationDate],["programRestrictions",p.restrictions],["programLeaseTerm",p.leaseTerm],["programResidual",p.residual],["programMf",p.moneyFactor],["programOnePayReduction",p.onePayReduction],["programFinanceApr",p.financeApr],["programFinanceTerm",p.financeTerm],["programSelectApr",p.selectApr],["programSelectTerm",p.selectTerm],["programBalloon",p.balloon],["programCode",p.modelCode||p.programCode]].forEach(x=>$(x[0]).value=x[1]??"");
- renderProgramIncentiveEditor(p.incentives||[]);
- showPage("programs");
+ editProgramFromObject(p,false);
 }
+
 function applyProgramToDialog(){
  const program=programs().find(item=>item.id===$("scenarioProgram").value);
  if(!program)return;
@@ -1556,7 +1668,7 @@ function saveApprovedImports(){
  setPdfImportStatus(`${checked.length} programs saved`,"success");
  toast(`${checked.length} programs imported with residuals.`);
 }
-function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=renderDashboard;$("refreshSaved").onclick=renderSaved;$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=programs().sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p){editProgram(p.id);$("programId").value="";$("programStatus").value="carried";toast("Prior program copied. Change the month.")}};$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{
+function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=renderDashboard;$("refreshSaved").onclick=renderSaved;$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{
  const id=e.target.dataset.removeIncentive;
  if(!id)return;
  const incentive=state.incentives.find(x=>x.id===id);
@@ -1622,7 +1734,7 @@ $("importReviewTable").addEventListener("input",e=>{
  }
 });
 $("programIncentiveRows").addEventListener("click",e=>{if(e.target.dataset.removeProgramIncentive)e.target.closest(".program-incentive-row").remove()});
-document.body.addEventListener("click",e=>{if(e.target.dataset.loadDeal)loadDeal(e.target.dataset.loadDeal);if(e.target.dataset.duplicateDeal)loadDeal(e.target.dataset.duplicateDeal,true);if(e.target.dataset.useProgram){applyProgramToDeal(e.target.dataset.useProgram)}if(e.target.dataset.editProgram)editProgram(e.target.dataset.editProgram);if(e.target.dataset.archiveProgram){let rows=programs(),p=rows.find(x=>x.id===e.target.dataset.archiveProgram);p.status=p.status==="expired"?"confirmed":"expired";saveProgramsLocal(rows);renderPrograms();
+document.body.addEventListener("click",e=>{if(e.target.dataset.loadDeal)loadDeal(e.target.dataset.loadDeal);if(e.target.dataset.duplicateDeal)loadDeal(e.target.dataset.duplicateDeal,true);if(e.target.dataset.useProgram){applyProgramToDeal(e.target.dataset.useProgram)}if(e.target.dataset.editProgram)editProgram(e.target.dataset.editProgram);if(e.target.dataset.duplicateProgram)duplicateProgram(e.target.dataset.duplicateProgram);if(e.target.dataset.archiveProgram){let rows=programs(),p=rows.find(x=>x.id===e.target.dataset.archiveProgram);p.status=p.status==="expired"?"confirmed":"expired";saveProgramsLocal(rows);renderPrograms();
  if(supabaseClient&&currentUser)saveProgramToSupabase(p)}});$("saveConnection").onclick=()=>{localStorage.setItem(KEYS.connection,JSON.stringify({url:$("supabaseUrl").value.trim(),key:$("supabaseKey").value.trim()}));initializeSupabase();updateConnectionStatus("Connection saved.")};$("testConnection").onclick=async()=>{if(!supabaseClient&&!initializeSupabase()){updateConnectionStatus("Enter and save connection details.");return}const r=await supabaseClient.auth.getSession();updateConnectionStatus(r.error?r.error.message:"Connection works.")};$("createAccount").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signUp({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Account created. Check email if confirmation is enabled.")};$("signIn").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signInWithPassword({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Signed in.");if(!r.error){currentUser=r.data.user;await loadProgramsFromSupabase(true)}};$("signOut").onclick=async()=>{if(supabaseClient)await supabaseClient.auth.signOut();currentUser=null;updateConnectionStatus()};}
 function init(){loadSettingsForm();const c=JSON.parse(localStorage.getItem(KEYS.connection)||"null");if(c){$("supabaseUrl").value=c.url||"";$("supabaseKey").value=c.key||"";initializeSupabase()}applySettingsToDeal(true);if(!restoreAutosaveDraft()){state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);writeStateToForm();setAutosaveStatus("Draft ready")}bindEvents();renderIncentives();renderScenarios();renderDashboard();renderPrograms();renderProgramIncentiveEditor([]);updateClientHistoryDisplays();setPdfImportStatus("Importer ready");setProgramSyncStatus(currentUser?"Loading shared programs…":"Programs are local until you sign in and sync.");$("programMonth").value=new Date().toISOString().slice(0,7);}
 document.addEventListener("DOMContentLoaded",init);
