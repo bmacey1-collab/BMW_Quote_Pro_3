@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0f2f57">
-  <title>BMW Quote Pro 3.0 Beta 7.8</title>
+  <title>BMW Quote Pro 3.0 Beta 7.9</title>
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/print.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13,10 +13,10 @@
   <div class="app-shell">
     <header class="app-header">
       <div>
-        <h1>BMW Quote Pro 3.0 Beta 7.8</h1>
+        <h1>BMW Quote Pro 3.0 Beta 7.9</h1>
         <p>Clean desking architecture — no Version 2 calculator code.</p>
       </div>
-      <div class="build-chip">Beta 7.8 · Testing</div>
+      <div class="build-chip">Beta 7.9 · Testing</div>
     </header>
 
     <nav class="main-nav" aria-label="Primary navigation">
@@ -258,6 +258,35 @@
         <div class="section-heading">
           <div><div class="eyebrow">Saved Deals</div><h2>Quotes and revisions</h2></div>
           <button class="secondary" id="refreshSaved">Refresh</button>
+        </div>
+        <div class="panel saved-tools">
+          <div class="saved-search-row">
+            <label class="saved-search">Search saved deals
+              <input id="savedDealSearch" type="search" placeholder="Customer, co-buyer, stock #, VIN, vehicle, salesperson, quote # or notes">
+            </label>
+            <label>Sort by
+              <select id="savedDealSort">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="customer">Customer name</option>
+                <option value="vehicle">Vehicle</option>
+                <option value="payment">Payment</option>
+                <option value="type">Deal type</option>
+                <option value="salesperson">Salesperson</option>
+              </select>
+            </label>
+          </div>
+          <div class="saved-filter-row" aria-label="Saved deal filters">
+            <button class="saved-filter active" data-saved-filter="all">All Deals</button>
+            <button class="saved-filter" data-saved-filter="mine">My Deals</button>
+            <button class="saved-filter" data-saved-filter="lease">Lease</button>
+            <button class="saved-filter" data-saved-filter="finance">Finance</button>
+            <button class="saved-filter" data-saved-filter="select">Select</button>
+            <button class="saved-filter" data-saved-filter="cash">Cash</button>
+            <button class="saved-filter" data-saved-filter="month">This Month</button>
+            <button class="saved-filter" data-saved-filter="90days">Last 90 Days</button>
+          </div>
+          <div id="savedDealCount" class="saved-count"></div>
         </div>
         <div id="savedDealsList" class="saved-list"></div>
       </section>

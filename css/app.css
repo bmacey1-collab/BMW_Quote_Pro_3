@@ -213,3 +213,17 @@
   font-weight:800;
   line-height:1.45;
 }
+
+/* Beta 7.9 — Saved Deals search, filters and responsive recent activity */
+.saved-tools{position:sticky;top:0;z-index:5;box-shadow:0 5px 16px rgba(15,47,87,.07)}
+.saved-search-row{display:grid;grid-template-columns:minmax(280px,1fr) 190px;gap:12px;align-items:end}
+.saved-search input{font-size:15px}
+.saved-filter-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.saved-filter{min-height:34px;padding:7px 11px;border:1px solid #cfd6dd;border-radius:999px;background:#fff;color:#0f2f57;font-weight:800;cursor:pointer}
+.saved-filter.active{border-color:#1c69d4;background:#1c69d4;color:#fff}
+.saved-count{margin-top:10px;color:#66717d;font-size:12px;font-weight:800}
+.saved-highlight{background:#fff2a8;border-radius:3px;padding:0 1px}
+.saved-item-details{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:5px;color:#52616f;font-size:11px}
+.saved-badge{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;background:#eef3f8;color:#0f2f57;font-size:10px;font-weight:900;text-transform:capitalize}
+.recent-item{transition:transform .12s ease,box-shadow .12s ease}.recent-item:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(15,47,87,.1)}
+@media(max-width:700px){.saved-search-row{grid-template-columns:1fr}.saved-tools{position:static}.saved-filter{flex:1 1 auto}.recent-item,.saved-item{grid-template-columns:1fr}.recent-item .button-row,.saved-item .button-row{justify-content:flex-start}}
