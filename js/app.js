@@ -1334,6 +1334,19 @@ async function importProgramPdf(file){
      if(/\s(?:Yes|No)\s+\d+(?:\.\d+)?\s*%/.test(segment))addCandidate(segment);
    });
 
+   // Third pass: parse a fixed-width window after every model code. Do not stop
+   // at the next code-looking token because page headers, footnotes, and PDF
+   // artifacts can resemble BMW model codes and prematurely cut a valid row.
+   // parseProgramRow only consumes the first complete 14-column rate set, so
+   // the extra trailing text is harmless.
+   codeMatches.forEach(match=>{
+     const start=match.index+(match[0].startsWith(" ")?1:0);
+     const window=flatPdfText.slice(start,Math.min(flatPdfText.length,start+1600));
+     if(/^[0-9]{2}[A-Z][A-Z0-9]\s+.+?\s+(?:Yes|No)\s+\d+(?:\.\d+)?\s*%/.test(window)){
+       addCandidate(window);
+     }
+   });
+
    const parsed=[];
    const rowErrors=[];
 
