@@ -5,6 +5,7 @@ const money = new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"});
 const KEYS={settings:"bqp3_settings",programs:"bqp3_programs",deals:"bqp3_deals",connection:"bqp3_connection",draft:"bqp3_autosave_draft"};
 let supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,draggedScenarioId=null,importedProgramRows=[],pdfJsModulePromise=null,currentIncentiveProgramIds=[],currentProgramPickerRows=[];
 let savedDealsCache=[],savedDealsLoadedAt=0,savedDealFilter="all";
+let incentiveMatchCache=new Map(),currentIncentivePickerItems=[];
 let state=createEmptyDeal();
 
 function createEmptyDeal(){
@@ -20,6 +21,7 @@ let programCache=JSON.parse(localStorage.getItem(KEYS.programs)||"[]");
 function programs(){return programCache;}
 function saveProgramsLocal(rows){
  programCache=rows;
+ incentiveMatchCache.clear();
  localStorage.setItem(KEYS.programs,JSON.stringify(rows));
 }
 function localDeals(){return JSON.parse(localStorage.getItem(KEYS.deals)||"[]");}
@@ -963,91 +965,112 @@ function vehicleModelMatchesProgram(vehicleValue,programValue){
  if(vehicle.series&&program.series)return true;
  return false;
 }
+function incentiveMatchCacheKey(){
+ return `${num(state.vehicle.year)}|${normalizeModelName(state.vehicle.model)}`;
+}
 function currentProgramMatches(){
+ const key=incentiveMatchCacheKey();
+ const cached=incentiveMatchCache.get(key);
+ if(cached)return cached;
  const y=num(state.vehicle.year),model=state.vehicle.model;
- return programs().filter(p=>p.status!=="expired"&&(!y||num(p.year)===y)&&vehicleModelMatchesProgram(model,p.model));
+ let matches=programs().filter(p=>p.status!=="expired"&&(!y||num(p.year)===y)&&vehicleModelMatchesProgram(model,p.model));
+ if(matches.length){
+   const latestMonth=matches.reduce((latest,p)=>String(p.month||"")>latest?String(p.month||""):latest,"");
+   matches=matches.filter(p=>String(p.month||"")===latestMonth);
+ }
+ incentiveMatchCache.set(key,matches);
+ return matches;
 }
 function updateIncentivePickerButtons(){
- const selectedCount=document.querySelectorAll("[data-pick-incentive]:checked").length;
+ const selectedCount=$("availableIncentives").querySelectorAll("[data-pick-incentive]:checked").length;
  const apply=$("applyIncentives");
  apply.disabled=selectedCount===0;
  $("incentivePickerMessage").textContent=selectedCount
    ? `${selectedCount} incentive${selectedCount===1?"":"s"} selected`
    : "Select at least one incentive to apply.";
- $("incentivePickerMessage").className=
-   "picker-message"+(selectedCount?" ready":"");
+ $("incentivePickerMessage").className="picker-message"+(selectedCount?" ready":"");
 }
-
+function buildIncentivePicker(matches){
+ const host=$("availableIncentives");
+ const fragment=document.createDocumentFragment();
+ const appliedKeys=new Set(state.incentives.map(x=>`${x.sourceProgramId}|${x.sourceIncentiveId}`));
+ currentIncentivePickerItems=[];
+ for(const program of matches){
+   for(const incentive of (program.incentives||[])){
+     const item={program,incentive};
+     currentIncentivePickerItems.push(item);
+     const key=`${program.id}|${incentive.id}`;
+     const row=document.createElement("label");
+     row.className="incentive-pick-row"+(appliedKeys.has(key)?" already-applied":"");
+     const box=document.createElement("input");
+     box.type="checkbox";
+     box.dataset.pickIncentive=incentive.id;
+     box.dataset.programId=program.id;
+     box.checked=appliedKeys.has(key);
+     const text=document.createElement("span");
+     const name=document.createElement("strong");
+     name.textContent=incentive.name||"Incentive";
+     const meta=document.createElement("small");
+     meta.textContent=`${program.month} · ${program.year} ${program.model} · ${incentiveAppliesLabel(incentive)}${box.checked?" · Currently applied":""}`;
+     text.append(name,meta);
+     const amount=document.createElement("strong");
+     amount.textContent=money.format(num(incentive.amount));
+     row.append(box,text,amount);
+     fragment.append(row);
+   }
+ }
+ host.replaceChildren();
+ if(currentIncentivePickerItems.length)host.append(fragment);
+ else{
+   const empty=document.createElement("div");
+   empty.className="empty-state incentive-empty";
+   empty.innerHTML='<strong>No incentives are stored for the matching program.</strong><span>Use “Add Incentive to This Program” below to enter Loyalty, Lease Credit, Purchase Credit, Conquest or another available program.</span>';
+   host.append(empty);
+ }
+}
 function openIncentivePicker(programId=""){
  readFormToState();
- $("incentiveProgramSummary").textContent="Finding the latest matching BMW program…";
- $("availableIncentives").innerHTML='<div class="empty-state">Loading incentives…</div>';
- $("addIncentiveToProgram").disabled=true;
+ const matches=programId?programs().filter(p=>p.id===programId):currentProgramMatches();
+ currentIncentiveProgramIds=matches.map(p=>p.id);
+ $("incentiveProgramSummary").textContent=matches.length
+   ? `${matches.length} latest matching program record${matches.length===1?"":"s"} for ${state.vehicle.year||""} ${state.vehicle.model||""}`
+   : "No matching program found. Add the missing program first.";
+ buildIncentivePicker(matches);
+ const canAdd=matches.length>0;
+ $("addIncentiveToProgram").disabled=!canAdd;
+ $("addIncentiveToProgram").textContent=canAdd?"+ Add Incentive to This Program":"Add the Missing Program First";
+ updateIncentivePickerButtons();
  $("incentiveDialog").showModal();
+}
+function refreshAfterIncentiveChange(){
+ renderIncentives();
  requestAnimationFrame(()=>{
-   let matches=programId?programs().filter(p=>p.id===programId):currentProgramMatches();
-   if(!programId&&matches.length){
-     const latestMonth=matches.reduce((latest,p)=>String(p.month||"")>latest?String(p.month||""):latest,"");
-     matches=matches.filter(p=>String(p.month||"")===latestMonth);
-   }
-   currentIncentiveProgramIds=matches.map(p=>p.id);
-   const available=[];
-   const appliedKeys=new Set(state.incentives.map(x=>`${x.sourceProgramId}|${x.sourceIncentiveId}`));
-   for(const p of matches){
-     for(const i of (p.incentives||[]))available.push({...i,sourceProgramId:p.id,sourceLabel:`${p.month} · ${p.year} ${p.model}`});
-   }
-   $("incentiveProgramSummary").textContent=matches.length
-     ? `${matches.length} latest matching program record${matches.length===1?"":"s"} for ${state.vehicle.year||""} ${state.vehicle.model||""}`
-     : "No matching program found. Add the missing program first.";
-   $("availableIncentives").innerHTML=available.length
-     ? available.map(i=>{
-       const alreadyApplied=appliedKeys.has(`${i.sourceProgramId}|${i.id}`);
-       return `<label class="incentive-pick-row ${alreadyApplied?"already-applied":""}"><input type="checkbox" data-pick-incentive="${i.id}" data-program-id="${i.sourceProgramId}" ${alreadyApplied?"checked":""}><span><strong>${esc(i.name)}</strong><small>${esc(i.sourceLabel)} · ${esc(incentiveAppliesLabel(i))}${alreadyApplied?" · Currently applied":""}</small></span><strong>${money.format(i.amount)}</strong></label>`;
-     }).join("")
-     : `<div class="empty-state incentive-empty"><strong>No incentives are stored for the matching program.</strong><span>Use “Add Incentive to This Program” below to enter Loyalty, Lease Credit, Purchase Credit, Conquest or another available program.</span></div>`;
-   const canAdd=matches.length>0;
-   $("addIncentiveToProgram").disabled=!canAdd;
-   $("addIncentiveToProgram").textContent=canAdd?"+ Add Incentive to This Program":"Add the Missing Program First";
-   updateIncentivePickerButtons();
+   renderScenarios();
+   renderWorksheet();
+   scheduleAutosave();
  });
 }
-
 function applyPickedIncentives(){
- const picked=[...document.querySelectorAll("[data-pick-incentive]:checked")];
-
+ const picked=[...$("availableIncentives").querySelectorAll("[data-pick-incentive]:checked")];
  if(!picked.length){
    toast("Select at least one incentive before clicking Apply Selected.");
    updateIncentivePickerButtons();
    return;
  }
-
- const rows=programs();
+ const lookup=new Map(currentIncentivePickerItems.map(({program,incentive})=>[`${program.id}|${incentive.id}`,{program,incentive}]));
  const selected=[];
-
- picked.forEach(box=>{
-   const program=rows.find(p=>p.id===box.dataset.programId);
-   const incentive=program?.incentives?.find(i=>i.id===box.dataset.pickIncentive);
-   if(incentive){
-     selected.push({
-       ...incentive,
-       id:crypto.randomUUID(),
-       sourceProgramId:program.id,
-       sourceIncentiveId:incentive.id
-     });
-   }
- });
-
+ for(const box of picked){
+   const found=lookup.get(`${box.dataset.programId}|${box.dataset.pickIncentive}`);
+   if(!found)continue;
+   selected.push({...found.incentive,id:crypto.randomUUID(),sourceProgramId:found.program.id,sourceIncentiveId:found.incentive.id});
+ }
  if(!selected.length){
    toast("The selected incentives could not be found in the program record.");
    return;
  }
-
  state.incentives=selected;
- renderIncentives();
- renderScenarios();
- renderWorksheet();
- scheduleAutosave();
  $("incentiveDialog").close();
+ refreshAfterIncentiveChange();
  toast(`${selected.length} incentive${selected.length===1?"":"s"} applied.`);
 }
 
@@ -1716,10 +1739,7 @@ function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#pag
  if(!incentive)return;
  if(!confirm(`Remove "${incentive.name}" from this deal?`))return;
  state.incentives=state.incentives.filter(x=>x.id!==id);
- renderIncentives();
- renderScenarios();
- renderWorksheet();
- scheduleAutosave();
+ refreshAfterIncentiveChange();
  toast("Incentive removed from the deal.");
 });$("scenarioGrid").addEventListener("click",e=>{
  const moveId=e.target.dataset.moveScenario;if(moveId){moveScenario(moveId,num(e.target.dataset.direction));return}
