@@ -1245,10 +1245,27 @@ function normalizePdfLine(line){
    .trim();
 }
 
+function isBmwModelCodeToken(value){
+ const token=String(value||"").trim();
+ return /^[0-9]{2}[A-Z][A-Z0-9]$/.test(token) && !/^\d{4}$/.test(token);
+}
+
+function stripLeadingPdfArtifacts(line){
+ const normalized=normalizePdfLine(line);
+ if(!normalized)return normalized;
+ const match=normalized.match(/([0-9]{2}[A-Z][A-Z0-9])\s+.+?(?:Yes|No)\s+\d+(?:\.\d+)?\s*%/);
+ if(!match)return normalized;
+ return normalized.slice(normalized.indexOf(match[1]));
+}
+
 function likelyProgramRow(line){
- return /^[0-9]{2}[A-Z][A-Z0-9]\s+/.test(line) &&
-   /\s(?:Yes|No)\s+\d+%\s+\$/.test(line) &&
-   /0\.\d{5}/.test(line);
+ const normalized=normalizePdfLine(line);
+ if(!normalized)return false;
+ const codeMatch=normalized.match(/^.*?([0-9]{2}[A-Z][A-Z0-9])\s+/);
+ const code=codeMatch?.[1];
+ return !!code && isBmwModelCodeToken(code) &&
+   /\s(?:Yes|No)\s+\d+(?:\.\d+)?\s*%\s+\$/.test(normalized) &&
+   /0\.\d{5}/.test(normalized);
 }
 
 function mergeWrappedProgramLines(lines){
@@ -1256,18 +1273,20 @@ function mergeWrappedProgramLines(lines){
  for(let i=0;i<lines.length;i++){
    let line=normalizePdfLine(lines[i]);
    if(!line)continue;
-   if(/^[0-9]{2}[A-Z][A-Z0-9]\s+/.test(line)){
+   const leadingCode=line.match(/^([0-9]{2}[A-Z][A-Z0-9])/)?.[1] || "";
+   if(isBmwModelCodeToken(leadingCode)){
      let combined=line;
      let look=i+1;
      while(look<lines.length && !likelyProgramRow(combined) && look<=i+3){
        const next=normalizePdfLine(lines[look]);
-       if(/^[0-9]{2}[A-Z][A-Z0-9]\s+/.test(next))break;
+       const nextCode=next.match(/^([0-9]{2}[A-Z][A-Z0-9])/)?.[1] || "";
+       if(isBmwModelCodeToken(nextCode))break;
        if(next && !/^(BMW July Programs|Not Lockable|Rates apply|This document|Model Year|BEV|Lease|Loan|Non-FS|Conquest|Loyalty)/i.test(next)){
          combined+=" "+next;
        }
        look++;
      }
-     merged.push(normalizePdfLine(combined));
+     merged.push(normalizePdfLine(stripLeadingPdfArtifacts(combined)));
    }else{
      merged.push(line);
    }
@@ -1483,7 +1502,7 @@ async function importProgramPdf(file){
    const candidateLines=[];
    const candidateKeys=new Set();
    const addCandidate=recovered=>{
-     recovered=normalizePdfLine(recovered);
+     recovered=normalizePdfLine(stripLeadingPdfArtifacts(recovered));
      if(!recovered)return;
      const codeMatch=recovered.match(/^([0-9]{2}[A-Z][A-Z0-9])\s+/);
      if(!codeMatch)return;
