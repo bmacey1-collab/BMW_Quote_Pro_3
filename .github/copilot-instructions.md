@@ -281,6 +281,18 @@ Avoid:
 
 When practical, move shared calculations into reusable functions so the screen, saved quote, Customer Quote, and Manager Worksheet use the same source of truth.
 
+## Calculation Architecture
+
+Never duplicate a financial calculation.
+
+If a value has already been calculated, reuse it.
+
+Customer Quote, Manager Worksheet, printing, saved deals, dashboard summaries, and any future reports should all consume the same calculated values whenever practical.
+
+Business calculations should have a single source of truth. Presentation layers should display calculated results rather than recomputing them independently.
+
+If a new feature requires a calculation already performed elsewhere, refactor the existing calculation into a reusable function instead of copying the formula.
+
 ## UI behavior
 
 Changes should work on desktop and mobile.
