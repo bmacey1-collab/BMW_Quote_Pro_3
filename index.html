@@ -104,7 +104,7 @@
             <label>Trade Allowance<input id="tradeAllowance" type="number" min="0" step=".01"></label>
             <label>Trade ACV<input id="tradeAcv" type="number" min="0" step=".01"></label>
             <label>Trade Payoff<input id="tradePayoff" type="number" min="0" step=".01"></label>
-            <label class="check"><input id="applyTradeTaxCredit" type="checkbox" checked> Apply Trade Tax Credit</label>
+            <label class="check"><input id="applyTradeTaxCredit" type="checkbox" checked> Trade Qualifies for Tax Credit</label>
             <label>Cash Up Front<input id="cashDown" type="number" min="0" step=".01"></label>
             <label>Lease Equity Treatment<select id="equityMethod"><option value="cap">All as cap reduction</option><option value="cashback">All returned to client</option><option value="split">Split equity</option></select></label>
             <label id="equityCashBackWrap">Equity Returned<input id="equityCashBack" type="number" min="0" step=".01" value="0"></label>
@@ -338,7 +338,7 @@
       <div class="dialog-header"><div><div class="eyebrow">Scenario Editor</div><h2 id="scenarioDialogTitle">Add Scenario</h2></div><button type="button" class="icon-button" id="closeScenarioDialog">×</button></div>
       <input id="scenarioId" type="hidden">
       <div class="form-grid four">
-        <label>Scenario Name<input id="scenarioName"></label>
+        <label id="scenarioNameLabel"><span id="scenarioNameLabelText">Scenario Title</span><input id="scenarioName"></label>
         <label>Quote Type<select id="scenarioType"><option value="lease">Lease</option><option value="finance">Finance</option><option value="cash">Cash Purchase</option><option value="select">BMW Select</option></select></label>
         <label>Saved Program<select id="scenarioProgram"><option value="">None</option></select></label>
         <label class="lease-field check"><input id="scenarioOnePay" type="checkbox"> One-Pay Lease</label>
