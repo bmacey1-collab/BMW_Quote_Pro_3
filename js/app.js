@@ -14,7 +14,7 @@ function createEmptyDeal(){
  vehicle:{stockNumber:"",vin:"",year:"",make:"BMW",model:"",msrp:0,discount:0,cost:0,pack:0,taxRate:null},
  trade:{vin:"",vehicle:"",allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true},
  fees:{doc:{amount:595,treatment:"upfront"},reg:{amount:130,treatment:"upfront"},acq:{amount:925,treatment:"capitalize"},misc:{amount:0,treatment:"capitalize"}},
- incentives:[],legacyIncentives:[],scenarios:[],acceptedScenarioId:"",notes:"",presentation:{showPaymentComparison:true,combineDiscountIncentives:false,showSignature:false}};
+ incentives:[],legacyIncentives:[],incentiveMigrationVersion:1,scenarios:[],acceptedScenarioId:"",notes:"",presentation:{showPaymentComparison:true,combineDiscountIncentives:false,showSignature:false}};
 }
 function settings(){return JSON.parse(localStorage.getItem(KEYS.settings)||"null")||{dealerName:"BMW of Peabody",defaultTax:6.25,reserveShare:70,defaultSalesperson:"Brian Macey",docFee:595,regFee:130,acqFee:925,miscFee:0,salespeople:["Brian Macey"],disclaimer:"Figures are estimates and remain subject to credit approval, vehicle availability, final appraisal, and current manufacturer programs."};}
 let programCache=JSON.parse(localStorage.getItem(KEYS.programs)||"[]");
@@ -41,8 +41,6 @@ state.notes=$("managerNotes").value;state.scenarios=(state.scenarios||[]).map(sy
 function writeStateToForm(){if(!state.trade){state.trade={allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true};}state.trade.applyTradeTaxCredit=state.trade.applyTradeTaxCredit!==false;state.scenarios=(state.scenarios||[]).map(syncScenarioName);const map={firstName:state.customer.firstName,lastName:state.customer.lastName,coFirstName:state.customer.coFirstName,coLastName:state.customer.coLastName,customerEmail:state.customer.email||"",customerPhone:state.customer.phone||"",currentPayment:state.customer.currentPayment||"",stockNumber:state.vehicle.stockNumber,vin:state.vehicle.vin,year:state.vehicle.year,make:state.vehicle.make,model:state.vehicle.model,msrp:state.vehicle.msrp||"",discount:state.vehicle.discount||0,taxRate:state.vehicle.taxRate??"",vehicleCost:state.vehicle.cost||"",pack:state.vehicle.pack||"",tradeVin:state.trade.vin,tradeVehicle:state.trade.vehicle,tradeAllowance:state.trade.allowance||"",tradeAcv:state.trade.acv||"",tradePayoff:state.trade.payoff||"",cashDown:state.trade.cashDown||"",equityCashBack:state.trade.equityCashBack||0,docFee:state.fees.doc.amount,regFee:state.fees.reg.amount,acqFee:state.fees.acq.amount,miscFee:state.fees.misc.amount,managerNotes:state.notes};Object.entries(map).forEach(([id,v])=>{if($(id))$(id).value=v});$("equityMethod").value=state.trade.equityMethod;$("applyTradeTaxCredit").checked=state.trade.applyTradeTaxCredit!==false;$("docTreatment").value=state.fees.doc.treatment;$("regTreatment").value=state.fees.reg.treatment;$("acqTreatment").value=state.fees.acq.treatment;$("miscTreatment").value=state.fees.misc.treatment;$("showPaymentComparison").checked=state.presentation.showPaymentComparison!==false;$("combineDiscountIncentives").checked=Boolean(state.presentation.combineDiscountIncentives);$("showSignature").checked=Boolean(state.presentation.showSignature);populateSalespeople();$("salesperson").value=state.customer.salesperson||"";updateComputed();updateClientHistoryDisplays();}function updateComputed(){readFormToState();const selling=Math.max(0,state.vehicle.msrp-state.vehicle.discount),equity=state.trade.allowance-state.trade.payoff,gross=state.trade.allowance-state.trade.acv;$("sellingPriceDisplay").textContent=money.format(selling);$("tradeEquityDisplay").textContent=money.format(equity);$("tradeGrossDisplay").textContent=money.format(gross);$("equityCashBackWrap").classList.toggle("hidden",state.trade.equityMethod!=="split");renderIncentives();renderScenarios();renderWorksheet();}
 function mileageAdjustment(m){return ({7500:4,10000:3,12000:2,15000:0})[Number(m)]||0;}
 function incentiveAppliesTo(item,type){const a=item.appliesToTypes||item.appliesTo||"all";return Array.isArray(a)?a.includes("all")||a.includes(type):a==="all"||a===type;}
-function dealIncentives(type){return state.incentives.filter(i=>num(i.amount)>0&&incentiveAppliesTo(i,type)).reduce((s,i)=>s+num(i.amount),0);}
-function appliedIncentivesForType(type){return state.incentives.filter(i=>num(i.amount)>0&&incentiveAppliesTo(i,type));}
 function incentiveAppliesLabel(item){const a=item.appliesToTypes||item.appliesTo||"all",v=Array.isArray(a)?a:[a],l={all:"All Types",lease:"Lease",finance:"Finance",cash:"Cash",select:"BMW Select"};return v.map(x=>l[x]||x).join(", ");}
 function normalizeIncentiveTypes(value){
   const values=Array.isArray(value)?value:(value===undefined||value===null||value===""?["all"]:[value]);
@@ -165,6 +163,10 @@ function migrateLegacyDealIncentives(deal){
     return copy;
   });
   deal.legacyIncentives=Array.isArray(deal.legacyIncentives)?deal.legacyIncentives.map(item=>normalizeScenarioIncentive(item,{sourceKind:"legacy",legacyReview:true})):[];
+  if(num(deal.incentiveMigrationVersion)>=1){
+    deal.incentives=[];
+    return deal;
+  }
 
   const legacyFlat=Array.isArray(deal.incentives)?deal.incentives:[];
   if(legacyFlat.length){
@@ -195,6 +197,7 @@ function migrateLegacyDealIncentives(deal){
     });
     deal.incentives=[];
   }
+  deal.incentiveMigrationVersion=1;
   deal.scenarios.forEach(scenario=>{
     scenario.incentives=(scenario.incentives||[]).map(item=>normalizeScenarioIncentive(item));
   });
@@ -238,158 +241,7 @@ function syncScenarioName(s){
   s.nameSource="auto";
   return s;
 }
-function validateScenario(s){const missing=[];if(!state.vehicle.msrp)missing.push("MSRP");if(state.vehicle.taxRate===null)missing.push("tax rate");if(s.type==="lease"){if(!s.term)missing.push("term");if(!s.miles)missing.push("mileage");if(s.residual===""||s.residual==null)missing.push("residual");if(s.baseMoneyFactor===""||s.baseMoneyFactor==null)missing.push("base money factor");if(s.moneyFactor===""||s.moneyFactor==null)missing.push("used money factor")}if(s.type==="finance"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR")}if(s.type==="select"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR");if(s.balloon===""||s.balloon==null)missing.push("balloon %")}return missing;}function calcScenario(s,override={}){const missing=validateScenario(s);if(missing.length)return {ready:false,missing};const msrp=state.vehicle.msrp,discount=override.discount??state.vehicle.discount,selling=Math.max(0,msrp-discount+s.priceAdjustment-dealIncentives(s.type)-s.extraIncentive),cash=Math.max(0,override.cashDown??state.trade.cashDown+s.cashAdjustment),allowance=Math.max(0,override.tradeAllowance??state.trade.allowance+s.tradeAdjustment),tax=state.vehicle.taxRate/100,fees=feeTotals(s.type),trade=tradeAllocation(allowance),taxSummary=calculateTaxableAmount({sellingPrice:selling,tradeAllowance:allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate});
-if(s.type==="lease"){const adjustedPct=num(s.residual)+mileageAdjustment(s.miles),inceptionDed=Math.max(0,num(s.inceptionMileage)-500)*num(s.inceptionCharge),customDed=num(s.customMiles)*num(s.customCharge),residualValue=Math.max(0,msrp*adjustedPct/100-inceptionDed-customDed),capCost=selling+fees.cap+Math.max(0,-trade.equity)-trade.cap-cash,usedMf=Math.max(0,num(s.moneyFactor)-(s.onePay?num(s.onePayReduction):0)),base=((capCost-residualValue)/s.term)+((capCost+residualValue)*usedMf),monthlyTax=base*tax,payment=base+monthlyTax,taxOnCash=cash*tax,estimatedTotalTax=monthlyTax*s.term+taxOnCash,standardDue=payment+fees.upfront+cash+taxOnCash,onePay=payment*s.term+fees.upfront+cash+taxOnCash;return {ready:true,payment,basePayment:base,monthlyTax,estimatedTotalTax,taxableAmount:base,dueUpfront:s.onePay?onePay:standardDue,onePayTotal:onePay,equivalentMonthly:payment,residualValue,adjustedResidualPct:adjustedPct,usedMf,baseMf:num(s.baseMoneyFactor),capCost,amountFinanced:capCost,fees,totalFees:fees.cap+fees.upfront,taxOnCash,incentives:dealIncentives(s.type)+s.extraIncentive,selling,trade};}
-const taxable=taxSummary.taxableAmount,salesTax=taxSummary.salesTax,principal=selling+salesTax+fees.cap+fees.upfront+state.trade.payoff-allowance-cash,totalFees=fees.cap+fees.upfront;if(s.type==="cash")return {ready:true,payment:Math.max(0,principal),dueUpfront:Math.max(0,principal),taxableAmount:taxable,amountFinanced:principal,salesTax,eligibleTradeTaxCredit:taxSummary.eligibleTradeTaxCredit,tradeTaxCreditApplied:state.trade.applyTradeTaxCredit!==false,totalFees,fees,incentives:dealIncentives(s.type)+s.extraIncentive,selling,trade};if(s.type==="finance"){const r=num(s.apr)/100/12,payment=r===0?principal/s.term:principal*r/(1-Math.pow(1+r,-s.term));return {ready:true,payment,dueUpfront:cash,taxableAmount:taxable,amountFinanced:principal,salesTax,eligibleTradeTaxCredit:taxSummary.eligibleTradeTaxCredit,tradeTaxCreditApplied:state.trade.applyTradeTaxCredit!==false,totalFees,fees,incentives:dealIncentives(s.type)+s.extraIncentive,selling,trade};}const balloon=msrp*num(s.balloon)/100,r=num(s.apr)/100/12,payment=r===0?(principal-balloon)/s.term:(principal-balloon/Math.pow(1+r,s.term))*r/(1-Math.pow(1+r,-s.term));return {ready:true,payment,dueUpfront:cash,taxableAmount:taxable,amountFinanced:principal,finalPayment:balloon,salesTax,eligibleTradeTaxCredit:taxSummary.eligibleTradeTaxCredit,tradeTaxCreditApplied:state.trade.applyTradeTaxCredit!==false,totalFees,fees,incentives:dealIncentives(s.type)+s.extraIncentive,selling,trade};}function defaultScenario(type){const base={id:crypto.randomUUID(),name:"",nameSource:"auto",type:type==="onepay"?"lease":type,selected:false,term:type==="cash"?1:(type==="lease"||type==="onepay"?36:60),miles:type==="lease"||type==="onepay"?10000:"",residual:"",baseMoneyFactor:"",moneyFactor:"",onePay:type==="onepay",onePayReduction:.00080,inceptionMileage:0,inceptionCharge:.20,customMiles:0,customCharge:.20,buyApr:"",apr:"",balloon:"",priceAdjustment:0,cashAdjustment:0,tradeAdjustment:0,extraIncentive:0,showRate:false,showResidual:false,showFees:true,programId:""};base.name=scenarioAutoName(base);return base;}
-function renderIncentives(){
- const c=$("incentiveRows");
- c.innerHTML=state.incentives.length?state.incentives.map(i=>`<div class="selected-incentive-row"><div><strong>${esc(i.name)}</strong><span>${esc(incentiveAppliesLabel(i))}${i.programCode?" · "+esc(i.programCode):""}</span></div><strong>${money.format(num(i.amount))}</strong><button type="button" class="danger remove-incentive-button" data-remove-incentive="${i.id}">Remove Incentive</button></div>`).join(""):'<div class="empty-state">No program incentives selected.</div>';
- $("incentiveTotal").textContent=money.format(state.incentives.reduce((s,i)=>s+num(i.amount),0));
-}
-function renderScenarios(){
- state.scenarios.forEach(syncScenarioName);
- const c=$("scenarioGrid");
- c.innerHTML=state.scenarios.length?state.scenarios.map((s,index)=>{
-   const displayName=scenarioDisplayName(s),r=calcScenario(s),label=s.type==="lease"?"LEASE":s.type==="finance"?"FINANCE":s.type==="cash"?"CASH":"BMW SELECT";
-   const amount=r.ready?money.format(s.onePay?r.onePayTotal:r.payment):"Incomplete";
-   const paylabel=s.type==="cash"?"TOTAL CASH DUE":s.onePay?"TOTAL ONE-PAY":"PER MONTH";
-   const status=r.ready?'<span class="status-ready">Ready</span>':`<span class="status-missing">Missing: ${esc(r.missing.join(", "))}</span>`;
-   const accepted=state.acceptedScenarioId===s.id;
-   return `<article class="scenario-card ${s.type} ${accepted?"accepted":""}" draggable="true" data-scenario-card="${s.id}">
-     <div class="card-title"><span>${label}</span><span class="drag-handle" title="Drag to reorder">↕</span></div>
-     <div class="card-body">
-       <div class="scenario-choice-row">
-         <label class="check"><input type="checkbox" data-select-scenario="${s.id}" ${s.selected?"checked":""}> Present</label>
-         <label class="check accepted-check"><input type="radio" name="acceptedScenario" data-accept-scenario="${s.id}" ${accepted?"checked":""}> Accepted Deal</label>
-       </div>
-       <h3>${esc(displayName)}</h3><div class="scenario-payment">${amount}</div><div class="payment-label">${paylabel}</div>${status}
-       <div class="move-actions"><button data-move-scenario="${s.id}" data-direction="-1" ${index===0?"disabled":""}>← Move Left</button><button data-move-scenario="${s.id}" data-direction="1" ${index===state.scenarios.length-1?"disabled":""}>Move Right →</button></div>
-       <div class="card-actions"><button data-edit-scenario="${s.id}">Edit</button><button data-duplicate-scenario="${s.id}">Duplicate</button><button data-rename-scenario="${s.id}">Rename</button><button data-delete-scenario="${s.id}">Delete</button></div>
-     </div></article>`;
- }).join(""):'<div class="empty-state">No scenarios. Use Add Scenario.</div>';
- const selected=state.scenarios.filter(s=>s.selected).length;
- $("scenarioSelectionCount").textContent=`${selected} of 3 selected${state.acceptedScenarioId?" · Accepted deal selected":""}`;
- const previousRollScenario=$("rollerScenario").value;const rollScenarios=state.scenarios.filter(s=>s.type!=="cash");$("rollerScenario").innerHTML=rollScenarios.map(s=>`<option value="${s.id}">${esc(scenarioDisplayName(s))}</option>`).join("");if(rollScenarios.some(s=>s.id===previousRollScenario))$("rollerScenario").value=previousRollScenario;
- renderQuote();
-}
-function moveScenario(id,direction){
- const index=state.scenarios.findIndex(s=>s.id===id),target=index+direction;
- if(index<0||target<0||target>=state.scenarios.length)return;
- const [item]=state.scenarios.splice(index,1);state.scenarios.splice(target,0,item);renderScenarios();scheduleAutosave();
-}
-function renderQuote(){
- readFormToState();
- const selected=state.scenarios.filter(s=>s.selected).filter(s=>calcScenario(s).ready).slice(0,3);
- const name=[state.customer.firstName,state.customer.lastName].filter(Boolean).join(" ");
- const vehicle=[state.vehicle.year,state.vehicle.make,state.vehicle.model].filter(Boolean).join(" ");
- $("quoteHeader").innerHTML=`<div><strong>${esc(name||"Customer")}</strong><div class="item-meta">${esc(vehicle||"Vehicle")}</div></div><div><strong>MSRP ${money.format(state.vehicle.msrp)}</strong><div class="item-meta">Dealer Discount ${money.format(state.vehicle.discount)}</div></div>`;
-
- $("quoteCards").innerHTML=selected.length?selected.map(s=>{
-   const displayName=scenarioDisplayName(s),r=calcScenario(s);
-   const amount=s.onePay?r.onePayTotal:r.payment;
-   const label=s.type==="cash"?"TOTAL CASH DUE":s.onePay?"TOTAL ONE-PAY":"PER MONTH";
-   const scenarioIncentives=r.incentives||0;
-   const taxSummary=calculateTaxableAmount({sellingPrice:r.selling,tradeAllowance:state.trade.allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate});
-   const lines=[["MSRP / Market Value",money.format(state.vehicle.msrp)]];
-
-   if(state.presentation.combineDiscountIncentives){
-     lines.push(["Total Discount & Incentives",money.format(state.vehicle.discount+scenarioIncentives)]);
-   }else{
-     lines.push(["Dealer Discount",money.format(state.vehicle.discount)]);
-     lines.push(["Incentives",money.format(scenarioIncentives)]);
-   }
-
-   lines.push(
-     ["Adjusted Price",money.format(r.selling)],
-     ["Trade Allowance",money.format(state.trade.allowance)],
-     ["Trade Payoff",money.format(state.trade.payoff)],
-     ["Trade Equity",money.format(state.trade.allowance-state.trade.payoff)],
-     ["Cash Up Front",money.format(state.trade.cashDown)]
-   );
-   if(s.type==="lease"){
-     lines.push(["Monthly Sales Tax",money.format(r.monthlyTax||0)],["Estimated Total Tax",money.format(r.estimatedTotalTax||0)],["Adjusted Cap Cost",money.format(r.capCost||0)]);
-   }else{
-     lines.push(["Trade Tax Credit",state.trade.applyTradeTaxCredit!==false?"Applied":"Not Applied"],["Taxable Amount",money.format(taxSummary.taxableAmount||0)],["Sales Tax",money.format(taxSummary.salesTax||0)],["Total Fees",money.format(r.totalFees||0)]);
-     if(s.type!=="cash")lines.push(["Amount Financed",money.format(r.amountFinanced||0)]);
-   }
-
-   if(s.showRate&&s.type==="lease")lines.push(["Money Factor",String(r.usedMf.toFixed(5))]);
-   if(s.showRate&&["finance","select"].includes(s.type))lines.push(["APR",num(s.apr).toFixed(2)+"%"]);
-   if(s.showResidual&&s.type==="lease")lines.push(["Adjusted Residual",r.adjustedResidualPct.toFixed(2)+"%"],["Residual Value",money.format(r.residualValue)]);
-   if(s.showResidual&&s.type==="select")lines.push(["Final Balloon Payment",money.format(r.finalPayment)]);
-   if(s.onePay)lines.unshift(["Equivalent Monthly",money.format(r.equivalentMonthly)]);
-   if(s.showFees&&s.type==="lease")r.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>lines.push([x[0],money.format(x[1].amount)]));
-   lines.push(["Total Due Up Front",money.format(r.dueUpfront)]);
-
-   let comparison="";
-   if(state.presentation.showPaymentComparison&&state.customer.currentPayment>0&&s.type!=="cash"){
-     const d=r.payment-state.customer.currentPayment;
-     comparison=`<div class="result-box">${d<=0?"Payment reduction":"Payment increase"} ${money.format(Math.abs(d))}</div>`;
-   }
-
-   return `<article class="quote-card ${s.type}"><div class="card-title">${esc(displayName)}</div><div class="quote-payment">${money.format(amount)}</div><div class="payment-label">${label}</div>${comparison}<div class="quote-lines">${lines.map(x=>`<div class="quote-line"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join("")}</div></article>`;
- }).join(""):'<div class="empty-state">Select up to three complete scenarios in Deal Builder.</div>';
-
- $("signatureArea").classList.toggle("hidden",!state.presentation.showSignature);
- $("signatureArea").innerHTML=`<p>${esc(settings().disclaimer)}</p><p>Client Signature: ______________________________</p><p>Co-Buyer Signature: ___________________________</p><p>Date: ________________________________________</p>`;
-}
-function renderWorksheet(){
- readFormToState();
- const name=[state.customer.firstName,state.customer.lastName].filter(Boolean).join(" ");
- const vehicle=[state.vehicle.year,state.vehicle.make,state.vehicle.model].filter(Boolean).join(" ");
- const selling=Math.max(0,state.vehicle.msrp-state.vehicle.discount);
- const front=selling-state.vehicle.cost-state.vehicle.pack;
- const tradeGross=state.trade.allowance-state.trade.acv;
- const accepted=state.scenarios.find(s=>s.id===state.acceptedScenarioId);
- if(accepted)syncScenarioName(accepted);
- const result=accepted?calcScenario(accepted):null;
- const acceptedIncentives=accepted?appliedIncentivesForType(accepted.type):[];
- const totalIncentives=acceptedIncentives.reduce((sum,item)=>sum+num(item.amount),0);
- const incentiveLines=acceptedIncentives.length?acceptedIncentives.map(item=>`<div class="worksheet-line"><span>${esc(item.name)}<small> (${esc(incentiveAppliesLabel(item))}${item.programCode?" · "+esc(item.programCode):""})</small></span><strong>${money.format(num(item.amount))}</strong></div>`).join("")+`<div class="worksheet-line worksheet-total"><span>Total Applied Incentives</span><strong>${money.format(totalIncentives)}</strong></div>`:'<div class="item-meta">No incentives selected.</div>';
-
- if(!accepted||!result?.ready){
-   $("worksheetOutput").innerHTML=`<h2>BMW QUOTE WORKSHEET</h2><div class="empty-state manager-empty">Select one complete scenario as the Accepted Deal in Deal Builder. Only that scenario will appear on this worksheet.</div>`;
-   return;
- }
-
- const upfront=[];
- if(accepted.type==="lease"){
-   upfront.push([accepted.onePay?"One-Pay Lease Total":"First Payment",money.format(accepted.onePay?result.onePayTotal:result.payment)]);
-   result.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>upfront.push([x[0],money.format(x[1].amount)]));
-   if(state.trade.cashDown>0)upfront.push(["Cash Up Front",money.format(state.trade.cashDown)]);
-   if(result.taxOnCash>0)upfront.push(["Tax on Cash Reduction",money.format(result.taxOnCash)]);
- }else if(accepted.type==="cash"){
-   upfront.push(["Total Cash Due",money.format(result.dueUpfront)]);
- }else{
-   if(state.trade.cashDown>0)upfront.push(["Cash Up Front",money.format(state.trade.cashDown)]);
-   result.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>upfront.push([x[0],money.format(x[1].amount)]));
- }
- upfront.push(["Total Due Up Front",money.format(result.dueUpfront)]);
-
- const taxSummary=calculateTaxableAmount({sellingPrice:result.selling,tradeAllowance:state.trade.allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate});
- const rateLines=accepted.type==="lease"
-   ? ws("Base / Buy MF",num(accepted.baseMoneyFactor).toFixed(5))+ws("Used / Customer MF",num(accepted.moneyFactor).toFixed(5))+ws("MF Markup",(num(accepted.moneyFactor)-num(accepted.baseMoneyFactor)).toFixed(5))+ws("Base Residual",num(accepted.residual).toFixed(2)+"%")+ws("Adjusted Residual",result.adjustedResidualPct.toFixed(2)+"%")+ws("Residual Value",money.format(result.residualValue))
-   : accepted.type==="finance"||accepted.type==="select"
-   ? ws("Buy APR",num(accepted.buyApr).toFixed(2)+"%")+ws("Used / Customer APR",num(accepted.apr).toFixed(2)+"%")+ws("Rate Markup",(num(accepted.apr)-num(accepted.buyApr)).toFixed(2)+"%")+(accepted.type==="select"?ws("Balloon",num(accepted.balloon).toFixed(2)+"%")+ws("Final Balloon",money.format(result.finalPayment)):"")
-   : ws("Type","Cash Purchase");
-
- const acceptedDisplayName=scenarioDisplayName(accepted);
- $("worksheetOutput").innerHTML=`<h2>BMW QUOTE WORKSHEET — ACCEPTED DEAL</h2><div class="accepted-banner">${esc(acceptedDisplayName)} · ${money.format(accepted.onePay?result.onePayTotal:result.payment)} ${accepted.type==="cash"||accepted.onePay?"":"per month"}</div><div class="worksheet-grid">
-   <div class="worksheet-block"><h3>Customer / Vehicle</h3>${ws("Client",name)}${ws("Email",state.customer.email)}${ws("Phone",state.customer.phone)}${ws("Co-Buyer",[state.customer.coFirstName,state.customer.coLastName].filter(Boolean).join(" "))}${ws("Salesperson",state.customer.salesperson)}${ws("Stock",state.vehicle.stockNumber)}${ws("VIN",state.vehicle.vin)}${ws("Vehicle",vehicle)}</div>
-   <div class="worksheet-block"><h3>Pricing</h3>${ws("MSRP",money.format(state.vehicle.msrp))}${ws("Dealer Discount",money.format(state.vehicle.discount))}${ws("Selling Price",money.format(selling))}${ws("Applied Incentives",money.format(result.incentives||0))}${ws("Adjusted Price",money.format(result.selling))}${ws("Vehicle Cost",money.format(state.vehicle.cost))}${ws("Pack",money.format(state.vehicle.pack))}${ws("Front Gross",money.format(front))}</div>
-   <div class="worksheet-block"><h3>Trade</h3>${ws("Allowance",money.format(state.trade.allowance))}${ws("ACV",money.format(state.trade.acv))}${ws("Payoff",money.format(state.trade.payoff))}${ws("Equity",money.format(state.trade.allowance-state.trade.payoff))}${ws("Trade Gross",money.format(tradeGross))}${ws("Equity Treatment",state.trade.equityMethod)}</div>
-   <div class="worksheet-block"><h3>Selected Incentives</h3>${incentiveLines}</div>
-   <div class="worksheet-block"><h3>Accepted Scenario</h3>${ws("Scenario",acceptedDisplayName)}${ws("Type",accepted.type)}${ws("Term",accepted.term+" months")}${accepted.type==="lease"?ws("Annual Mileage",Number(accepted.miles).toLocaleString("en-US")):""}${ws(accepted.onePay?"One-Pay Total":accepted.type==="cash"?"Cash Due":"Payment",money.format(accepted.onePay?result.onePayTotal:result.payment))}</div>
-   <div class="worksheet-block"><h3>Programs / Rates</h3>${rateLines}</div>
-   <div class="worksheet-block"><h3>Taxes & Fees</h3>${accepted.type==="lease"?ws("Monthly Sales Tax",money.format(result.monthlyTax||0))+ws("Estimated Total Tax",money.format(result.estimatedTotalTax||0))+ws("Tax on Cash Reduction",money.format(result.taxOnCash||0)):ws("Trade Tax Credit",result.tradeTaxCreditApplied?"Applied":"Not Applied")+ws("Eligible Trade Tax Credit",money.format(result.eligibleTradeTaxCredit||0))+ws("Taxable Amount",money.format(taxSummary.taxableAmount||0))+ws("Sales Tax",money.format(taxSummary.salesTax||0))+ws("Estimated Tax Savings",money.format((taxSummary.eligibleTradeTaxCredit*state.vehicle.taxRate/100)||0))}${ws("Document Fee",money.format(state.fees.doc.amount))}${ws("Registration / Title",money.format(state.fees.reg.amount))}${accepted.type==="lease"?ws("Acquisition Fee",money.format(state.fees.acq.amount)):""}${ws("Miscellaneous Fee",money.format(state.fees.misc.amount))}${ws("Total Included Fees",money.format(result.totalFees||0))}</div>
-   <div class="worksheet-block"><h3>Financing Summary</h3>${accepted.type==="lease"?ws("Adjusted Cap Cost",money.format(result.capCost||0))+ws("Base Payment Before Tax",money.format(result.basePayment||0))+ws("Amount Financed / Cap Cost",money.format(result.amountFinanced||0)):ws("Amount Financed",money.format(result.amountFinanced||0))+ws("Cash Down",money.format(state.trade.cashDown))+ws("Net Trade Equity",money.format(state.trade.allowance-state.trade.payoff))}${accepted.type==="select"?ws("Final Balloon Payment",money.format(result.finalPayment||0)):""}</div>
-   <details class="worksheet-block full-width verification-block" open><summary><h3>Calculation Verification</h3></summary><div class="verification-grid">${ws("MSRP",money.format(state.vehicle.msrp))}${ws("Selling Price Before Incentives",money.format(selling))}${ws("Applied Incentives",money.format(result.incentives||0))}${ws("Adjusted Selling Price",money.format(result.selling||0))}${ws("Trade Allowance",money.format(state.trade.allowance))}${ws("Trade Payoff",money.format(state.trade.payoff))}${accepted.type==="lease"?ws("Adjusted Cap Cost",money.format(result.capCost||0))+ws("Residual Value",money.format(result.residualValue||0))+ws("Base Payment",money.format(result.basePayment||0))+ws("Monthly Tax",money.format(result.monthlyTax||0)):ws("Trade Tax Credit",result.tradeTaxCreditApplied?"Applied":"Not Applied")+ws("Eligible Trade Tax Credit",money.format(result.eligibleTradeTaxCredit||0))+ws("Taxable Amount",money.format(taxSummary.taxableAmount||0))+ws("Sales Tax",money.format(taxSummary.salesTax||0))+ws("Total Fees",money.format(result.totalFees||0))+ws("Amount Financed",money.format(result.amountFinanced||0))}${accepted.type==="select"?ws("Balloon Amount",money.format(result.finalPayment||0)):""}${ws("Calculated Payment",money.format(accepted.onePay?result.onePayTotal:result.payment))}</div></details>
-   <div class="worksheet-block full-width"><h3>Due Up Front Breakdown</h3><div class="upfront-scenario">${upfront.map(x=>ws(x[0],x[1])).join("")}</div></div>
-   <div class="worksheet-block"><h3>Profit / Notes</h3>${ws("Front Gross",money.format(front))}${ws("Trade Gross",money.format(tradeGross))}${ws("Reserve Share",settings().reserveShare+"%")}<p>${esc(state.notes||"")}</p></div>
- </div>`;
-}
-function ws(a,b){return `<div class="worksheet-line"><span>${esc(a)}</span><strong>${esc(b||"—")}</strong></div>`}
-function normalizeModelName(value){
+function validateScenario(s){const missing=[];if(!state.vehicle.msrp)missing.push("MSRP");if(state.vehicle.taxRate===null)missing.push("tax rate");if(s.type==="lease"){if(!s.term)missing.push("term");if(!s.miles)missing.push("mileage");if(s.residual===""||s.residual==null)missing.push("residual");if(s.baseMoneyFactor===""||s.baseMoneyFactor==null)missing.push("base money factor");if(s.moneyFactor===""||s.moneyFactor==null)missing.push("used money factor")}if(s.type==="finance"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR")}if(s.type==="select"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR");if(s.balloon===""||s.balloon==null)missing.push("balloon %")}return missing;}function normalizeModelName(value){
  return String(value||"")
    .toLowerCase()
    .replace(/\bbmw\b/g,"")
@@ -451,27 +303,6 @@ function populateScenarioProgramOptions(selectedId=""){
  select.value=selectedId||"";
 }
 
-function mergeProgramIncentivesIntoDeal(program){
- const existingKeys=new Set(state.incentives.map(item=>
-   `${item.sourceProgramId||""}|${item.sourceIncentiveId||item.name}`
- ));
- let added=0;
-
- (program.incentives||[]).forEach(item=>{
-   const key=`${program.id}|${item.id||item.name}`;
-   if(existingKeys.has(key))return;
-   state.incentives.push({
-     ...item,
-     id:crypto.randomUUID(),
-     sourceProgramId:program.id,
-     sourceIncentiveId:item.id||""
-   });
-   existingKeys.add(key);
-   added++;
- });
- return added;
-}
-
 function applyProgramToScenarioObject(scenario,program){
  const source=structuredClone(program);
  scenario.programId=source.id;
@@ -499,40 +330,6 @@ function applyProgramToScenarioObject(scenario,program){
    if(source.balloon!==""&&source.balloon!=null)scenario.balloon=num(source.balloon);
  }
  return scenario;
-}
-
-function applyProgramToDeal(programId,options={}){
- readFormToState();
- const program=programs().find(item=>item.id===programId);
- if(!program){
-   toast("The selected program could not be found.");
-   return;
- }
-
- if(!state.vehicle.year)state.vehicle.year=program.year;
- if(!state.vehicle.model)state.vehicle.model=program.model;
-
- let updated=0;
- state.scenarios.forEach(scenario=>{
-   if(["lease","finance","select"].includes(scenario.type)){
-     applyProgramToScenarioObject(scenario,program);
-     updated++;
-   }
- });
-
- const incentivesAdded=mergeProgramIncentivesIntoDeal(program);
- writeStateToForm();
- renderIncentives();
- renderScenarios();
- renderWorksheet();
- scheduleAutosave();
-
- if($("programPickerDialog")?.open)$("programPickerDialog").close();
- if(options.openDeal!==false)showPage("deal");
-
- toast(
-   `${program.month} ${program.year} ${program.model} applied to ${updated} scenario${updated===1?"":"s"}${incentivesAdded?` and ${incentivesAdded} incentive${incentivesAdded===1?"":"s"}`:""}.`
- );
 }
 
 function openProgramPicker(){
@@ -663,7 +460,7 @@ function hasMeaningfulDraft(){
  return Boolean(
    state.customer.firstName||state.customer.lastName||state.customer.email||state.customer.phone||
    state.vehicle.stockNumber||state.vehicle.vin||state.vehicle.model||state.vehicle.msrp||
-   state.trade.allowance||state.incentives.length||state.scenarios.some(s=>validateScenario(s).length===0)
+   state.trade.allowance||(state.legacyIncentives||[]).length||state.scenarios.some(s=>scenarioEligibleIncentives(s).length||num(s.extraIncentive)||validateScenario(s).length===0)
  );
 }
 function setAutosaveStatus(message,kind=""){
@@ -1132,30 +929,6 @@ function editProgram(id){
  editProgramFromObject(p,false);
 }
 
-function applyProgramToDialog(){
- const program=programs().find(item=>item.id===$("scenarioProgram").value);
- if(!program)return;
-
- const draft=scenarioFromDialog();
- applyProgramToScenarioObject(draft,program);
-
- $("scenarioTerm").value=draft.term||"";
- $("scenarioResidual").value=draft.residual??"";
- $("scenarioBaseMf").value=draft.baseMoneyFactor??"";
- $("scenarioMf").value=draft.moneyFactor??"";
- $("scenarioOnePayReduction").value=draft.onePayReduction??.00080;
- $("scenarioBuyApr").value=draft.buyApr??"";
- $("scenarioApr").value=draft.apr??"";
- $("scenarioBalloon").value=draft.balloon??"";
-
- const added=mergeProgramIncentivesIntoDeal(program);
- renderIncentives();
- renderScenarios();
- updateScenarioPreview();
- scheduleAutosave();
-
- toast(`Program rates and residuals loaded${added?` with ${added} new incentive${added===1?"":"s"}`:""}.`);
-}
 function cloneScenarioWithIncentives(scenario){
  const copy=structuredClone(scenario);
  copy.incentives=(copy.incentives||[]).map(item=>normalizeScenarioIncentive(item));
@@ -1625,45 +1398,6 @@ function buildIncentivePicker(matches){
    host.append(empty);
  }
 }
-function applyPickedIncentives(){
- const picked=[...$("availableIncentives").querySelectorAll("[data-pick-incentive]:checked")];
- if(!picked.length){
-   toast("Select at least one incentive before clicking Apply Selected.");
-   updateIncentivePickerButtons();
-   return;
- }
- const lookup=new Map(currentIncentivePickerItems.map(({program,incentive})=>[`${program.id}|${incentive.id}`,{program,incentive}]));
- let added=0;
- let touched=0;
- for(const box of picked){
-   const found=lookup.get(`${box.dataset.programId}|${box.dataset.pickIncentive}`);
-   if(!found)continue;
-   const incentive=found.incentive;
-   const program=found.program;
-   state.scenarios.forEach(scenario=>{
-     if(!incentiveAppliesTo(incentive,scenario.type))return;
-     if(resolveScenarioEligibleProgram(scenario)?.id!==program.id)return;
-     const normalized=normalizeScenarioIncentive(incentive,{
-       sourceProgramId:program.id,
-       sourceIncentiveId:incentive.id||"",
-       sourceKind:"program",
-       programCode:incentive.programCode||program.modelCode||"",
-       category:incentive.category||"customer"
-     });
-     scenario.incentives=Array.isArray(scenario.incentives)?scenario.incentives:[];
-     if(scenario.incentives.some(item=>incentiveKey(item)===incentiveKey(normalized)))return;
-     scenario.incentives.push(normalized);
-     added++;
-     touched++;
-   });
- }
- $("incentiveDialog").close();
- renderIncentives();
- renderScenarios();
- renderWorksheet();
- scheduleAutosave();
- toast(`${added} incentive${added===1?"":"s"} distributed across ${touched} scenario${touched===1?"":"s"}.`);
-}
 function renderProgramApplicationPreview(program){
  const host=$("programPickerPreview");
  if(!host)return;
@@ -1896,7 +1630,7 @@ function updateIncentivePickerButtons(){
 function buildIncentivePicker(matches){
  const host=$("availableIncentives");
  const fragment=document.createDocumentFragment();
- const appliedKeys=new Set(state.incentives.map(x=>`${x.sourceProgramId}|${x.sourceIncentiveId}`));
+ const appliedKeys=new Set((state.scenarios||[]).flatMap(scenario=>(scenario.incentives||[]).map(item=>`${item.sourceProgramId||scenario.programId||""}|${item.sourceIncentiveId||item.id||item.name}`)));
  currentIncentivePickerItems=[];
  for(const program of matches){
    for(const incentive of (program.incentives||[])){
@@ -1945,38 +1679,6 @@ function openIncentivePicker(programId=""){
  updateIncentivePickerButtons();
  $("incentiveDialog").showModal();
 }
-function refreshAfterIncentiveChange(){
- renderIncentives();
- requestAnimationFrame(()=>{
-   renderScenarios();
-   renderWorksheet();
-   scheduleAutosave();
- });
-}
-function applyPickedIncentives(){
- const picked=[...$("availableIncentives").querySelectorAll("[data-pick-incentive]:checked")];
- if(!picked.length){
-   toast("Select at least one incentive before clicking Apply Selected.");
-   updateIncentivePickerButtons();
-   return;
- }
- const lookup=new Map(currentIncentivePickerItems.map(({program,incentive})=>[`${program.id}|${incentive.id}`,{program,incentive}]));
- const selected=[];
- for(const box of picked){
-   const found=lookup.get(`${box.dataset.programId}|${box.dataset.pickIncentive}`);
-   if(!found)continue;
-   selected.push({...found.incentive,id:crypto.randomUUID(),sourceProgramId:found.program.id,sourceIncentiveId:found.incentive.id});
- }
- if(!selected.length){
-   toast("The selected incentives could not be found in the program record.");
-   return;
- }
- state.incentives=selected;
- $("incentiveDialog").close();
- refreshAfterIncentiveChange();
- toast(`${selected.length} incentive${selected.length===1?"":"s"} applied.`);
-}
-
 function openAddProgramIncentiveDialog(){
  const programId=currentIncentiveProgramIds[0];
  const program=programs().find(p=>p.id===programId);
@@ -2919,14 +2621,17 @@ function saveApprovedImports(){
  toast(`${checked.length} programs imported with residuals.`);
 }
 function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{
- const id=e.target.dataset.removeIncentive;
- if(!id)return;
- const incentive=state.incentives.find(x=>x.id===id);
- if(!incentive)return;
- if(!confirm(`Remove "${incentive.name}" from this deal?`))return;
- state.incentives=state.incentives.filter(x=>x.id!==id);
- refreshAfterIncentiveChange();
- toast("Incentive removed from the deal.");
+ const scenarioId=e.target.dataset.removeScenarioIncentive,incentiveId=e.target.dataset.incentiveId;
+ if(!scenarioId||!incentiveId)return;
+ const scenario=state.scenarios.find(item=>item.id===scenarioId),incentive=scenario?.incentives?.find(item=>item.id===incentiveId);
+ if(!scenario||!incentive)return;
+ if(!confirm(`Remove "${incentive.name}" from ${scenarioDisplayName(scenario)}?`))return;
+ if(!removeScenarioIncentiveFromDeal(scenarioId,incentiveId))return;
+ renderIncentives();
+ renderScenarios();
+ renderWorksheet();
+ scheduleAutosave();
+ toast("Incentive removed from the scenario.");
 });$("scenarioGrid").addEventListener("click",e=>{
  const moveId=e.target.dataset.moveScenario;if(moveId){moveScenario(moveId,num(e.target.dataset.direction));return}
  const id=e.target.dataset.editScenario||e.target.dataset.duplicateScenario||e.target.dataset.renameScenario||e.target.dataset.deleteScenario;if(!id)return;
