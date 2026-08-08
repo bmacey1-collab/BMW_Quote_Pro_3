@@ -13,7 +13,7 @@ function createEmptyDeal(){
  customer:{clientId:"",firstName:"",lastName:"",coFirstName:"",coLastName:"",email:"",phone:"",salesperson:"",currentPayment:0},
  vehicle:{stockNumber:"",vin:"",year:"",make:"BMW",model:"",msrp:0,discount:0,cost:0,pack:0,taxRate:null},
  trade:{vin:"",vehicle:"",allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true},
- fees:{doc:{amount:595,treatment:"upfront"},reg:{amount:130,treatment:"upfront"},acq:{amount:925,treatment:"capitalize"},misc:{amount:0,treatment:"capitalize"}},
+ fees:{doc:{amount:595,treatment:"upfront"},reg:{amount:130,treatment:"upfront"},acq:{amount:925,treatment:"capitalize"},misc:{amount:0,treatment:"capitalize"},cashTax:{amount:0,treatment:"upfront"}},
  incentiveMigrationVersion:1,scenarios:[],acceptedScenarioId:"",notes:"",presentation:{showPaymentComparison:true,combineDiscountIncentives:false,showSignature:false}};
 }
 function settings(){return JSON.parse(localStorage.getItem(KEYS.settings)||"null")||{dealerName:"BMW of Peabody",defaultTax:6.25,reserveShare:70,defaultSalesperson:"Brian Macey",docFee:595,regFee:130,acqFee:925,miscFee:0,salespeople:["Brian Macey"],disclaimer:"Figures are estimates and remain subject to credit approval, vehicle availability, final appraisal, and current manufacturer programs."};}
@@ -50,21 +50,99 @@ function normalizeNumericInputValue(value){
  if(firstDot!==-1&&firstDot!==lastDot){
    normalized=normalized.slice(0,lastDot).replace(/\./g,"")+normalized.slice(lastDot);
  }
- return `${negative?"-":""}${normalized}`;
+ const signed=`${negative?"-":""}${normalized}`;
+ if(signed===".")return"0.";
+ if(signed==="-.")return"-0.";
+ if(signed.startsWith("."))return`0${signed}`;
+ if(signed.startsWith("-."))return`-0${signed.slice(1)}`;
+ return signed;
 }
 function num(v){const normalized=normalizeNumericInputValue(v);if(normalized==="")return 0;const n=Number(normalized);return Number.isFinite(n)?n:0;}
+function runNumericNormalizationSelfCheck(){
+ const enabled=typeof window!=="undefined"&&(window.location.protocol==="file:"||window.location.hostname==="localhost"||window.location.hostname==="127.0.0.1");
+ if(!enabled)return;
+ const cases=[
+  [".9","0.9"],
+  ["-.9","-0.9"],
+  [".","0."],
+  ["-.","-0."],
+  ["3.99","3.99"],
+  ["3,99","3.99"],
+  ["1,234.56","1234.56"],
+  ["1.234,56","1234.56"],
+  ["  $ 2,345.70 ","2345.70"],
+  ["2..9","2.9"]
+ ];
+ const failures=[];
+ cases.forEach(([input,expected])=>{
+  const actual=normalizeNumericInputValue(input);
+  if(actual!==expected)failures.push({input,expected,actual});
+ });
+ if(!failures.length){
+  console.info("[BQP] Numeric normalization self-check passed",{total:cases.length});
+ }else{
+  console.warn("[BQP] Numeric normalization self-check failed",failures);
+ }
+}
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));}
 function showPage(name){document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.id==="page-"+name));document.querySelectorAll(".main-nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===name));if(name==="quote")renderQuote();if(name==="worksheet")renderWorksheet();if(name==="saved")renderSaved();if(name==="dashboard")renderDashboard();if(name==="programs")renderPrograms();}
 function bindNav(){document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.page)));document.querySelectorAll("[data-page-link]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.pageLink)));}
-function applySettingsToDeal(force=false){const s=settings();if(force||state.vehicle.taxRate===null)state.vehicle.taxRate=s.defaultTax;if(force||!state.customer.salesperson)state.customer.salesperson=s.defaultSalesperson;state.fees.doc.amount=force?s.docFee:(state.fees.doc.amount??s.docFee);state.fees.reg.amount=force?s.regFee:(state.fees.reg.amount??s.regFee);state.fees.acq.amount=force?s.acqFee:(state.fees.acq.amount??s.acqFee);state.fees.misc.amount=force?s.miscFee:(state.fees.misc.amount??s.miscFee);populateSalespeople();writeStateToForm();}
+function applySettingsToDeal(force=false){const s=settings();ensureFeeState();if(force||state.vehicle.taxRate===null)state.vehicle.taxRate=s.defaultTax;if(force||!state.customer.salesperson)state.customer.salesperson=s.defaultSalesperson;state.fees.doc.amount=force?s.docFee:(state.fees.doc.amount??s.docFee);state.fees.reg.amount=force?s.regFee:(state.fees.reg.amount??s.regFee);state.fees.acq.amount=force?s.acqFee:(state.fees.acq.amount??s.acqFee);state.fees.misc.amount=force?s.miscFee:(state.fees.misc.amount??s.miscFee);populateSalespeople();writeStateToForm();}
 function populateSalespeople(){const s=settings(),sel=$("salesperson");sel.innerHTML='<option value="">Select salesperson</option>'+s.salespeople.map(n=>`<option>${esc(n)}</option>`).join("");sel.value=state.customer.salesperson||s.defaultSalesperson||"";}
+function ensureFeeState(){state.fees=state.fees||{};state.fees.doc=state.fees.doc||{amount:0,treatment:"upfront"};state.fees.reg=state.fees.reg||{amount:0,treatment:"upfront"};state.fees.acq=state.fees.acq||{amount:0,treatment:"capitalize"};state.fees.misc=state.fees.misc||{amount:0,treatment:"capitalize"};state.fees.cashTax=state.fees.cashTax||{amount:0,treatment:"upfront"};if(!["upfront","capitalize"].includes(state.fees.cashTax.treatment))state.fees.cashTax.treatment="upfront";}
 function readFormToState(){state.customer={clientId:state.customer.clientId||"",firstName:$("firstName").value.trim(),lastName:$("lastName").value.trim(),coFirstName:$("coFirstName").value.trim(),coLastName:$("coLastName").value.trim(),email:$("customerEmail").value.trim().toLowerCase(),phone:$("customerPhone").value.trim(),salesperson:$("salesperson").value,currentPayment:num($("currentPayment").value)};
 state.vehicle={stockNumber:$("stockNumber").value.trim(),vin:$("vin").value.trim().toUpperCase(),year:$("year").value,make:$("make").value.trim(),model:$("model").value.trim(),msrp:num($("msrp").value),discount:num($("discount").value),cost:num($("vehicleCost").value),pack:num($("pack").value),taxRate:$("taxRate").value===""?null:num($("taxRate").value)};
 state.trade={vin:$("tradeVin").value.trim().toUpperCase(),vehicle:$("tradeVehicle").value.trim(),allowance:num($("tradeAllowance").value),acv:num($("tradeAcv").value),payoff:num($("tradePayoff").value),cashDown:num($("cashDown").value),equityMethod:$("equityMethod").value,equityCashBack:num($("equityCashBack").value),applyTradeTaxCredit:$("applyTradeTaxCredit")?$("applyTradeTaxCredit").checked:true};
-state.fees={doc:{amount:num($("docFee").value),treatment:$("docTreatment").value},reg:{amount:num($("regFee").value),treatment:$("regTreatment").value},acq:{amount:num($("acqFee").value),treatment:$("acqTreatment").value},misc:{amount:num($("miscFee").value),treatment:$("miscTreatment").value}};
+const leaseCashTaxAmount=Math.max(0,state.trade.cashDown)*(state.vehicle.taxRate===null?0:(num(state.vehicle.taxRate)/100));
+state.fees={doc:{amount:num($("docFee").value),treatment:$("docTreatment").value},reg:{amount:num($("regFee").value),treatment:$("regTreatment").value},acq:{amount:num($("acqFee").value),treatment:$("acqTreatment").value},misc:{amount:num($("miscFee").value),treatment:$("miscTreatment").value},cashTax:{amount:leaseCashTaxAmount,treatment:$("cashTaxTreatment")?$("cashTaxTreatment").value:"upfront"}};
+ensureFeeState();
 state.notes=$("managerNotes").value;state.scenarios=(state.scenarios||[]).map(syncScenarioName);state.presentation={showPaymentComparison:$("showPaymentComparison").checked,combineDiscountIncentives:$("combineDiscountIncentives").checked,showSignature:$("showSignature").checked};state.updatedAt=new Date().toISOString();}
-function writeStateToForm(){if(!state.trade){state.trade={allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true};}state.trade.applyTradeTaxCredit=state.trade.applyTradeTaxCredit!==false;state.scenarios=(state.scenarios||[]).map(syncScenarioName);const map={firstName:state.customer.firstName,lastName:state.customer.lastName,coFirstName:state.customer.coFirstName,coLastName:state.customer.coLastName,customerEmail:state.customer.email||"",customerPhone:state.customer.phone||"",currentPayment:state.customer.currentPayment||"",stockNumber:state.vehicle.stockNumber,vin:state.vehicle.vin,year:state.vehicle.year,make:state.vehicle.make,model:state.vehicle.model,msrp:state.vehicle.msrp||"",discount:state.vehicle.discount||0,taxRate:state.vehicle.taxRate??"",vehicleCost:state.vehicle.cost||"",pack:state.vehicle.pack||"",tradeVin:state.trade.vin,tradeVehicle:state.trade.vehicle,tradeAllowance:state.trade.allowance||"",tradeAcv:state.trade.acv||"",tradePayoff:state.trade.payoff||"",cashDown:state.trade.cashDown||"",equityCashBack:state.trade.equityCashBack||0,docFee:state.fees.doc.amount,regFee:state.fees.reg.amount,acqFee:state.fees.acq.amount,miscFee:state.fees.misc.amount,managerNotes:state.notes};Object.entries(map).forEach(([id,v])=>{if($(id))$(id).value=v});$("equityMethod").value=state.trade.equityMethod;$("applyTradeTaxCredit").checked=state.trade.applyTradeTaxCredit!==false;$("docTreatment").value=state.fees.doc.treatment;$("regTreatment").value=state.fees.reg.treatment;$("acqTreatment").value=state.fees.acq.treatment;$("miscTreatment").value=state.fees.misc.treatment;$("showPaymentComparison").checked=state.presentation.showPaymentComparison!==false;$("combineDiscountIncentives").checked=Boolean(state.presentation.combineDiscountIncentives);$("showSignature").checked=Boolean(state.presentation.showSignature);populateSalespeople();$("salesperson").value=state.customer.salesperson||"";updateComputed();updateClientHistoryDisplays();}function updateComputed(){readFormToState();const selling=Math.max(0,state.vehicle.msrp-state.vehicle.discount),equity=state.trade.allowance-state.trade.payoff,gross=state.trade.allowance-state.trade.acv;$("sellingPriceDisplay").textContent=money.format(selling);$("tradeEquityDisplay").textContent=money.format(equity);$("tradeGrossDisplay").textContent=money.format(gross);$("equityCashBackWrap").classList.toggle("hidden",state.trade.equityMethod!=="split");renderIncentives();renderScenarios();renderWorksheet();}
-function mileageAdjustment(m){return ({7500:4,10000:3,12000:2,15000:0})[Number(m)]||0;}
+function writeStateToForm(){
+ if(!state.trade){
+  state.trade={allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true};
+ }
+ state.trade.applyTradeTaxCredit=state.trade.applyTradeTaxCredit!==false;
+ ensureFeeState();
+ const leaseCashTaxAmount=Math.max(0,num(state.trade.cashDown))*(state.vehicle.taxRate===null?0:(num(state.vehicle.taxRate)/100));
+ state.fees.cashTax.amount=leaseCashTaxAmount;
+ state.scenarios=(state.scenarios||[]).map(syncScenarioName);
+ const map={
+  firstName:state.customer.firstName,lastName:state.customer.lastName,coFirstName:state.customer.coFirstName,coLastName:state.customer.coLastName,
+  customerEmail:state.customer.email||"",customerPhone:state.customer.phone||"",currentPayment:state.customer.currentPayment||"",
+  stockNumber:state.vehicle.stockNumber,vin:state.vehicle.vin,year:state.vehicle.year,make:state.vehicle.make,model:state.vehicle.model,
+  msrp:state.vehicle.msrp||"",discount:state.vehicle.discount||0,taxRate:state.vehicle.taxRate??"",vehicleCost:state.vehicle.cost||"",pack:state.vehicle.pack||"",
+  tradeVin:state.trade.vin,tradeVehicle:state.trade.vehicle,tradeAllowance:state.trade.allowance||"",tradeAcv:state.trade.acv||"",tradePayoff:state.trade.payoff||"",cashDown:state.trade.cashDown||"",equityCashBack:state.trade.equityCashBack||0,
+  docFee:state.fees.doc.amount,regFee:state.fees.reg.amount,acqFee:state.fees.acq.amount,miscFee:state.fees.misc.amount,managerNotes:state.notes
+ };
+ Object.entries(map).forEach(([id,v])=>{if($(id))$(id).value=v});
+ $("equityMethod").value=state.trade.equityMethod;
+ $("applyTradeTaxCredit").checked=state.trade.applyTradeTaxCredit!==false;
+ $("docTreatment").value=state.fees.doc.treatment;
+ $("regTreatment").value=state.fees.reg.treatment;
+ $("acqTreatment").value=state.fees.acq.treatment;
+ $("miscTreatment").value=state.fees.misc.treatment;
+ if($("cashTaxTreatment"))$("cashTaxTreatment").value=state.fees.cashTax.treatment;
+ if($("cashDownTaxDisplay"))$("cashDownTaxDisplay").textContent=money.format(leaseCashTaxAmount);
+ $("showPaymentComparison").checked=state.presentation.showPaymentComparison!==false;
+ $("combineDiscountIncentives").checked=Boolean(state.presentation.combineDiscountIncentives);
+ $("showSignature").checked=Boolean(state.presentation.showSignature);
+ populateSalespeople();
+ $("salesperson").value=state.customer.salesperson||"";
+ updateComputed();
+ updateClientHistoryDisplays();
+}
+function updateComputed(){
+ readFormToState();
+ const selling=Math.max(0,state.vehicle.msrp-state.vehicle.discount),equity=state.trade.allowance-state.trade.payoff,gross=state.trade.allowance-state.trade.acv;
+ $("sellingPriceDisplay").textContent=money.format(selling);
+ $("tradeEquityDisplay").textContent=money.format(equity);
+ $("tradeGrossDisplay").textContent=money.format(gross);
+ if($("cashDownTaxDisplay"))$("cashDownTaxDisplay").textContent=money.format(state.fees.cashTax?.amount||0);
+ $("equityCashBackWrap").classList.toggle("hidden",state.trade.equityMethod!=="split");
+ renderIncentives();
+ renderScenarios();
+ renderWorksheet();
+}function mileageAdjustment(m){return ({7500:4,10000:3,12000:2,15000:0})[Number(m)]||0;}
 function incentiveAppliesTo(item,type){const a=item.appliesToTypes||item.appliesTo||"all";return Array.isArray(a)?a.includes("all")||a.includes(type):a==="all"||a===type;}
 function incentiveAppliesLabel(item){const a=item.appliesToTypes||item.appliesTo||"all",v=Array.isArray(a)?a:[a],l={all:"All Types",lease:"Lease",finance:"Finance",cash:"Cash",select:"BMW Select"};return v.map(x=>l[x]||x).join(", ");}
 function normalizeIncentiveTypes(value){
@@ -261,7 +339,7 @@ function migrateLegacyDealIncentives(deal){
   });
   return deal;
 }
-function feeTotals(type){const rows=[["Document Fee",state.fees.doc,true],["Registration / Title",state.fees.reg,true],["Acquisition Fee",state.fees.acq,type==="lease"],["Miscellaneous Fee",state.fees.misc,true]].filter(r=>r[2]&&r[1].treatment!=="none"&&r[1].amount>0);return {rows,cap:rows.filter(r=>r[1].treatment==="capitalize").reduce((s,r)=>s+r[1].amount,0),upfront:rows.filter(r=>r[1].treatment==="upfront").reduce((s,r)=>s+r[1].amount,0)};}
+function feeTotals(type,options={}){ensureFeeState();const cashTaxAmount=Math.max(0,num(options.cashTaxAmount??state.fees.cashTax.amount));const cashTaxFee={amount:cashTaxAmount,treatment:state.fees.cashTax.treatment||"upfront"};const rows=[["Document Fee",state.fees.doc,true],["Registration / Title",state.fees.reg,true],["Acquisition Fee",state.fees.acq,type==="lease"],["Miscellaneous Fee",state.fees.misc,true],["Lease Tax on Cash Reduction",cashTaxFee,type==="lease"]].filter(r=>r[2]&&r[1].treatment!=="none"&&r[1].amount>0);return {rows,cap:rows.filter(r=>r[1].treatment==="capitalize").reduce((s,r)=>s+r[1].amount,0),upfront:rows.filter(r=>r[1].treatment==="upfront").reduce((s,r)=>s+r[1].amount,0)};}
 function tradeAllocation(allowance=state.trade.allowance){const equity=allowance-state.trade.payoff;let cashBack=0,cap=Math.max(0,equity);if(state.trade.equityMethod==="cashback"){cashBack=Math.max(0,equity);cap=0}else if(state.trade.equityMethod==="split"){cashBack=Math.min(Math.max(0,state.trade.equityCashBack),Math.max(0,equity));cap=Math.max(0,equity-cashBack)}return {equity,cashBack,cap};}
 function calculateTaxableAmount({sellingPrice=0,tradeAllowance=0,taxableFees=0,applyTradeTaxCredit=true,taxRate=0}={}){
   const eligibleTradeTaxCredit=applyTradeTaxCredit?Math.max(0,num(tradeAllowance)):0;
@@ -300,7 +378,7 @@ function syncScenarioName(s){
   return s;
 }
 function validateScenario(s){
-const missing=[];if(!state.vehicle.msrp)missing.push("MSRP");if(state.vehicle.taxRate===null)missing.push("tax rate");if(s.type==="lease"){if(!s.term)missing.push("term");if(!s.miles)missing.push("mileage");if(s.residual===""||s.residual==null)missing.push("residual");if(s.baseMoneyFactor===""||s.baseMoneyFactor==null)missing.push("base money factor");if(s.moneyFactor===""||s.moneyFactor==null)missing.push("used money factor")}if(s.type==="finance"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR")}if(s.type==="select"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR");if(s.balloon===""||s.balloon==null)missing.push("balloon %")}return missing;}function normalizeModelName(value){
+const missing=[];if(!state.vehicle.msrp)missing.push("MSRP");if(state.vehicle.taxRate===null)missing.push("tax rate");if(s.type==="lease"){if(!s.term)missing.push("term");if(!s.miles)missing.push("mileage");if(s.residual===""||s.residual==null)missing.push("residual");if(s.baseMoneyFactor===""||s.baseMoneyFactor==null)missing.push("base money factor");if(s.moneyFactor===""||s.moneyFactor==null)missing.push("used money factor");if(!s.onePay&&s.useDueTarget&&num(s.dueTarget)<=0)missing.push("target due at signing")}if(s.type==="finance"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR")}if(s.type==="select"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR");if(s.balloon===""||s.balloon==null)missing.push("balloon %")}return missing;}function normalizeModelName(value){
  return String(value||"")
    .toLowerCase()
    .replace(/\bbmw\b/g,"")
@@ -507,7 +585,7 @@ function setScenarioNameFieldState(nameSource, value){
   if(labelText)labelText.textContent=auto?"Scenario Title (Automatic)":"Scenario Title";
 }
 function openScenario(s=null){const type=s?s.type:$("scenarioTemplate").value,s2=s?structuredClone(s):defaultScenario(type);const source=normalizeScenarioNameSource(s2);const title=source==="custom"?s2.name:scenarioAutoName(s2);$("scenarioId").value=s2.id;setScenarioNameFieldState(source,title);$("scenarioType").value=s2.type;populateScenarioProgramOptions(s2.programId||"");$("scenarioOnePay").checked=s2.onePay;$("scenarioTerm").value=s2.term;$("scenarioMiles").value=s2.miles;$("scenarioResidual").value=s2.residual;$("scenarioBaseMf").value=s2.baseMoneyFactor??"";$("scenarioMf").value=s2.moneyFactor;$("scenarioOnePayReduction").value=s2.onePayReduction;$("scenarioInceptionMileage").value=s2.inceptionMileage;$("scenarioInceptionCharge").value=s2.inceptionCharge;$("scenarioCustomMiles").value=s2.customMiles;$("scenarioCustomCharge").value=s2.customCharge;$("scenarioBuyApr").value=s2.buyApr??"";$("scenarioApr").value=s2.apr;$("scenarioBalloon").value=s2.balloon;$("scenarioPriceAdjustment").value=s2.priceAdjustment;$("scenarioCashAdjustment").value=s2.cashAdjustment;$("scenarioTradeAdjustment").value=s2.tradeAdjustment;$("scenarioExtraIncentive").value=s2.extraIncentive;$("scenarioShowRate").checked=s2.showRate;$("scenarioShowResidual").checked=s2.showResidual;$("scenarioShowFees").checked=s2.showFees;updateScenarioFields();updateScenarioPreview();$("scenarioDialog").showModal();}
-function updateScenarioFields(){const t=$("scenarioType").value;document.querySelectorAll(".lease-field").forEach(e=>e.classList.toggle("hidden",t!=="lease"));document.querySelectorAll(".rate-field").forEach(e=>e.classList.toggle("hidden",!["finance","select"].includes(t)));document.querySelectorAll(".select-field").forEach(e=>e.classList.toggle("hidden",t!=="select"));document.querySelectorAll(".term-field").forEach(e=>e.classList.toggle("hidden",t==="cash"));}
+function updateScenarioFields(){const t=$("scenarioType").value;document.querySelectorAll(".lease-field").forEach(e=>e.classList.toggle("hidden",t!=="lease"));document.querySelectorAll(".rate-field").forEach(e=>e.classList.toggle("hidden",!["finance","select"].includes(t)));document.querySelectorAll(".select-field").forEach(e=>e.classList.toggle("hidden",t!=="select"));document.querySelectorAll(".term-field").forEach(e=>e.classList.toggle("hidden",t==="cash"));if($("scenarioDueTargetWrap"))updateScenarioDueTargetUi();}
 function scenarioFromDialog(){
   const type=$("scenarioType").value;
   const term=num($("scenarioTerm").value);
@@ -1014,21 +1092,25 @@ function calcScenario(s,override={}){
  const scenarioIncentives=scenarioEligibleIncentives(s);
  const incentiveTotal=scenarioIncentives.reduce((sum,item)=>sum+num(item.amount),0)+num(s.extraIncentive);
  const selling=Math.max(0,msrp-discount+s.priceAdjustment-incentiveTotal);
- const cash=Math.max(0,override.cashDown??state.trade.cashDown+s.cashAdjustment);
+ const requestedCash=Math.max(0,override.cashDown??state.trade.cashDown+s.cashAdjustment);
  const allowance=Math.max(0,override.tradeAllowance??state.trade.allowance+s.tradeAdjustment);
- const tax=state.vehicle.taxRate/100,fees=feeTotals(s.type),trade=tradeAllocation(allowance),taxSummary=calculateTaxableAmount({sellingPrice:selling,tradeAllowance:allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate});
+ const tax=state.vehicle.taxRate/100,trade=tradeAllocation(allowance),taxSummary=calculateTaxableAmount({sellingPrice:selling,tradeAllowance:allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate});
  if(s.type==="lease"){
-   const adjustedPct=num(s.residual)+mileageAdjustment(s.miles),inceptionDed=Math.max(0,num(s.inceptionMileage)-500)*num(s.inceptionCharge),customDed=num(s.customMiles)*num(s.customCharge),residualValue=Math.max(0,msrp*adjustedPct/100-inceptionDed-customDed),capCost=selling+fees.cap+Math.max(0,-trade.equity)-trade.cap-cash,usedMf=Math.max(0,num(s.moneyFactor)-(s.onePay?num(s.onePayReduction):0)),base=((capCost-residualValue)/s.term)+((capCost+residualValue)*usedMf),monthlyTax=base*tax,payment=base+monthlyTax,taxOnCash=cash*tax,estimatedTotalTax=monthlyTax*s.term+taxOnCash,standardDue=payment+fees.upfront+cash+taxOnCash,onePay=payment*s.term+fees.upfront+cash+taxOnCash;
-   return {ready:true,payment,basePayment:base,monthlyTax,estimatedTotalTax,taxableAmount:base,dueUpfront:s.onePay?onePay:standardDue,onePayTotal:onePay,equivalentMonthly:payment,residualValue,adjustedResidualPct:adjustedPct,usedMf,baseMf:num(s.baseMoneyFactor),capCost,amountFinanced:capCost,fees,totalFees:fees.cap+fees.upfront,taxOnCash,incentives:incentiveTotal,selling,trade};
+   const adjustedPct=num(s.residual)+mileageAdjustment(s.miles),inceptionDed=Math.max(0,num(s.inceptionMileage)-500)*num(s.inceptionCharge),customDed=num(s.customMiles)*num(s.customCharge),residualValue=Math.max(0,msrp*adjustedPct/100-inceptionDed-customDed),usedMf=Math.max(0,num(s.moneyFactor)-(s.onePay?num(s.onePayReduction):0));
+   const buildLeaseResult=(cashValue)=>{const leaseCashTax=Math.max(0,cashValue*tax),fees=feeTotals(s.type,{cashTaxAmount:leaseCashTax}),capCost=selling+fees.cap+Math.max(0,-trade.equity)-trade.cap-cashValue,base=((capCost-residualValue)/s.term)+((capCost+residualValue)*usedMf),monthlyTax=base*tax,payment=base+monthlyTax,estimatedTotalTax=monthlyTax*s.term+leaseCashTax,standardDue=payment+fees.upfront+cashValue,onePay=payment*s.term+fees.upfront+cashValue;return {cashValue,leaseCashTax,fees,capCost,base,monthlyTax,payment,estimatedTotalTax,standardDue,onePay};};
+   let solvedCash=requestedCash,targetDueAtSigning=null,targetDueUnreachable=false;
+   if(!s.onePay&&s.useDueTarget&&num(s.dueTarget)>0){targetDueAtSigning=num(s.dueTarget);const minResult=buildLeaseResult(0);if(targetDueAtSigning<=minResult.standardDue){solvedCash=0;targetDueUnreachable=true;}else{let low=0,high=Math.max(targetDueAtSigning,requestedCash,msrp,1000),highResult=buildLeaseResult(high),guard=0;while(highResult.standardDue<targetDueAtSigning&&guard<30){high*=2;highResult=buildLeaseResult(high);guard++;}for(let i=0;i<50;i++){const mid=(low+high)/2,midResult=buildLeaseResult(mid);if(midResult.standardDue<targetDueAtSigning)low=mid;else high=mid;}solvedCash=high;}}
+   const solved=buildLeaseResult(solvedCash);
+   return {ready:true,payment:solved.payment,basePayment:solved.base,monthlyTax:solved.monthlyTax,estimatedTotalTax:solved.estimatedTotalTax,taxableAmount:solved.base,dueUpfront:s.onePay?solved.onePay:solved.standardDue,onePayTotal:solved.onePay,equivalentMonthly:solved.payment,residualValue,adjustedResidualPct:adjustedPct,usedMf,baseMf:num(s.baseMoneyFactor),capCost:solved.capCost,amountFinanced:solved.capCost,fees:solved.fees,totalFees:solved.fees.cap+solved.fees.upfront,taxOnCash:solved.leaseCashTax,incentives:incentiveTotal,selling,trade,effectiveCashDown:solved.cashValue,targetDueAtSigning,targetDueUnreachable};
  }
- const taxable=taxSummary.taxableAmount,salesTax=taxSummary.salesTax,principal=selling+salesTax+fees.cap+fees.upfront+state.trade.payoff-allowance-cash,totalFees=fees.cap+fees.upfront;
+ const fees=feeTotals(s.type),cash=requestedCash,taxable=taxSummary.taxableAmount,salesTax=taxSummary.salesTax,principal=selling+salesTax+fees.cap+fees.upfront+state.trade.payoff-allowance-cash,totalFees=fees.cap+fees.upfront;
  if(s.type==="cash")return {ready:true,payment:Math.max(0,principal),dueUpfront:Math.max(0,principal),taxableAmount:taxable,amountFinanced:principal,salesTax,eligibleTradeTaxCredit:taxSummary.eligibleTradeTaxCredit,tradeTaxCreditApplied:state.trade.applyTradeTaxCredit!==false,totalFees,fees,incentives:incentiveTotal,selling,trade};
  if(s.type==="finance"){const r=num(s.apr)/100/12,payment=r===0?principal/s.term:principal*r/(1-Math.pow(1+r,-s.term));return {ready:true,payment,dueUpfront:cash,taxableAmount:taxable,amountFinanced:principal,salesTax,eligibleTradeTaxCredit:taxSummary.eligibleTradeTaxCredit,tradeTaxCreditApplied:state.trade.applyTradeTaxCredit!==false,totalFees,fees,incentives:incentiveTotal,selling,trade};}
  const balloon=msrp*num(s.balloon)/100,r=num(s.apr)/100/12,payment=r===0?(principal-balloon)/s.term:(principal-balloon/Math.pow(1+r,s.term))*r/(1-Math.pow(1+r,-s.term));
  return {ready:true,payment,dueUpfront:cash,taxableAmount:taxable,amountFinanced:principal,finalPayment:balloon,salesTax,eligibleTradeTaxCredit:taxSummary.eligibleTradeTaxCredit,tradeTaxCreditApplied:state.trade.applyTradeTaxCredit!==false,totalFees,fees,incentives:incentiveTotal,selling,trade};
 }
 function defaultScenario(type){
- const base={id:crypto.randomUUID(),name:"",nameSource:"auto",type:type==="onepay"?"lease":type,selected:false,term:type==="cash"?1:(type==="lease"||type==="onepay"?36:60),miles:type==="lease"||type==="onepay"?10000:"",residual:"",baseMoneyFactor:"",moneyFactor:"",onePay:type==="onepay",onePayReduction:.00080,inceptionMileage:0,inceptionCharge:.20,customMiles:0,customCharge:.20,buyApr:"",apr:"",balloon:"",priceAdjustment:0,cashAdjustment:0,tradeAdjustment:0,extraIncentive:0,incentives:[],showRate:false,showResidual:false,showFees:true,programId:""};
+ const base={id:crypto.randomUUID(),name:"",nameSource:"auto",type:type==="onepay"?"lease":type,selected:false,term:type==="cash"?1:(type==="lease"||type==="onepay"?36:60),miles:type==="lease"||type==="onepay"?10000:"",residual:"",baseMoneyFactor:"",moneyFactor:"",onePay:type==="onepay",onePayReduction:.00080,inceptionMileage:0,inceptionCharge:.20,customMiles:0,customCharge:.20,useDueTarget:false,dueTarget:0,buyApr:"",apr:"",balloon:"",priceAdjustment:0,cashAdjustment:0,tradeAdjustment:0,extraIncentive:0,incentives:[],showRate:false,showResidual:false,showFees:true,programId:""};
  base.name=scenarioAutoName(base);
  return base;
 }
@@ -1086,8 +1168,10 @@ function renderQuote(){
  $("quoteCards").innerHTML=selected.length?selected.map(s=>{
    const displayName=scenarioDisplayName(s),r=calcScenario(s),amount=s.onePay?r.onePayTotal:r.payment,label=s.type==="cash"?"TOTAL CASH DUE":s.onePay?"TOTAL ONE-PAY":"PER MONTH",scenarioIncentives=r.incentives||0,taxSummary=calculateTaxableAmount({sellingPrice:r.selling,tradeAllowance:state.trade.allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate}),lines=[["MSRP / Market Value",money.format(state.vehicle.msrp)]];
    if(state.presentation.combineDiscountIncentives){lines.push(["Total Discount & Incentives",money.format(state.vehicle.discount+scenarioIncentives)]);}else{lines.push(["Dealer Discount",money.format(state.vehicle.discount)],["Incentives",money.format(scenarioIncentives)]);}
-   lines.push(["Adjusted Price",money.format(r.selling)],["Trade Allowance",money.format(state.trade.allowance)],["Trade Payoff",money.format(state.trade.payoff)],["Trade Equity",money.format(state.trade.allowance-state.trade.payoff)],["Cash Up Front",money.format(state.trade.cashDown)]);
-   if(s.type==="lease"){lines.push(["Monthly Sales Tax",money.format(r.monthlyTax||0)],["Estimated Total Tax",money.format(r.estimatedTotalTax||0)],["Adjusted Cap Cost",money.format(r.capCost||0)]);}else{lines.push(["Trade Tax Credit",state.trade.applyTradeTaxCredit!==false?"Applied":"Not Applied"],["Taxable Amount",money.format(taxSummary.taxableAmount||0)],["Sales Tax",money.format(taxSummary.salesTax||0)],["Total Fees",money.format(r.totalFees||0)]);if(s.type!=="cash")lines.push(["Amount Financed",money.format(r.amountFinanced||0)]);}
+  const displayCash=(s.type==="lease"&&Number.isFinite(r.effectiveCashDown))?r.effectiveCashDown:state.trade.cashDown;
+  lines.push(["Adjusted Price",money.format(r.selling)],["Trade Allowance",money.format(state.trade.allowance)],["Trade Payoff",money.format(state.trade.payoff)],["Trade Equity",money.format(state.trade.allowance-state.trade.payoff)],["Cash Up Front",money.format(displayCash)]);
+  if(s.type==="lease"&&s.useDueTarget)lines.push(["Target Due at Signing",money.format(num(s.dueTarget))]);
+  if(s.type==="lease"){lines.push(["Monthly Sales Tax",money.format(r.monthlyTax||0)],["Adjusted Cap Cost",money.format(r.capCost||0)]);}else{lines.push(["Trade Tax Credit",state.trade.applyTradeTaxCredit!==false?"Applied":"Not Applied"],["Taxable Amount",money.format(taxSummary.taxableAmount||0)],["Sales Tax",money.format(taxSummary.salesTax||0)],["Total Fees",money.format(r.totalFees||0)]);if(s.type!=="cash")lines.push(["Amount Financed",money.format(r.amountFinanced||0)]);}
    if(s.showRate&&s.type==="lease")lines.push(["Money Factor",String(r.usedMf.toFixed(5))]);
    if(s.showRate&&["finance","select"].includes(s.type))lines.push(["APR",num(s.apr).toFixed(2)+"%"]);
    if(s.showResidual&&s.type==="lease")lines.push(["Adjusted Residual",r.adjustedResidualPct.toFixed(2)+"%"],["Residual Value",money.format(r.residualValue)]);
@@ -1117,11 +1201,11 @@ function renderWorksheet(){
    <div class="worksheet-block"><h3>Selected Incentives</h3>${incentiveLines}</div>
    <div class="worksheet-block"><h3>Accepted Scenario</h3>${ws("Scenario",acceptedDisplayName)}${ws("Type",accepted.type)}${ws("Term",accepted.term+" months")}${accepted.type==="lease"?ws("Annual Mileage",Number(accepted.miles).toLocaleString("en-US")):""}${ws(accepted.onePay?"One-Pay Total":accepted.type==="cash"?"Cash Due":"Payment",money.format(accepted.onePay?result.onePayTotal:result.payment))}</div>
    <div class="worksheet-block"><h3>Programs / Rates</h3>${rateLines}</div>
-   <div class="worksheet-block"><h3>Taxes & Fees</h3>${accepted.type==="lease"?ws("Monthly Sales Tax",money.format(result.monthlyTax||0))+ws("Estimated Total Tax",money.format(result.estimatedTotalTax||0))+ws("Tax on Cash Reduction",money.format(result.taxOnCash||0)):ws("Trade Tax Credit",result.tradeTaxCreditApplied?"Applied":"Not Applied")+ws("Eligible Trade Tax Credit",money.format(result.eligibleTradeTaxCredit||0))+ws("Taxable Amount",money.format(taxSummary.taxableAmount||0))+ws("Sales Tax",money.format(taxSummary.salesTax||0))+ws("Estimated Tax Savings",money.format((taxSummary.eligibleTradeTaxCredit*state.vehicle.taxRate/100)||0))}${ws("Document Fee",money.format(state.fees.doc.amount))}${ws("Registration / Title",money.format(state.fees.reg.amount))}${accepted.type==="lease"?ws("Acquisition Fee",money.format(state.fees.acq.amount)):""}${ws("Miscellaneous Fee",money.format(state.fees.misc.amount))}${ws("Total Included Fees",money.format(result.totalFees||0))}</div>
-   <div class="worksheet-block"><h3>Financing Summary</h3>${accepted.type==="lease"?ws("Adjusted Cap Cost",money.format(result.capCost||0))+ws("Base Payment Before Tax",money.format(result.basePayment||0))+ws("Amount Financed / Cap Cost",money.format(result.amountFinanced||0)):ws("Amount Financed",money.format(result.amountFinanced||0))+ws("Cash Down",money.format(state.trade.cashDown))+ws("Net Trade Equity",money.format(state.trade.allowance-state.trade.payoff))}${accepted.type==="select"?ws("Final Balloon Payment",money.format(result.finalPayment||0)):""}</div>
+  <div class="worksheet-block"><h3>Taxes & Fees</h3>${accepted.type==="lease"?ws("Monthly Sales Tax",money.format(result.monthlyTax||0))+ws("Estimated Total Tax",money.format(result.estimatedTotalTax||0))+ws("Tax on Cash Reduction",money.format(result.taxOnCash||0))+ws("Tax on Cash Treatment",state.fees.cashTax.treatment==="capitalize"?"Include in Payment":"Pay Up Front"):ws("Trade Tax Credit",result.tradeTaxCreditApplied?"Applied":"Not Applied")+ws("Eligible Trade Tax Credit",money.format(result.eligibleTradeTaxCredit||0))+ws("Taxable Amount",money.format(taxSummary.taxableAmount||0))+ws("Sales Tax",money.format(taxSummary.salesTax||0))+ws("Estimated Tax Savings",money.format((taxSummary.eligibleTradeTaxCredit*state.vehicle.taxRate/100)||0))}${ws("Document Fee",money.format(state.fees.doc.amount))}${ws("Registration / Title",money.format(state.fees.reg.amount))}${accepted.type==="lease"?ws("Acquisition Fee",money.format(state.fees.acq.amount)):""}${ws("Miscellaneous Fee",money.format(state.fees.misc.amount))}${ws("Total Included Fees",money.format(result.totalFees||0))}</div>
+  <div class="worksheet-block"><h3>Financing Summary</h3>${accepted.type==="lease"?ws("Adjusted Cap Cost",money.format(result.capCost||0))+ws("Base Payment Before Tax",money.format(result.basePayment||0))+ws("Amount Financed / Cap Cost",money.format(result.amountFinanced||0))+ws("Cash Applied to Cap Reduction",money.format(result.effectiveCashDown||0))+(accepted.useDueTarget?ws("Target Due at Signing",money.format(num(accepted.dueTarget))):""):ws("Amount Financed",money.format(result.amountFinanced||0))+ws("Cash Down",money.format(state.trade.cashDown))+ws("Net Trade Equity",money.format(state.trade.allowance-state.trade.payoff))}${accepted.type==="select"?ws("Final Balloon Payment",money.format(result.finalPayment||0)):""}</div>
    <details class="worksheet-block full-width verification-block" open><summary><h3>Calculation Verification</h3></summary><div class="verification-grid">${ws("MSRP",money.format(state.vehicle.msrp))}${ws("Selling Price Before Incentives",money.format(selling))}${ws("Applied Incentives",money.format(result.incentives||0))}${ws("Adjusted Selling Price",money.format(result.selling||0))}${ws("Trade Allowance",money.format(state.trade.allowance))}${ws("Trade Payoff",money.format(state.trade.payoff))}${accepted.type==="lease"?ws("Adjusted Cap Cost",money.format(result.capCost||0))+ws("Residual Value",money.format(result.residualValue||0))+ws("Base Payment",money.format(result.basePayment||0))+ws("Monthly Tax",money.format(result.monthlyTax||0)):ws("Trade Tax Credit",result.tradeTaxCreditApplied?"Applied":"Not Applied")+ws("Eligible Trade Tax Credit",money.format(result.eligibleTradeTaxCredit||0))+ws("Taxable Amount",money.format(taxSummary.taxableAmount||0))+ws("Sales Tax",money.format(taxSummary.salesTax||0))+ws("Total Fees",money.format(result.totalFees||0))+ws("Amount Financed",money.format(result.amountFinanced||0))}${accepted.type==="select"?ws("Balloon Amount",money.format(result.finalPayment||0)):""}${ws("Calculated Payment",money.format(accepted.onePay?result.onePayTotal:result.payment))}</div></details>
-   <div class="worksheet-block full-width"><h3>Due Up Front Breakdown</h3><div class="upfront-scenario">${(()=>{const upfront=[];if(accepted.type==="lease"){upfront.push([accepted.onePay?"One-Pay Lease Total":"First Payment",money.format(accepted.onePay?result.onePayTotal:result.payment)]);result.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>upfront.push([x[0],money.format(x[1].amount)]));if(state.trade.cashDown>0)upfront.push(["Cash Up Front",money.format(state.trade.cashDown)]);if(result.taxOnCash>0)upfront.push(["Tax on Cash Reduction",money.format(result.taxOnCash)]);}else if(accepted.type==="cash"){upfront.push(["Total Cash Due",money.format(result.dueUpfront)]);}else{if(state.trade.cashDown>0)upfront.push(["Cash Up Front",money.format(state.trade.cashDown)]);result.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>upfront.push([x[0],money.format(x[1].amount)]));}upfront.push(["Total Due Up Front",money.format(result.dueUpfront)]);return upfront.map(x=>ws(x[0],x[1])).join("");})()}</div></div>
-   <div class="worksheet-block"><h3>Profit / Notes</h3>${ws("Front Gross",money.format(front))}${ws("Trade Gross",money.format(tradeGross))}${ws("Reserve Share",settings().reserveShare+"%")}<p>${esc(state.notes||"")}</p></div>
+  <div class="worksheet-block full-width"><h3>Due Up Front Breakdown</h3><div class="upfront-scenario">${(()=>{const upfront=[];if(accepted.type==="lease"){upfront.push([accepted.onePay?"One-Pay Lease Total":"First Payment",money.format(accepted.onePay?result.onePayTotal:result.payment)]);result.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>upfront.push([x[0],money.format(x[1].amount)]));if((result.effectiveCashDown||0)>0)upfront.push(["Cash Up Front",money.format(result.effectiveCashDown)]);if(accepted.useDueTarget&&result.targetDueUnreachable)upfront.push(["Due Target Status","Target below minimum due at signing"]);}else if(accepted.type==="cash"){upfront.push(["Total Cash Due",money.format(result.dueUpfront)]);}else{if(state.trade.cashDown>0)upfront.push(["Cash Up Front",money.format(state.trade.cashDown)]);result.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>upfront.push([x[0],money.format(x[1].amount)]));}upfront.push(["Total Due Up Front",money.format(result.dueUpfront)]);return upfront.map(x=>ws(x[0],x[1])).join("");})()}</div></div>
+   <div class="worksheet-block"><h3>Profit / Notes</h3>${ws("Front Gross",money.format(front))}${ws("Trade Gross",money.format(tradeGross))}${ws("Reserve Share",settings().reserveShare+"%")}<p>${esc(state.notes||"")}</p>${ws("Total Gross",money.format(front+tradeGross+front*num(settings().reserveShare)/100))}</div>
  </div>`;
 }
 function removeScenarioIncentiveFromDeal(scenarioId,incentiveId){
@@ -1153,6 +1237,8 @@ function scenarioFromDialog(){
    inceptionCharge:num($("scenarioInceptionCharge").value),
    customMiles:num($("scenarioCustomMiles").value),
    customCharge:num($("scenarioCustomCharge").value),
+  useDueTarget:$("scenarioUseDueTarget").checked,
+  dueTarget:num($("scenarioDueTarget").value),
    buyApr:$("scenarioBuyApr").value===""?"":num($("scenarioBuyApr").value),
    apr:$("scenarioApr").value===""?"":num($("scenarioApr").value),
    balloon:$("scenarioBalloon").value===""?"":num($("scenarioBalloon").value),
@@ -1176,10 +1262,6 @@ function scenarioFromDialog(){
  const program=programs().find(item=>item.id===candidate.programId)||resolveProgramForType(candidate.type)||resolveScenarioEligibleProgram(existing||candidate);
  if(program){
    candidate.programId=program.id;
-   if(["finance","select"].includes(candidate.type)){
-     const termChanged=!existing||num(existing.term)!==num(candidate.term);
-     if(termChanged)applyProgramRateForScenarioTerm(candidate,program);
-   }
    syncScenarioProgramIncentives(candidate,program);
  }else{
    candidate.incentives=(candidate.incentives||[]).map(item=>normalizeScenarioIncentive(item));
@@ -1210,6 +1292,8 @@ function openScenario(s=null){
  $("scenarioInceptionCharge").value=base.inceptionCharge;
  $("scenarioCustomMiles").value=base.customMiles;
  $("scenarioCustomCharge").value=base.customCharge;
+ $("scenarioUseDueTarget").checked=Boolean(base.useDueTarget);
+ $("scenarioDueTarget").value=num(base.dueTarget)||0;
  $("scenarioBuyApr").value=base.buyApr??"";
  $("scenarioApr").value=base.apr;
  $("scenarioBalloon").value=base.balloon;
@@ -1220,11 +1304,23 @@ function openScenario(s=null){
  $("scenarioShowRate").checked=base.showRate;
  $("scenarioShowResidual").checked=base.showResidual;
  $("scenarioShowFees").checked=base.showFees;
+ const scenarioDialog=$("scenarioDialog");
+ if(s){
+  scenarioDialog.dataset.lastRateSyncTerm=String(num(base.term));
+  scenarioDialog.dataset.lastRateSyncProgramId=String(base.programId||"");
+  scenarioDialog.dataset.lastRateSyncType=String(base.type||"");
+ }else{
+  // Force an initial sync for brand-new scenarios so default program rates populate once.
+  scenarioDialog.dataset.lastRateSyncTerm="";
+  scenarioDialog.dataset.lastRateSyncProgramId="";
+  scenarioDialog.dataset.lastRateSyncType="";
+ }
  updateScenarioFields();
  updateScenarioPreview();
  $("scenarioDialog").showModal();
 }
 function updateScenarioPreview(){
+ if($("scenarioDueTargetWrap"))updateScenarioDueTargetUi();
  const existing=state.scenarios.find(s=>s.id===$("scenarioId").value);
  const draft=scenarioFromDialog();
  const dialogNameSource=$("scenarioName").dataset.nameSource||normalizeScenarioNameSource(draft);
@@ -1234,16 +1330,39 @@ function updateScenarioPreview(){
    setScenarioNameFieldState("auto",draft.name);
  }
  if(["finance","select"].includes(draft.type)){
+   const scenarioDialog=$("scenarioDialog");
    const selectedProgram=programs().find(item=>item.id===($("scenarioProgram").value||existing?.programId||""))||null;
-   const termChanged=!existing||num(existing.term)!==num(draft.term);
-   if(selectedProgram&&termChanged)applyProgramRateForScenarioTerm(draft,selectedProgram);
-   $("scenarioBuyApr").value=draft.buyApr??"";
-   $("scenarioApr").value=draft.apr??"";
-   if(draft.type==="select")$("scenarioBalloon").value=draft.balloon??"";
+   const currentProgramId=$("scenarioProgram").value||existing?.programId||"";
+   const currentTerm=String(num(draft.term));
+   const currentType=String(draft.type||"");
+   const priorTerm=scenarioDialog.dataset.lastRateSyncTerm;
+   const priorProgramId=scenarioDialog.dataset.lastRateSyncProgramId;
+   const priorType=scenarioDialog.dataset.lastRateSyncType;
+   const shouldSyncRate=priorTerm!==currentTerm||priorProgramId!==currentProgramId||priorType!==currentType;
+   if(selectedProgram&&shouldSyncRate){
+    applyProgramRateForScenarioTerm(draft,selectedProgram);
+    $("scenarioBuyApr").value=draft.buyApr??"";
+    $("scenarioApr").value=draft.apr??"";
+    if(draft.type==="select")$("scenarioBalloon").value=draft.balloon??"";
+   }
+   scenarioDialog.dataset.lastRateSyncTerm=currentTerm;
+   scenarioDialog.dataset.lastRateSyncProgramId=currentProgramId;
+   scenarioDialog.dataset.lastRateSyncType=currentType;
  }
  const r=calcScenario(draft);
- $("scenarioPreview").textContent=r.ready?(draft.onePay?`One-Pay ${money.format(r.onePayTotal)} · Equivalent ${money.format(r.equivalentMonthly)}`:`Estimated ${money.format(r.payment)}`):"Missing: "+r.missing.join(", ");
+ if(!r.ready){$("scenarioPreview").textContent="Missing: "+r.missing.join(", ");return;}
+ const basePreview=draft.onePay?`One-Pay ${money.format(r.onePayTotal)} · Equivalent ${money.format(r.equivalentMonthly)}`:`Estimated ${money.format(r.payment)}`;
+ if(draft.type==="lease"&&!draft.onePay&&draft.useDueTarget){
+  const upfrontFees=(r.fees?.rows||[]).filter(x=>x[1].treatment==="upfront").reduce((sum,x)=>sum+num(x[1].amount),0);
+  const remainingAfterFees=Math.max(0,num(draft.dueTarget)-upfrontFees-r.payment);
+  const statusText=r.targetDueUnreachable?"Minimum due applied (target below required minimum).":"Target met.";
+  const statusClass=r.targetDueUnreachable?"due-target-status minimum":"due-target-status met";
+  $("scenarioPreview").innerHTML=`${basePreview}<br><span class="item-meta">Solved Cash Applied ${money.format(r.effectiveCashDown||0)} · Remaining After Fees ${money.format(remainingAfterFees)} · <span class="${statusClass}">Status: ${statusText}</span></span>`;
+  return;
+ }
+ $("scenarioPreview").textContent=basePreview;
 }
+function updateScenarioDueTargetUi(){const isLease=$("scenarioType").value==="lease",isOnePay=$("scenarioOnePay").checked,enabled=isLease&&!isOnePay&&$("scenarioUseDueTarget").checked;$("scenarioDueTargetWrap").classList.toggle("hidden",!enabled);$("scenarioDueTarget").disabled=!enabled;}
 function applyProgramToDialog(){
  const program=programs().find(item=>item.id===$("scenarioProgram").value);
  if(!program)return;
@@ -2609,7 +2728,7 @@ function saveApprovedImports(){
  setPdfImportStatus(`${checked.length} programs saved`,"success");
  toast(`${checked.length} programs imported with residuals.`);
 }
-function bindNumericInputNormalization(){document.querySelectorAll('input[type="number"]').forEach(input=>{if(input.dataset.numericNormalized)return;input.dataset.numericNormalized="true";input.addEventListener("input",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value){const start=input.selectionStart??normalized.length;input.value=normalized;const caret=Math.min(start,normalized.length);input.setSelectionRange(caret,caret)}});input.addEventListener("blur",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value)input.value=normalized;});});}
+function bindNumericInputNormalization(){document.querySelectorAll('input[type="number"],input[data-decimal-input="true"]').forEach(input=>{if(input.dataset.numericNormalized)return;input.dataset.numericNormalized="true";input.addEventListener("input",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value){const start=input.selectionStart??normalized.length;input.value=normalized;const caret=Math.min(start,normalized.length);input.setSelectionRange(caret,caret)}});input.addEventListener("blur",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value)input.value=normalized;});});}
 function bindEvents(){bindNav();bindNumericInputNormalization();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
  const scenarioId=e.target.dataset.removeScenarioIncentive,incentiveId=e.target.dataset.incentiveId;
  if(!scenarioId||!incentiveId)return;
@@ -2685,6 +2804,6 @@ document.querySelectorAll("[data-saved-filter]").forEach(button=>button.addEvent
 }));
 document.body.addEventListener("click",e=>{if(e.target.dataset.loadDeal)loadDeal(e.target.dataset.loadDeal);if(e.target.dataset.duplicateDeal)loadDeal(e.target.dataset.duplicateDeal,true);if(e.target.dataset.useProgram){applyProgramToDeal(e.target.dataset.useProgram)}if(e.target.dataset.editProgram)editProgram(e.target.dataset.editProgram);if(e.target.dataset.duplicateProgram)duplicateProgram(e.target.dataset.duplicateProgram);if(e.target.dataset.archiveProgram){let rows=programs(),p=rows.find(x=>x.id===e.target.dataset.archiveProgram);p.status=p.status==="expired"?"confirmed":"expired";saveProgramsLocal(rows);renderPrograms();
  if(supabaseClient&&currentUser)saveProgramToSupabase(p)}});$("saveConnection").onclick=()=>{localStorage.setItem(KEYS.connection,JSON.stringify({url:$("supabaseUrl").value.trim(),key:$("supabaseKey").value.trim()}));initializeSupabase();updateConnectionStatus("Connection saved.")};$("testConnection").onclick=async()=>{if(!supabaseClient&&!initializeSupabase()){updateConnectionStatus("Enter and save connection details.");return}const r=await supabaseClient.auth.getSession();updateConnectionStatus(r.error?r.error.message:"Connection works.")};$("createAccount").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signUp({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Account created. Check email if confirmation is enabled.")};$("signIn").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signInWithPassword({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Signed in.");if(!r.error){currentUser=r.data.user;await loadProgramsFromSupabase(true)}};$("signOut").onclick=async()=>{if(supabaseClient)await supabaseClient.auth.signOut();currentUser=null;updateConnectionStatus()};}
-function init(){loadSettingsForm();const c=JSON.parse(localStorage.getItem(KEYS.connection)||"null");if(c){$("supabaseUrl").value=c.url||"";$("supabaseKey").value=c.key||"";initializeSupabase()}applySettingsToDeal(true);if(!restoreAutosaveDraft()){state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);writeStateToForm();setAutosaveStatus("Draft ready")}bindEvents();renderIncentives();renderScenarios();renderDashboard();renderPrograms();renderProgramIncentiveEditor([]);updateClientHistoryDisplays();setPdfImportStatus("Importer ready");setProgramSyncStatus(currentUser?"Loading shared programs…":"Programs are local until you sign in and sync.");$("programMonth").value=new Date().toISOString().slice(0,7);}
+function init(){loadSettingsForm();const c=JSON.parse(localStorage.getItem(KEYS.connection)||"null");if(c){$("supabaseUrl").value=c.url||"";$("supabaseKey").value=c.key||"";initializeSupabase()}applySettingsToDeal(true);if(!restoreAutosaveDraft()){state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);writeStateToForm();setAutosaveStatus("Draft ready")}bindEvents();runNumericNormalizationSelfCheck();renderIncentives();renderScenarios();renderDashboard();renderPrograms();renderProgramIncentiveEditor([]);updateClientHistoryDisplays();setPdfImportStatus("Importer ready");setProgramSyncStatus(currentUser?"Loading shared programs…":"Programs are local until you sign in and sync.");$("programMonth").value=new Date().toISOString().slice(0,7);}
 document.addEventListener("DOMContentLoaded",init);
 })();

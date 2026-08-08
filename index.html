@@ -120,6 +120,7 @@
             <div class="fee-row"><span>Registration / Title</span><input id="regFee" type="number" min="0" step=".01"><select id="regTreatment"><option value="upfront">Pay Up Front</option><option value="capitalize">Include in Payment</option><option value="none">Not Applicable</option></select></div>
             <div class="fee-row"><span>Lease Acquisition Fee</span><input id="acqFee" type="number" min="0" step=".01"><select id="acqTreatment"><option value="capitalize">Include in Payment</option><option value="upfront">Pay Up Front</option><option value="none">Not Applicable</option></select></div>
             <div class="fee-row"><span>Miscellaneous Fee</span><input id="miscFee" type="number" min="0" step=".01"><select id="miscTreatment"><option value="capitalize">Include in Payment</option><option value="upfront">Pay Up Front</option><option value="none">Not Applicable</option></select></div>
+            <div class="fee-row"><span>Lease Tax on Cash Reduction</span><div id="cashDownTaxDisplay" class="readout">$0.00</div><select id="cashTaxTreatment"><option value="upfront">Pay Up Front</option><option value="capitalize">Include in Payment</option></select></div>
           </div>
         </div>
 
@@ -229,11 +230,11 @@
             <label class="span2">Restrictions / Notes<input id="programRestrictions"></label>
             <label>Lease Term<input id="programLeaseTerm" type="number" value="36"></label>
             <label>Base Residual %<input id="programResidual" type="number" step=".01"></label>
-            <label>Money Factor<input id="programMf" type="number" step=".00001"></label>
-            <label>One-Pay MF Reduction<input id="programOnePayReduction" type="number" step=".00001" value=".00080"></label>
-            <label>Finance APR %<input id="programFinanceApr" type="number" step=".01" inputmode="decimal"></label>
+            <label>Money Factor<input id="programMf" type="text" inputmode="decimal" data-decimal-input="true"></label>
+            <label>One-Pay MF Reduction<input id="programOnePayReduction" type="text" inputmode="decimal" data-decimal-input="true" value=".00080"></label>
+            <label>Finance APR %<input id="programFinanceApr" type="text" inputmode="decimal" data-decimal-input="true"></label>
             <label>Finance Term<input id="programFinanceTerm" type="number" value="60"></label>
-            <label>Select APR %<input id="programSelectApr" type="number" step=".01" inputmode="decimal"></label>
+            <label>Select APR %<input id="programSelectApr" type="text" inputmode="decimal" data-decimal-input="true"></label>
             <label>Select Term<input id="programSelectTerm" type="number" value="60"></label>
             <label>Select Balloon %<input id="programBalloon" type="number" step=".01"></label>
             <label>Program Code<input id="programCode"></label>
@@ -345,15 +346,17 @@
         <label class="term-field">Term<input id="scenarioTerm" type="number"></label>
         <label class="lease-field">Annual Miles<select id="scenarioMiles"><option value="">Select</option><option value="7500">7,500</option><option value="10000">10,000</option><option value="12000">12,000</option><option value="15000">15,000</option></select></label>
         <label class="lease-field required">Base Residual %<input id="scenarioResidual" type="number" step=".01"></label>
-        <label class="lease-field required">Base / Buy Money Factor<input id="scenarioBaseMf" type="number" step=".00001"></label>
-        <label class="lease-field required">Used / Customer Money Factor<input id="scenarioMf" type="number" step=".00001"></label>
-        <label class="lease-field">One-Pay MF Reduction<input id="scenarioOnePayReduction" type="number" step=".00001" value=".00080"></label>
+        <label class="lease-field required">Base / Buy Money Factor<input id="scenarioBaseMf" type="text" inputmode="decimal" data-decimal-input="true"></label>
+        <label class="lease-field required">Used / Customer Money Factor<input id="scenarioMf" type="text" inputmode="decimal" data-decimal-input="true"></label>
+        <label class="lease-field">One-Pay MF Reduction<input id="scenarioOnePayReduction" type="text" inputmode="decimal" data-decimal-input="true" value=".00080"></label>
         <label class="lease-field">In-Service Mileage<input id="scenarioInceptionMileage" type="number" value="0"></label>
         <label class="lease-field">Deduction Per Mile<input id="scenarioInceptionCharge" type="number" step=".01" value=".20"></label>
         <label class="lease-field">Custom Miles<input id="scenarioCustomMiles" type="number" value="0"></label>
         <label class="lease-field">Custom Deduction Per Mile<input id="scenarioCustomCharge" type="number" step=".01" value=".20"></label>
-        <label class="rate-field required">Buy APR %<input id="scenarioBuyApr" type="number" step=".01" inputmode="decimal"></label>
-        <label class="rate-field required">Used / Customer APR %<input id="scenarioApr" type="number" step=".01" inputmode="decimal"></label>
+        <label class="lease-field check"><input id="scenarioUseDueTarget" type="checkbox"> Use Total Due at Signing Target</label>
+        <label class="lease-field" id="scenarioDueTargetWrap">Target Total Due at Signing<input id="scenarioDueTarget" type="number" step=".01" min="0" value="0"></label>
+        <label class="rate-field required">Buy APR %<input id="scenarioBuyApr" type="text" inputmode="decimal" data-decimal-input="true"></label>
+        <label class="rate-field required">Used / Customer APR %<input id="scenarioApr" type="text" inputmode="decimal" data-decimal-input="true"></label>
         <label class="select-field required">Balloon %<input id="scenarioBalloon" type="number" step=".01" inputmode="decimal"></label>
         <label>Price Adjustment<input id="scenarioPriceAdjustment" type="number" step=".01" value="0"></label>
         <label>Cash Adjustment<input id="scenarioCashAdjustment" type="number" step=".01" value="0"></label>
@@ -424,10 +427,10 @@
         <label>Model Code<input id="quickModelCode"></label>
         <label class="span2">Model / Trim<input id="quickModel" required></label>
         <label>36-mo Residual @ 15K<input id="quickResidual" type="number" step=".01" inputmode="decimal"></label>
-        <label>Base Money Factor<input id="quickMf" type="number" step=".00001" inputmode="decimal"></label>
-        <label>Retail APR 24–60<input id="quickRetailApr" type="number" step=".01" inputmode="decimal"></label>
-        <label>Retail APR 61–72<input id="quickRetailAprLong" type="number" step=".01" inputmode="decimal"></label>
-        <label>Select APR<input id="quickSelectApr" type="number" step=".01" inputmode="decimal"></label>
+        <label>Base Money Factor<input id="quickMf" type="text" inputmode="decimal" data-decimal-input="true"></label>
+        <label>Retail APR 24–60<input id="quickRetailApr" type="text" inputmode="decimal" data-decimal-input="true"></label>
+        <label>Retail APR 61–72<input id="quickRetailAprLong" type="text" inputmode="decimal" data-decimal-input="true"></label>
+        <label>Select APR<input id="quickSelectApr" type="text" inputmode="decimal" data-decimal-input="true"></label>
         <label>Lease Credit<input id="quickLeaseCredit" type="number" step=".01"></label>
         <label>Purchase Credit<input id="quickPurchaseCredit" type="number" step=".01"></label>
         <label>Cash Purchase Credit<input id="quickCashCredit" type="number" step=".01"></label>

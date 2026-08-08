@@ -35,6 +35,9 @@
 .preview-status{font-size:10px;font-weight:900;text-transform:uppercase}
 .preview-status.ready{color:#1f6a41}
 .preview-status.pending{color:#a11}
+.due-target-status{font-weight:900}
+.due-target-status.met{color:#1f6a41}
+.due-target-status.minimum{color:#a15c00}
 .scenario-card.accepted{box-shadow:0 0 0 4px rgba(28,105,212,.18)}
 .scenario-card.accepted:before{content:"ACCEPTED DEAL";display:block;padding:5px;background:#0f2f57;color:#fff;text-align:center;font-size:10px;font-weight:900;letter-spacing:.9px}
 .scenario-card.dragging{opacity:.55}
