@@ -131,7 +131,7 @@
               <button class="primary" id="quickProgramButton">+ Add Missing Program</button>
             </div>
           </div>
-          <p class="section-help">Use Program Center incentives for normal quoting. Each scenario still has an Additional Incentive field for a quick one-off adjustment.</p>
+          <p class="section-help">Incentives are grouped by scenario. Each scenario still has an Additional Incentive field for a quick one-off adjustment.</p>
           <div id="incentiveRows" class="selected-incentive-list"></div>
           <div class="total-line"><span>Total Incentives Entered</span><strong id="incentiveTotal">$0.00</strong></div>
         </div>
@@ -386,8 +386,10 @@
         <label class="span2">Search Model<input id="programPickerSearch" type="search" placeholder="X3, X5 xDrive40i, model code..."></label>
       </div>
       <div id="programPickerResults" class="program-picker-results"></div>
+      <div id="programPickerPreview" class="program-picker-preview result-box">Select a program to preview the scenario-level incentive changes.</div>
       <div class="dialog-actions">
         <button type="button" class="secondary" id="cancelProgramPicker">Cancel</button>
+        <button type="button" class="primary" id="applyProgramPreview" disabled>Apply Program Changes</button>
       </div>
     </form>
   </dialog>

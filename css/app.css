@@ -19,8 +19,22 @@
 
 .section-help{margin:0 0 12px;color:#66717d;font-size:12px}
 .selected-incentive-list{display:grid;gap:8px}
+.selected-incentive-group{display:grid;gap:8px;padding:12px;border:1px solid #d9e1e9;border-radius:10px;background:#f8fafc}
+.selected-incentive-group-header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.selected-incentive-group-header span{display:block;margin-top:4px;color:#66717d;font-size:11px}
+.selected-incentive-legacy{display:grid;gap:8px;padding-top:6px}
+.legacy-label,.program-preview-note{font-size:11px;font-weight:800;color:#66717d}
+.scenario-incentive-summary{margin-top:4px;color:#66717d;font-size:11px;font-weight:800}
 .selected-incentive-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px;border:1px solid #d9e1e9;border-radius:9px;background:#f8fafc}
 .selected-incentive-row span{display:block;margin-top:3px;color:#66717d;font-size:11px}
+.program-picker-preview{margin-top:12px;max-height:36vh;overflow:auto}
+.program-preview-scenario{display:grid;gap:8px;padding:10px 0;border-top:1px solid #e4e9ef}
+.program-preview-scenario:first-child{border-top:0;padding-top:0}
+.program-preview-header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.program-preview-header span{display:block;margin-top:4px;color:#66717d;font-size:11px}
+.preview-status{font-size:10px;font-weight:900;text-transform:uppercase}
+.preview-status.ready{color:#1f6a41}
+.preview-status.pending{color:#a11}
 .scenario-card.accepted{box-shadow:0 0 0 4px rgba(28,105,212,.18)}
 .scenario-card.accepted:before{content:"ACCEPTED DEAL";display:block;padding:5px;background:#0f2f57;color:#fff;text-align:center;font-size:10px;font-weight:900;letter-spacing:.9px}
 .scenario-card.dragging{opacity:.55}

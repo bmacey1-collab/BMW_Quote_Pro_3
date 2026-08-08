@@ -3,7 +3,7 @@
 const $ = id => document.getElementById(id);
 const money = new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"});
 const KEYS={settings:"bqp3_settings",programs:"bqp3_programs",deals:"bqp3_deals",connection:"bqp3_connection",draft:"bqp3_autosave_draft"};
-let supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,draggedScenarioId=null,importedProgramRows=[],pdfJsModulePromise=null,currentIncentiveProgramIds=[],currentProgramPickerRows=[];
+let supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,draggedScenarioId=null,importedProgramRows=[],pdfJsModulePromise=null,currentIncentiveProgramIds=[],currentProgramPickerRows=[],currentProgramApplicationPreview=null;
 let savedDealsCache=[],savedDealsLoadedAt=0,savedDealFilter="all";
 let incentiveMatchCache=new Map(),currentIncentivePickerItems=[];
 let state=createEmptyDeal();
@@ -14,7 +14,7 @@ function createEmptyDeal(){
  vehicle:{stockNumber:"",vin:"",year:"",make:"BMW",model:"",msrp:0,discount:0,cost:0,pack:0,taxRate:null},
  trade:{vin:"",vehicle:"",allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true},
  fees:{doc:{amount:595,treatment:"upfront"},reg:{amount:130,treatment:"upfront"},acq:{amount:925,treatment:"capitalize"},misc:{amount:0,treatment:"capitalize"}},
- incentives:[],scenarios:[],acceptedScenarioId:"",notes:"",presentation:{showPaymentComparison:true,combineDiscountIncentives:false,showSignature:false}};
+ incentiveMigrationVersion:1,scenarios:[],acceptedScenarioId:"",notes:"",presentation:{showPaymentComparison:true,combineDiscountIncentives:false,showSignature:false}};
 }
 function settings(){return JSON.parse(localStorage.getItem(KEYS.settings)||"null")||{dealerName:"BMW of Peabody",defaultTax:6.25,reserveShare:70,defaultSalesperson:"Brian Macey",docFee:595,regFee:130,acqFee:925,miscFee:0,salespeople:["Brian Macey"],disclaimer:"Figures are estimates and remain subject to credit approval, vehicle availability, final appraisal, and current manufacturer programs."};}
 let programCache=JSON.parse(localStorage.getItem(KEYS.programs)||"[]");
@@ -41,9 +41,201 @@ state.notes=$("managerNotes").value;state.scenarios=(state.scenarios||[]).map(sy
 function writeStateToForm(){if(!state.trade){state.trade={allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true};}state.trade.applyTradeTaxCredit=state.trade.applyTradeTaxCredit!==false;state.scenarios=(state.scenarios||[]).map(syncScenarioName);const map={firstName:state.customer.firstName,lastName:state.customer.lastName,coFirstName:state.customer.coFirstName,coLastName:state.customer.coLastName,customerEmail:state.customer.email||"",customerPhone:state.customer.phone||"",currentPayment:state.customer.currentPayment||"",stockNumber:state.vehicle.stockNumber,vin:state.vehicle.vin,year:state.vehicle.year,make:state.vehicle.make,model:state.vehicle.model,msrp:state.vehicle.msrp||"",discount:state.vehicle.discount||0,taxRate:state.vehicle.taxRate??"",vehicleCost:state.vehicle.cost||"",pack:state.vehicle.pack||"",tradeVin:state.trade.vin,tradeVehicle:state.trade.vehicle,tradeAllowance:state.trade.allowance||"",tradeAcv:state.trade.acv||"",tradePayoff:state.trade.payoff||"",cashDown:state.trade.cashDown||"",equityCashBack:state.trade.equityCashBack||0,docFee:state.fees.doc.amount,regFee:state.fees.reg.amount,acqFee:state.fees.acq.amount,miscFee:state.fees.misc.amount,managerNotes:state.notes};Object.entries(map).forEach(([id,v])=>{if($(id))$(id).value=v});$("equityMethod").value=state.trade.equityMethod;$("applyTradeTaxCredit").checked=state.trade.applyTradeTaxCredit!==false;$("docTreatment").value=state.fees.doc.treatment;$("regTreatment").value=state.fees.reg.treatment;$("acqTreatment").value=state.fees.acq.treatment;$("miscTreatment").value=state.fees.misc.treatment;$("showPaymentComparison").checked=state.presentation.showPaymentComparison!==false;$("combineDiscountIncentives").checked=Boolean(state.presentation.combineDiscountIncentives);$("showSignature").checked=Boolean(state.presentation.showSignature);populateSalespeople();$("salesperson").value=state.customer.salesperson||"";updateComputed();updateClientHistoryDisplays();}function updateComputed(){readFormToState();const selling=Math.max(0,state.vehicle.msrp-state.vehicle.discount),equity=state.trade.allowance-state.trade.payoff,gross=state.trade.allowance-state.trade.acv;$("sellingPriceDisplay").textContent=money.format(selling);$("tradeEquityDisplay").textContent=money.format(equity);$("tradeGrossDisplay").textContent=money.format(gross);$("equityCashBackWrap").classList.toggle("hidden",state.trade.equityMethod!=="split");renderIncentives();renderScenarios();renderWorksheet();}
 function mileageAdjustment(m){return ({7500:4,10000:3,12000:2,15000:0})[Number(m)]||0;}
 function incentiveAppliesTo(item,type){const a=item.appliesToTypes||item.appliesTo||"all";return Array.isArray(a)?a.includes("all")||a.includes(type):a==="all"||a===type;}
-function dealIncentives(type){return state.incentives.filter(i=>num(i.amount)>0&&incentiveAppliesTo(i,type)).reduce((s,i)=>s+num(i.amount),0);}
-function appliedIncentivesForType(type){return state.incentives.filter(i=>num(i.amount)>0&&incentiveAppliesTo(i,type));}
 function incentiveAppliesLabel(item){const a=item.appliesToTypes||item.appliesTo||"all",v=Array.isArray(a)?a:[a],l={all:"All Types",lease:"Lease",finance:"Finance",cash:"Cash",select:"BMW Select"};return v.map(x=>l[x]||x).join(", ");}
+function normalizeIncentiveTypes(value){
+  const values=Array.isArray(value)?value:(value===undefined||value===null||value===""?["all"]:[value]);
+  const normalized=values.map(item=>String(item||"all").trim().toLowerCase()).filter(Boolean);
+  return [...new Set(normalized.length?normalized:["all"])];
+}
+function incentiveKey(item){
+  return [
+    String(item?.name||"").trim().toLowerCase(),
+    num(item?.amount).toFixed(2),
+    normalizeIncentiveTypes(item?.appliesToTypes||item?.appliesTo).sort().join(","),
+    String(item?.category||"customer").trim().toLowerCase()
+  ].join("|");
+}
+function normalizeScenarioIncentive(item,options={}){
+  const appliesToTypes=normalizeIncentiveTypes(item?.appliesToTypes??item?.appliesTo??options.appliesTo??"all");
+  const sourceProgramId=String(item?.sourceProgramId||options.sourceProgramId||"");
+  const sourceIncentiveId=String(item?.sourceIncentiveId||options.sourceIncentiveId||"");
+  const sourceKind=String(item?.sourceKind||options.sourceKind||(sourceProgramId?"program":"legacy"));
+  return {
+    ...structuredClone(item||{}),
+    id:item?.id||crypto.randomUUID(),
+    name:String(item?.name||"").trim(),
+    amount:num(item?.amount),
+    appliesToTypes,
+    appliesTo:appliesToTypes.length===1?appliesToTypes[0]:"all",
+    category:String(item?.category||options.category||"customer"),
+    programCode:String(item?.programCode||options.programCode||"").trim(),
+    sourceProgramId,
+    sourceIncentiveId,
+    sourceKind,
+    legacyReview:Boolean(item?.legacyReview||options.legacyReview||sourceKind==="legacy")
+  };
+}
+function scenarioEligibleIncentives(scenario){
+  return (scenario?.incentives||[])
+    .map(item=>normalizeScenarioIncentive(item))
+    .filter(item=>num(item.amount)>0&&incentiveAppliesTo(item,scenario?.type));
+}
+function scenarioIncentiveTotal(scenario){
+  return scenarioEligibleIncentives(scenario).reduce((sum,item)=>sum+num(item.amount),0)+num(scenario?.extraIncentive);
+}
+function scenarioLegacyIncentives(scenario){
+  return (scenario?.incentives||[]).filter(item=>String(item?.sourceKind||"")==="legacy"||Boolean(item?.legacyReview)&&!item?.sourceProgramId&&!item?.sourceIncentiveId);
+}
+function resolveProgramForScenario(scenario){
+  if(!scenario)return null;
+  const explicitId=String(scenario.programId||"");
+  if(explicitId){
+    const direct=programs().find(program=>program.id===explicitId);
+    if(direct)return direct;
+  }
+  const sameTypeScenario=state.scenarios.find(item=>item.id!==scenario.id&&item.type===scenario.type&&item.programId);
+  if(sameTypeScenario){
+    const byScenario=programs().find(program=>program.id===sameTypeScenario.programId);
+    if(byScenario)return byScenario;
+  }
+  const matches=currentProgramMatches();
+  return matches[0]||matchingPrograms()[0]||null;
+}
+function resolveProgramForType(type){
+  return resolveProgramForScenario({type,programId:""})||null;
+}
+function syncScenarioProgramIncentives(scenario,program,options={}){
+  if(!scenario)return {added:[],removed:[]};
+  scenario.incentives=Array.isArray(scenario.incentives)?scenario.incentives:[];
+  const initialUnique=[];
+  const initialSeen=new Set();
+  scenario.incentives.forEach(item=>{
+    const normalized=normalizeScenarioIncentive(item);
+    const key=incentiveKey(normalized);
+    if(initialSeen.has(key))return;
+    initialSeen.add(key);
+    initialUnique.push(normalized);
+  });
+  scenario.incentives=initialUnique;
+  const preserveLegacy=options.preserveLegacy!==false;
+  const preserved=preserveLegacy?scenarioLegacyIncentives(scenario).map(item=>normalizeScenarioIncentive(item)):[];
+  const preservedKeys=new Set(preserved.map(item=>incentiveKey(item)));
+  const managed=scenario.incentives.filter(item=>!preservedKeys.has(incentiveKey(item)));
+  const eligible=(program?.incentives||[])
+    .filter(item=>num(item.amount)>0&&incentiveAppliesTo(item,scenario.type))
+    .map(item=>normalizeScenarioIncentive(item,{
+      sourceProgramId:program.id,
+      sourceIncentiveId:item.id||"",
+      sourceKind:"program",
+      programCode:item.programCode||program.modelCode||"",
+      category:item.category||"customer"
+    }));
+  const managedByKey=new Map();
+  managed.forEach(item=>{
+    const key=incentiveKey(item);
+    if(!managedByKey.has(key))managedByKey.set(key,item);
+  });
+  const nextManaged=[];
+  const added=[];
+  eligible.forEach(item=>{
+    const key=incentiveKey(item);
+    if(preservedKeys.has(key))return;
+    const existing=managedByKey.get(key);
+    if(existing){
+      nextManaged.push(normalizeScenarioIncentive(existing,{
+        sourceProgramId:existing.sourceProgramId||item.sourceProgramId,
+        sourceIncentiveId:existing.sourceIncentiveId||item.sourceIncentiveId,
+        sourceKind:existing.sourceKind||item.sourceKind,
+        programCode:existing.programCode||item.programCode,
+        category:existing.category||item.category
+      }));
+      managedByKey.delete(key);
+    }else{
+      nextManaged.push(item);
+      added.push(item);
+    }
+  });
+  const removed=[...managedByKey.values()].map(item=>normalizeScenarioIncentive(item));
+  const finalUnique=[];
+  const finalSeen=new Set();
+  [...preserved,...nextManaged].forEach(item=>{
+    const normalized=normalizeScenarioIncentive(item);
+    const key=incentiveKey(normalized);
+    if(finalSeen.has(key))return;
+    finalSeen.add(key);
+    finalUnique.push(normalized);
+  });
+  scenario.incentives=finalUnique;
+  return {added,removed};
+}
+function migrateLegacyDealIncentives(deal){
+  if(!deal||typeof deal!=="object")return deal;
+  deal.scenarios=Array.isArray(deal.scenarios)?deal.scenarios:[];
+  deal.scenarios=deal.scenarios.map(scenario=>{
+    const copy=structuredClone(scenario||{});
+    copy.incentives=Array.isArray(copy.incentives)?copy.incentives.map(item=>normalizeScenarioIncentive(item)):[];
+    const unique=[];
+    const seen=new Set();
+    copy.incentives.forEach(item=>{
+      const key=incentiveKey(item);
+      if(seen.has(key))return;
+      seen.add(key);
+      unique.push(item);
+    });
+    copy.incentives=unique;
+    return copy;
+  });
+  deal.legacyIncentives=Array.isArray(deal.legacyIncentives)?deal.legacyIncentives.map(item=>normalizeScenarioIncentive(item,{sourceKind:"legacy",legacyReview:true})):[];
+  if(num(deal.incentiveMigrationVersion)>=1){
+    delete deal.incentives;
+    if(!deal.legacyIncentives.length)delete deal.legacyIncentives;
+    return deal;
+  }
+
+  const legacyFlat=Array.isArray(deal.incentives)?deal.incentives:[];
+  if(legacyFlat.length){
+    legacyFlat.forEach(item=>{
+      const normalized=normalizeScenarioIncentive(item,{
+        sourceKind:item?.sourceKind||"legacy",
+        legacyReview:true,
+        sourceProgramId:item?.sourceProgramId||"",
+        sourceIncentiveId:item?.sourceIncentiveId||"",
+        programCode:item?.programCode||"",
+        category:item?.category||"customer"
+      });
+      const eligibleTypes=normalizeIncentiveTypes(normalized.appliesToTypes);
+      const targetTypes=eligibleTypes.includes("all")?["lease","finance","select","cash"]:eligibleTypes;
+      const targets=deal.scenarios.filter(scenario=>targetTypes.includes(scenario.type));
+      if(!targets.length){
+        if(!deal.legacyIncentives.some(item=>incentiveKey(item)===incentiveKey(normalized))){
+          deal.legacyIncentives.push(normalized);
+        }
+        return;
+      }
+      targets.forEach(scenario=>{
+        scenario.incentives=scenario.incentives||[];
+        if(!scenario.incentives.some(item=>incentiveKey(item)===incentiveKey(normalized))){
+          scenario.incentives.push(normalizeScenarioIncentive(normalized));
+        }
+      });
+    });
+   }
+   delete deal.incentives;
+   if(!deal.legacyIncentives.length)delete deal.legacyIncentives;
+   deal.incentiveMigrationVersion=1;
+  deal.scenarios.forEach(scenario=>{
+    const unique=[];
+    const seen=new Set();
+    (scenario.incentives||[]).map(item=>normalizeScenarioIncentive(item)).forEach(item=>{
+      const key=incentiveKey(item);
+      if(seen.has(key))return;
+      seen.add(key);
+      unique.push(item);
+    });
+    scenario.incentives=unique;
+  });
+  return deal;
+}
 function feeTotals(type){const rows=[["Document Fee",state.fees.doc,true],["Registration / Title",state.fees.reg,true],["Acquisition Fee",state.fees.acq,type==="lease"],["Miscellaneous Fee",state.fees.misc,true]].filter(r=>r[2]&&r[1].treatment!=="none"&&r[1].amount>0);return {rows,cap:rows.filter(r=>r[1].treatment==="capitalize").reduce((s,r)=>s+r[1].amount,0),upfront:rows.filter(r=>r[1].treatment==="upfront").reduce((s,r)=>s+r[1].amount,0)};}
 function tradeAllocation(allowance=state.trade.allowance){const equity=allowance-state.trade.payoff;let cashBack=0,cap=Math.max(0,equity);if(state.trade.equityMethod==="cashback"){cashBack=Math.max(0,equity);cap=0}else if(state.trade.equityMethod==="split"){cashBack=Math.min(Math.max(0,state.trade.equityCashBack),Math.max(0,equity));cap=Math.max(0,equity-cashBack)}return {equity,cashBack,cap};}
 function calculateTaxableAmount({sellingPrice=0,tradeAllowance=0,taxableFees=0,applyTradeTaxCredit=true,taxRate=0}={}){
@@ -82,158 +274,8 @@ function syncScenarioName(s){
   s.nameSource="auto";
   return s;
 }
-function validateScenario(s){const missing=[];if(!state.vehicle.msrp)missing.push("MSRP");if(state.vehicle.taxRate===null)missing.push("tax rate");if(s.type==="lease"){if(!s.term)missing.push("term");if(!s.miles)missing.push("mileage");if(s.residual===""||s.residual==null)missing.push("residual");if(s.baseMoneyFactor===""||s.baseMoneyFactor==null)missing.push("base money factor");if(s.moneyFactor===""||s.moneyFactor==null)missing.push("used money factor")}if(s.type==="finance"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR")}if(s.type==="select"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR");if(s.balloon===""||s.balloon==null)missing.push("balloon %")}return missing;}function calcScenario(s,override={}){const missing=validateScenario(s);if(missing.length)return {ready:false,missing};const msrp=state.vehicle.msrp,discount=override.discount??state.vehicle.discount,selling=Math.max(0,msrp-discount+s.priceAdjustment-dealIncentives(s.type)-s.extraIncentive),cash=Math.max(0,override.cashDown??state.trade.cashDown+s.cashAdjustment),allowance=Math.max(0,override.tradeAllowance??state.trade.allowance+s.tradeAdjustment),tax=state.vehicle.taxRate/100,fees=feeTotals(s.type),trade=tradeAllocation(allowance),taxSummary=calculateTaxableAmount({sellingPrice:selling,tradeAllowance:allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate});
-if(s.type==="lease"){const adjustedPct=num(s.residual)+mileageAdjustment(s.miles),inceptionDed=Math.max(0,num(s.inceptionMileage)-500)*num(s.inceptionCharge),customDed=num(s.customMiles)*num(s.customCharge),residualValue=Math.max(0,msrp*adjustedPct/100-inceptionDed-customDed),capCost=selling+fees.cap+Math.max(0,-trade.equity)-trade.cap-cash,usedMf=Math.max(0,num(s.moneyFactor)-(s.onePay?num(s.onePayReduction):0)),base=((capCost-residualValue)/s.term)+((capCost+residualValue)*usedMf),monthlyTax=base*tax,payment=base+monthlyTax,taxOnCash=cash*tax,estimatedTotalTax=monthlyTax*s.term+taxOnCash,standardDue=payment+fees.upfront+cash+taxOnCash,onePay=payment*s.term+fees.upfront+cash+taxOnCash;return {ready:true,payment,basePayment:base,monthlyTax,estimatedTotalTax,taxableAmount:base,dueUpfront:s.onePay?onePay:standardDue,onePayTotal:onePay,equivalentMonthly:payment,residualValue,adjustedResidualPct:adjustedPct,usedMf,baseMf:num(s.baseMoneyFactor),capCost,amountFinanced:capCost,fees,totalFees:fees.cap+fees.upfront,taxOnCash,incentives:dealIncentives(s.type)+s.extraIncentive,selling,trade};}
-const taxable=taxSummary.taxableAmount,salesTax=taxSummary.salesTax,principal=selling+salesTax+fees.cap+fees.upfront+state.trade.payoff-allowance-cash,totalFees=fees.cap+fees.upfront;if(s.type==="cash")return {ready:true,payment:Math.max(0,principal),dueUpfront:Math.max(0,principal),taxableAmount:taxable,amountFinanced:principal,salesTax,eligibleTradeTaxCredit:taxSummary.eligibleTradeTaxCredit,tradeTaxCreditApplied:state.trade.applyTradeTaxCredit!==false,totalFees,fees,incentives:dealIncentives(s.type)+s.extraIncentive,selling,trade};if(s.type==="finance"){const r=num(s.apr)/100/12,payment=r===0?principal/s.term:principal*r/(1-Math.pow(1+r,-s.term));return {ready:true,payment,dueUpfront:cash,taxableAmount:taxable,amountFinanced:principal,salesTax,eligibleTradeTaxCredit:taxSummary.eligibleTradeTaxCredit,tradeTaxCreditApplied:state.trade.applyTradeTaxCredit!==false,totalFees,fees,incentives:dealIncentives(s.type)+s.extraIncentive,selling,trade};}const balloon=msrp*num(s.balloon)/100,r=num(s.apr)/100/12,payment=r===0?(principal-balloon)/s.term:(principal-balloon/Math.pow(1+r,s.term))*r/(1-Math.pow(1+r,-s.term));return {ready:true,payment,dueUpfront:cash,taxableAmount:taxable,amountFinanced:principal,finalPayment:balloon,salesTax,eligibleTradeTaxCredit:taxSummary.eligibleTradeTaxCredit,tradeTaxCreditApplied:state.trade.applyTradeTaxCredit!==false,totalFees,fees,incentives:dealIncentives(s.type)+s.extraIncentive,selling,trade};}function defaultScenario(type){const base={id:crypto.randomUUID(),name:"",nameSource:"auto",type:type==="onepay"?"lease":type,selected:false,term:type==="cash"?1:(type==="lease"||type==="onepay"?36:60),miles:type==="lease"||type==="onepay"?10000:"",residual:"",baseMoneyFactor:"",moneyFactor:"",onePay:type==="onepay",onePayReduction:.00080,inceptionMileage:0,inceptionCharge:.20,customMiles:0,customCharge:.20,buyApr:"",apr:"",balloon:"",priceAdjustment:0,cashAdjustment:0,tradeAdjustment:0,extraIncentive:0,showRate:false,showResidual:false,showFees:true,programId:""};base.name=scenarioAutoName(base);return base;}
-function renderIncentives(){
- const c=$("incentiveRows");
- c.innerHTML=state.incentives.length?state.incentives.map(i=>`<div class="selected-incentive-row"><div><strong>${esc(i.name)}</strong><span>${esc(incentiveAppliesLabel(i))}${i.programCode?" · "+esc(i.programCode):""}</span></div><strong>${money.format(num(i.amount))}</strong><button type="button" class="danger remove-incentive-button" data-remove-incentive="${i.id}">Remove Incentive</button></div>`).join(""):'<div class="empty-state">No program incentives selected.</div>';
- $("incentiveTotal").textContent=money.format(state.incentives.reduce((s,i)=>s+num(i.amount),0));
-}
-function renderScenarios(){
- state.scenarios.forEach(syncScenarioName);
- const c=$("scenarioGrid");
- c.innerHTML=state.scenarios.length?state.scenarios.map((s,index)=>{
-   const displayName=scenarioDisplayName(s),r=calcScenario(s),label=s.type==="lease"?"LEASE":s.type==="finance"?"FINANCE":s.type==="cash"?"CASH":"BMW SELECT";
-   const amount=r.ready?money.format(s.onePay?r.onePayTotal:r.payment):"Incomplete";
-   const paylabel=s.type==="cash"?"TOTAL CASH DUE":s.onePay?"TOTAL ONE-PAY":"PER MONTH";
-   const status=r.ready?'<span class="status-ready">Ready</span>':`<span class="status-missing">Missing: ${esc(r.missing.join(", "))}</span>`;
-   const accepted=state.acceptedScenarioId===s.id;
-   return `<article class="scenario-card ${s.type} ${accepted?"accepted":""}" draggable="true" data-scenario-card="${s.id}">
-     <div class="card-title"><span>${label}</span><span class="drag-handle" title="Drag to reorder">↕</span></div>
-     <div class="card-body">
-       <div class="scenario-choice-row">
-         <label class="check"><input type="checkbox" data-select-scenario="${s.id}" ${s.selected?"checked":""}> Present</label>
-         <label class="check accepted-check"><input type="radio" name="acceptedScenario" data-accept-scenario="${s.id}" ${accepted?"checked":""}> Accepted Deal</label>
-       </div>
-       <h3>${esc(displayName)}</h3><div class="scenario-payment">${amount}</div><div class="payment-label">${paylabel}</div>${status}
-       <div class="move-actions"><button data-move-scenario="${s.id}" data-direction="-1" ${index===0?"disabled":""}>← Move Left</button><button data-move-scenario="${s.id}" data-direction="1" ${index===state.scenarios.length-1?"disabled":""}>Move Right →</button></div>
-       <div class="card-actions"><button data-edit-scenario="${s.id}">Edit</button><button data-duplicate-scenario="${s.id}">Duplicate</button><button data-rename-scenario="${s.id}">Rename</button><button data-delete-scenario="${s.id}">Delete</button></div>
-     </div></article>`;
- }).join(""):'<div class="empty-state">No scenarios. Use Add Scenario.</div>';
- const selected=state.scenarios.filter(s=>s.selected).length;
- $("scenarioSelectionCount").textContent=`${selected} of 3 selected${state.acceptedScenarioId?" · Accepted deal selected":""}`;
- const previousRollScenario=$("rollerScenario").value;const rollScenarios=state.scenarios.filter(s=>s.type!=="cash");$("rollerScenario").innerHTML=rollScenarios.map(s=>`<option value="${s.id}">${esc(scenarioDisplayName(s))}</option>`).join("");if(rollScenarios.some(s=>s.id===previousRollScenario))$("rollerScenario").value=previousRollScenario;
- renderQuote();
-}
-function moveScenario(id,direction){
- const index=state.scenarios.findIndex(s=>s.id===id),target=index+direction;
- if(index<0||target<0||target>=state.scenarios.length)return;
- const [item]=state.scenarios.splice(index,1);state.scenarios.splice(target,0,item);renderScenarios();scheduleAutosave();
-}
-function renderQuote(){
- readFormToState();
- const selected=state.scenarios.filter(s=>s.selected).filter(s=>calcScenario(s).ready).slice(0,3);
- const name=[state.customer.firstName,state.customer.lastName].filter(Boolean).join(" ");
- const vehicle=[state.vehicle.year,state.vehicle.make,state.vehicle.model].filter(Boolean).join(" ");
- $("quoteHeader").innerHTML=`<div><strong>${esc(name||"Customer")}</strong><div class="item-meta">${esc(vehicle||"Vehicle")}</div></div><div><strong>MSRP ${money.format(state.vehicle.msrp)}</strong><div class="item-meta">Dealer Discount ${money.format(state.vehicle.discount)}</div></div>`;
-
- $("quoteCards").innerHTML=selected.length?selected.map(s=>{
-   const displayName=scenarioDisplayName(s),r=calcScenario(s);
-   const amount=s.onePay?r.onePayTotal:r.payment;
-   const label=s.type==="cash"?"TOTAL CASH DUE":s.onePay?"TOTAL ONE-PAY":"PER MONTH";
-   const scenarioIncentives=r.incentives||0;
-   const taxSummary=calculateTaxableAmount({sellingPrice:r.selling,tradeAllowance:state.trade.allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate});
-   const lines=[["MSRP / Market Value",money.format(state.vehicle.msrp)]];
-
-   if(state.presentation.combineDiscountIncentives){
-     lines.push(["Total Discount & Incentives",money.format(state.vehicle.discount+scenarioIncentives)]);
-   }else{
-     lines.push(["Dealer Discount",money.format(state.vehicle.discount)]);
-     lines.push(["Incentives",money.format(scenarioIncentives)]);
-   }
-
-   lines.push(
-     ["Adjusted Price",money.format(r.selling)],
-     ["Trade Allowance",money.format(state.trade.allowance)],
-     ["Trade Payoff",money.format(state.trade.payoff)],
-     ["Trade Equity",money.format(state.trade.allowance-state.trade.payoff)],
-     ["Cash Up Front",money.format(state.trade.cashDown)]
-   );
-   if(s.type==="lease"){
-     lines.push(["Monthly Sales Tax",money.format(r.monthlyTax||0)],["Estimated Total Tax",money.format(r.estimatedTotalTax||0)],["Adjusted Cap Cost",money.format(r.capCost||0)]);
-   }else{
-     lines.push(["Trade Tax Credit",state.trade.applyTradeTaxCredit!==false?"Applied":"Not Applied"],["Taxable Amount",money.format(taxSummary.taxableAmount||0)],["Sales Tax",money.format(taxSummary.salesTax||0)],["Total Fees",money.format(r.totalFees||0)]);
-     if(s.type!=="cash")lines.push(["Amount Financed",money.format(r.amountFinanced||0)]);
-   }
-
-   if(s.showRate&&s.type==="lease")lines.push(["Money Factor",String(r.usedMf.toFixed(5))]);
-   if(s.showRate&&["finance","select"].includes(s.type))lines.push(["APR",num(s.apr).toFixed(2)+"%"]);
-   if(s.showResidual&&s.type==="lease")lines.push(["Adjusted Residual",r.adjustedResidualPct.toFixed(2)+"%"],["Residual Value",money.format(r.residualValue)]);
-   if(s.showResidual&&s.type==="select")lines.push(["Final Balloon Payment",money.format(r.finalPayment)]);
-   if(s.onePay)lines.unshift(["Equivalent Monthly",money.format(r.equivalentMonthly)]);
-   if(s.showFees&&s.type==="lease")r.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>lines.push([x[0],money.format(x[1].amount)]));
-   lines.push(["Total Due Up Front",money.format(r.dueUpfront)]);
-
-   let comparison="";
-   if(state.presentation.showPaymentComparison&&state.customer.currentPayment>0&&s.type!=="cash"){
-     const d=r.payment-state.customer.currentPayment;
-     comparison=`<div class="result-box">${d<=0?"Payment reduction":"Payment increase"} ${money.format(Math.abs(d))}</div>`;
-   }
-
-   return `<article class="quote-card ${s.type}"><div class="card-title">${esc(displayName)}</div><div class="quote-payment">${money.format(amount)}</div><div class="payment-label">${label}</div>${comparison}<div class="quote-lines">${lines.map(x=>`<div class="quote-line"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join("")}</div></article>`;
- }).join(""):'<div class="empty-state">Select up to three complete scenarios in Deal Builder.</div>';
-
- $("signatureArea").classList.toggle("hidden",!state.presentation.showSignature);
- $("signatureArea").innerHTML=`<p>${esc(settings().disclaimer)}</p><p>Client Signature: ______________________________</p><p>Co-Buyer Signature: ___________________________</p><p>Date: ________________________________________</p>`;
-}
-function renderWorksheet(){
- readFormToState();
- const name=[state.customer.firstName,state.customer.lastName].filter(Boolean).join(" ");
- const vehicle=[state.vehicle.year,state.vehicle.make,state.vehicle.model].filter(Boolean).join(" ");
- const selling=Math.max(0,state.vehicle.msrp-state.vehicle.discount);
- const front=selling-state.vehicle.cost-state.vehicle.pack;
- const tradeGross=state.trade.allowance-state.trade.acv;
- const accepted=state.scenarios.find(s=>s.id===state.acceptedScenarioId);
- if(accepted)syncScenarioName(accepted);
- const result=accepted?calcScenario(accepted):null;
- const acceptedIncentives=accepted?appliedIncentivesForType(accepted.type):[];
- const totalIncentives=acceptedIncentives.reduce((sum,item)=>sum+num(item.amount),0);
- const incentiveLines=acceptedIncentives.length?acceptedIncentives.map(item=>`<div class="worksheet-line"><span>${esc(item.name)}<small> (${esc(incentiveAppliesLabel(item))}${item.programCode?" · "+esc(item.programCode):""})</small></span><strong>${money.format(num(item.amount))}</strong></div>`).join("")+`<div class="worksheet-line worksheet-total"><span>Total Applied Incentives</span><strong>${money.format(totalIncentives)}</strong></div>`:'<div class="item-meta">No incentives selected.</div>';
-
- if(!accepted||!result?.ready){
-   $("worksheetOutput").innerHTML=`<h2>BMW QUOTE WORKSHEET</h2><div class="empty-state manager-empty">Select one complete scenario as the Accepted Deal in Deal Builder. Only that scenario will appear on this worksheet.</div>`;
-   return;
- }
-
- const upfront=[];
- if(accepted.type==="lease"){
-   upfront.push([accepted.onePay?"One-Pay Lease Total":"First Payment",money.format(accepted.onePay?result.onePayTotal:result.payment)]);
-   result.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>upfront.push([x[0],money.format(x[1].amount)]));
-   if(state.trade.cashDown>0)upfront.push(["Cash Up Front",money.format(state.trade.cashDown)]);
-   if(result.taxOnCash>0)upfront.push(["Tax on Cash Reduction",money.format(result.taxOnCash)]);
- }else if(accepted.type==="cash"){
-   upfront.push(["Total Cash Due",money.format(result.dueUpfront)]);
- }else{
-   if(state.trade.cashDown>0)upfront.push(["Cash Up Front",money.format(state.trade.cashDown)]);
-   result.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>upfront.push([x[0],money.format(x[1].amount)]));
- }
- upfront.push(["Total Due Up Front",money.format(result.dueUpfront)]);
-
- const taxSummary=calculateTaxableAmount({sellingPrice:result.selling,tradeAllowance:state.trade.allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate});
- const rateLines=accepted.type==="lease"
-   ? ws("Base / Buy MF",num(accepted.baseMoneyFactor).toFixed(5))+ws("Used / Customer MF",num(accepted.moneyFactor).toFixed(5))+ws("MF Markup",(num(accepted.moneyFactor)-num(accepted.baseMoneyFactor)).toFixed(5))+ws("Base Residual",num(accepted.residual).toFixed(2)+"%")+ws("Adjusted Residual",result.adjustedResidualPct.toFixed(2)+"%")+ws("Residual Value",money.format(result.residualValue))
-   : accepted.type==="finance"||accepted.type==="select"
-   ? ws("Buy APR",num(accepted.buyApr).toFixed(2)+"%")+ws("Used / Customer APR",num(accepted.apr).toFixed(2)+"%")+ws("Rate Markup",(num(accepted.apr)-num(accepted.buyApr)).toFixed(2)+"%")+(accepted.type==="select"?ws("Balloon",num(accepted.balloon).toFixed(2)+"%")+ws("Final Balloon",money.format(result.finalPayment)):"")
-   : ws("Type","Cash Purchase");
-
- const acceptedDisplayName=scenarioDisplayName(accepted);
- $("worksheetOutput").innerHTML=`<h2>BMW QUOTE WORKSHEET — ACCEPTED DEAL</h2><div class="accepted-banner">${esc(acceptedDisplayName)} · ${money.format(accepted.onePay?result.onePayTotal:result.payment)} ${accepted.type==="cash"||accepted.onePay?"":"per month"}</div><div class="worksheet-grid">
-   <div class="worksheet-block"><h3>Customer / Vehicle</h3>${ws("Client",name)}${ws("Email",state.customer.email)}${ws("Phone",state.customer.phone)}${ws("Co-Buyer",[state.customer.coFirstName,state.customer.coLastName].filter(Boolean).join(" "))}${ws("Salesperson",state.customer.salesperson)}${ws("Stock",state.vehicle.stockNumber)}${ws("VIN",state.vehicle.vin)}${ws("Vehicle",vehicle)}</div>
-   <div class="worksheet-block"><h3>Pricing</h3>${ws("MSRP",money.format(state.vehicle.msrp))}${ws("Dealer Discount",money.format(state.vehicle.discount))}${ws("Selling Price",money.format(selling))}${ws("Applied Incentives",money.format(result.incentives||0))}${ws("Adjusted Price",money.format(result.selling))}${ws("Vehicle Cost",money.format(state.vehicle.cost))}${ws("Pack",money.format(state.vehicle.pack))}${ws("Front Gross",money.format(front))}</div>
-   <div class="worksheet-block"><h3>Trade</h3>${ws("Allowance",money.format(state.trade.allowance))}${ws("ACV",money.format(state.trade.acv))}${ws("Payoff",money.format(state.trade.payoff))}${ws("Equity",money.format(state.trade.allowance-state.trade.payoff))}${ws("Trade Gross",money.format(tradeGross))}${ws("Equity Treatment",state.trade.equityMethod)}</div>
-   <div class="worksheet-block"><h3>Selected Incentives</h3>${incentiveLines}</div>
-   <div class="worksheet-block"><h3>Accepted Scenario</h3>${ws("Scenario",acceptedDisplayName)}${ws("Type",accepted.type)}${ws("Term",accepted.term+" months")}${accepted.type==="lease"?ws("Annual Mileage",Number(accepted.miles).toLocaleString("en-US")):""}${ws(accepted.onePay?"One-Pay Total":accepted.type==="cash"?"Cash Due":"Payment",money.format(accepted.onePay?result.onePayTotal:result.payment))}</div>
-   <div class="worksheet-block"><h3>Programs / Rates</h3>${rateLines}</div>
-   <div class="worksheet-block"><h3>Taxes & Fees</h3>${accepted.type==="lease"?ws("Monthly Sales Tax",money.format(result.monthlyTax||0))+ws("Estimated Total Tax",money.format(result.estimatedTotalTax||0))+ws("Tax on Cash Reduction",money.format(result.taxOnCash||0)):ws("Trade Tax Credit",result.tradeTaxCreditApplied?"Applied":"Not Applied")+ws("Eligible Trade Tax Credit",money.format(result.eligibleTradeTaxCredit||0))+ws("Taxable Amount",money.format(taxSummary.taxableAmount||0))+ws("Sales Tax",money.format(taxSummary.salesTax||0))+ws("Estimated Tax Savings",money.format((taxSummary.eligibleTradeTaxCredit*state.vehicle.taxRate/100)||0))}${ws("Document Fee",money.format(state.fees.doc.amount))}${ws("Registration / Title",money.format(state.fees.reg.amount))}${accepted.type==="lease"?ws("Acquisition Fee",money.format(state.fees.acq.amount)):""}${ws("Miscellaneous Fee",money.format(state.fees.misc.amount))}${ws("Total Included Fees",money.format(result.totalFees||0))}</div>
-   <div class="worksheet-block"><h3>Financing Summary</h3>${accepted.type==="lease"?ws("Adjusted Cap Cost",money.format(result.capCost||0))+ws("Base Payment Before Tax",money.format(result.basePayment||0))+ws("Amount Financed / Cap Cost",money.format(result.amountFinanced||0)):ws("Amount Financed",money.format(result.amountFinanced||0))+ws("Cash Down",money.format(state.trade.cashDown))+ws("Net Trade Equity",money.format(state.trade.allowance-state.trade.payoff))}${accepted.type==="select"?ws("Final Balloon Payment",money.format(result.finalPayment||0)):""}</div>
-   <details class="worksheet-block full-width verification-block" open><summary><h3>Calculation Verification</h3></summary><div class="verification-grid">${ws("MSRP",money.format(state.vehicle.msrp))}${ws("Selling Price Before Incentives",money.format(selling))}${ws("Applied Incentives",money.format(result.incentives||0))}${ws("Adjusted Selling Price",money.format(result.selling||0))}${ws("Trade Allowance",money.format(state.trade.allowance))}${ws("Trade Payoff",money.format(state.trade.payoff))}${accepted.type==="lease"?ws("Adjusted Cap Cost",money.format(result.capCost||0))+ws("Residual Value",money.format(result.residualValue||0))+ws("Base Payment",money.format(result.basePayment||0))+ws("Monthly Tax",money.format(result.monthlyTax||0)):ws("Trade Tax Credit",result.tradeTaxCreditApplied?"Applied":"Not Applied")+ws("Eligible Trade Tax Credit",money.format(result.eligibleTradeTaxCredit||0))+ws("Taxable Amount",money.format(taxSummary.taxableAmount||0))+ws("Sales Tax",money.format(taxSummary.salesTax||0))+ws("Total Fees",money.format(result.totalFees||0))+ws("Amount Financed",money.format(result.amountFinanced||0))}${accepted.type==="select"?ws("Balloon Amount",money.format(result.finalPayment||0)):""}${ws("Calculated Payment",money.format(accepted.onePay?result.onePayTotal:result.payment))}</div></details>
-   <div class="worksheet-block full-width"><h3>Due Up Front Breakdown</h3><div class="upfront-scenario">${upfront.map(x=>ws(x[0],x[1])).join("")}</div></div>
-   <div class="worksheet-block"><h3>Profit / Notes</h3>${ws("Front Gross",money.format(front))}${ws("Trade Gross",money.format(tradeGross))}${ws("Reserve Share",settings().reserveShare+"%")}<p>${esc(state.notes||"")}</p></div>
- </div>`;
-}
-function ws(a,b){return `<div class="worksheet-line"><span>${esc(a)}</span><strong>${esc(b||"—")}</strong></div>`}
-function normalizeModelName(value){
+function validateScenario(s){
+const missing=[];if(!state.vehicle.msrp)missing.push("MSRP");if(state.vehicle.taxRate===null)missing.push("tax rate");if(s.type==="lease"){if(!s.term)missing.push("term");if(!s.miles)missing.push("mileage");if(s.residual===""||s.residual==null)missing.push("residual");if(s.baseMoneyFactor===""||s.baseMoneyFactor==null)missing.push("base money factor");if(s.moneyFactor===""||s.moneyFactor==null)missing.push("used money factor")}if(s.type==="finance"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR")}if(s.type==="select"){if(!s.term)missing.push("term");if(s.buyApr===""||s.buyApr==null)missing.push("buy APR");if(s.apr===""||s.apr==null)missing.push("used APR");if(s.balloon===""||s.balloon==null)missing.push("balloon %")}return missing;}function normalizeModelName(value){
  return String(value||"")
    .toLowerCase()
    .replace(/\bbmw\b/g,"")
@@ -295,27 +337,6 @@ function populateScenarioProgramOptions(selectedId=""){
  select.value=selectedId||"";
 }
 
-function mergeProgramIncentivesIntoDeal(program){
- const existingKeys=new Set(state.incentives.map(item=>
-   `${item.sourceProgramId||""}|${item.sourceIncentiveId||item.name}`
- ));
- let added=0;
-
- (program.incentives||[]).forEach(item=>{
-   const key=`${program.id}|${item.id||item.name}`;
-   if(existingKeys.has(key))return;
-   state.incentives.push({
-     ...item,
-     id:crypto.randomUUID(),
-     sourceProgramId:program.id,
-     sourceIncentiveId:item.id||""
-   });
-   existingKeys.add(key);
-   added++;
- });
- return added;
-}
-
 function applyProgramToScenarioObject(scenario,program){
  const source=structuredClone(program);
  scenario.programId=source.id;
@@ -345,38 +366,40 @@ function applyProgramToScenarioObject(scenario,program){
  return scenario;
 }
 
-function applyProgramToDeal(programId,options={}){
- readFormToState();
- const program=programs().find(item=>item.id===programId);
- if(!program){
-   toast("The selected program could not be found.");
+function selectProgramForScenarioTerm(program,type,term){
+ if(!program||!["finance","select"].includes(type))return program;
+ const desiredTerm=num(term);
+ if(!desiredTerm)return program;
+ const sameCodePrograms=programs().filter(item=>
+   item.status!=="expired"&&
+   String(item.month||"")===String(program.month||"")&&
+   num(item.year)===num(program.year)&&
+   String(item.modelCode||"").toUpperCase()===String(program.modelCode||"").toUpperCase()
+ );
+ if(!sameCodePrograms.length)return program;
+ const termField=type==="finance"?"financeTerm":"selectTerm";
+ const exact=sameCodePrograms.find(item=>num(item[termField])===desiredTerm);
+ return exact||program;
+}
+
+function applyProgramRateForScenarioTerm(scenario,program){
+ if(!scenario||!program||!["finance","select"].includes(scenario.type))return;
+ const resolvedProgram=selectProgramForScenarioTerm(program,scenario.type,scenario.term)||program;
+ scenario.programId=resolvedProgram.id||scenario.programId;
+ if(scenario.type==="finance"){
+   const baseTerm=num(resolvedProgram.financeTerm)||60;
+   const useLongRate=num(scenario.term)>baseTerm&&resolvedProgram.financeAprLong!==""&&resolvedProgram.financeAprLong!=null;
+   const rate=useLongRate?resolvedProgram.financeAprLong:resolvedProgram.financeApr;
+   const normalizedRate=rate===""||rate==null?"":num(rate);
+   scenario.buyApr=normalizedRate;
+   scenario.apr=normalizedRate;
    return;
  }
-
- if(!state.vehicle.year)state.vehicle.year=program.year;
- if(!state.vehicle.model)state.vehicle.model=program.model;
-
- let updated=0;
- state.scenarios.forEach(scenario=>{
-   if(["lease","finance","select"].includes(scenario.type)){
-     applyProgramToScenarioObject(scenario,program);
-     updated++;
-   }
- });
-
- const incentivesAdded=mergeProgramIncentivesIntoDeal(program);
- writeStateToForm();
- renderIncentives();
- renderScenarios();
- renderWorksheet();
- scheduleAutosave();
-
- if($("programPickerDialog")?.open)$("programPickerDialog").close();
- if(options.openDeal!==false)showPage("deal");
-
- toast(
-   `${program.month} ${program.year} ${program.model} applied to ${updated} scenario${updated===1?"":"s"}${incentivesAdded?` and ${incentivesAdded} incentive${incentivesAdded===1?"":"s"}`:""}.`
- );
+ const selectRate=resolvedProgram.selectApr;
+ const normalizedSelectRate=selectRate===""||selectRate==null?"":num(selectRate);
+ scenario.buyApr=normalizedSelectRate;
+ scenario.apr=normalizedSelectRate;
+ if(resolvedProgram.balloon!==""&&resolvedProgram.balloon!=null)scenario.balloon=num(resolvedProgram.balloon);
 }
 
 function openProgramPicker(){
@@ -503,13 +526,6 @@ function updateClientHistoryDisplays(){
  $("clientRecordDisplay").textContent=clientId?clientId.slice(0,8)+"…":"New client";
  $("priorQuoteCountDisplay").textContent=String(count);
 }
-function hasMeaningfulDraft(){
- return Boolean(
-   state.customer.firstName||state.customer.lastName||state.customer.email||state.customer.phone||
-   state.vehicle.stockNumber||state.vehicle.vin||state.vehicle.model||state.vehicle.msrp||
-   state.trade.allowance||state.incentives.length||state.scenarios.some(s=>validateScenario(s).length===0)
- );
-}
 function setAutosaveStatus(message,kind=""){
  const el=$("autosaveStatus");
  if(!el)return;
@@ -535,26 +551,6 @@ function scheduleAutosave(){
  setAutosaveStatus("Saving draft…","saving");
  clearTimeout(autosaveTimer);
  autosaveTimer=setTimeout(saveDraftNow,700);
-}
-function restoreAutosaveDraft(){
- try{
-   const raw=localStorage.getItem(KEYS.draft);
-   if(!raw)return false;
-   const draft=JSON.parse(raw);
-   if(!draft?.deal)return false;
-   state=draft.deal;
-   state.scenarios=(state.scenarios||[]).map(syncScenarioName);
-   if(!state.trade){state.trade={allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true};}state.trade.applyTradeTaxCredit=state.trade.applyTradeTaxCredit!==false;
-   autosaveRestored=true;
-   writeStateToForm();
-   renderIncentives();
-   renderScenarios();
-   setAutosaveStatus("Draft restored from "+new Date(draft.savedAt).toLocaleString(),"restored");
-   return true;
- }catch(error){
-   localStorage.removeItem(KEYS.draft);
-   return false;
- }
 }
 function clearAutosaveDraft(){
  localStorage.removeItem(KEYS.draft);
@@ -637,7 +633,6 @@ function savedCard(d,full=false){
  const name=[d.customer?.firstName,d.customer?.lastName].filter(Boolean).join(" ")||"Unnamed Client",vehicle=[d.vehicle?.year,d.vehicle?.make,d.vehicle?.model].filter(Boolean).join(" ")||"Vehicle",m=dealPrimaryMetrics(d),stock=d.vehicle?.stockNumber?`Stock ${d.vehicle.stockNumber}`:"",salesperson=d.customer?.salesperson||"";
  return `<div class="${full?"saved-item":"recent-item"}"><div><strong>${esc(name)}</strong><div class="item-meta">${esc(vehicle)} · ${esc(d.quoteNumber||"")} · ${new Date(d.updatedAt||d.createdAt).toLocaleString()}</div><div class="saved-item-details">${m.type?`<span class="saved-badge">${esc(m.type)}</span>`:""}${m.payment?`<span>${money.format(m.payment)}${m.type==="cash"?"":"/mo"}</span>`:""}${stock?`<span>${esc(stock)}</span>`:""}${salesperson?`<span>${esc(salesperson)}</span>`:""}</div></div><div class="button-row"><button class="secondary" data-load-deal="${d.id}">Open</button>${full?`<button class="secondary" data-duplicate-deal="${d.id}">Duplicate</button>`:""}</div></div>`;
 }
-async function loadDeal(id,duplicate=false){const rows=await loadAllDeals(),d=rows.find(x=>x.id===id);if(!d)return;state=structuredClone(d);state.scenarios=(state.scenarios||[]).map(syncScenarioName);if(!state.trade){state.trade={allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true};}state.trade.applyTradeTaxCredit=state.trade.applyTradeTaxCredit!==false;if(duplicate){state.id=crypto.randomUUID();state.quoteNumber="Q-"+new Date().toISOString().replace(/\D/g,"").slice(0,14);state.createdAt=new Date().toISOString();state.updatedAt=state.createdAt}writeStateToForm();renderIncentives();renderScenarios();resetRollPayment();showPage("deal");toast(duplicate?"Deal duplicated.":"Deal opened.");}
 function setProgramSyncStatus(message,kind=""){
  const el=$("programSyncStatus");
  if(!el)return;
@@ -976,13 +971,261 @@ function editProgram(id){
  editProgramFromObject(p,false);
 }
 
+function cloneScenarioWithIncentives(scenario){
+ const copy=structuredClone(scenario);
+ copy.incentives=(copy.incentives||[]).map(item=>normalizeScenarioIncentive(item));
+ return copy;
+}
+function scenarioTypeLabel(type){
+ return type==="lease"?"Lease":type==="finance"?"Finance":type==="cash"?"Cash Purchase":"BMW Select";
+}
+function resolveScenarioEligibleProgram(scenario){
+ return resolveProgramForScenario(scenario);
+}
+function calcScenario(s,override={}){
+ const missing=validateScenario(s);
+ if(missing.length)return {ready:false,missing};
+ const msrp=state.vehicle.msrp,discount=override.discount??state.vehicle.discount;
+ const scenarioIncentives=scenarioEligibleIncentives(s);
+ const incentiveTotal=scenarioIncentives.reduce((sum,item)=>sum+num(item.amount),0)+num(s.extraIncentive);
+ const selling=Math.max(0,msrp-discount+s.priceAdjustment-incentiveTotal);
+ const cash=Math.max(0,override.cashDown??state.trade.cashDown+s.cashAdjustment);
+ const allowance=Math.max(0,override.tradeAllowance??state.trade.allowance+s.tradeAdjustment);
+ const tax=state.vehicle.taxRate/100,fees=feeTotals(s.type),trade=tradeAllocation(allowance),taxSummary=calculateTaxableAmount({sellingPrice:selling,tradeAllowance:allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate});
+ if(s.type==="lease"){
+   const adjustedPct=num(s.residual)+mileageAdjustment(s.miles),inceptionDed=Math.max(0,num(s.inceptionMileage)-500)*num(s.inceptionCharge),customDed=num(s.customMiles)*num(s.customCharge),residualValue=Math.max(0,msrp*adjustedPct/100-inceptionDed-customDed),capCost=selling+fees.cap+Math.max(0,-trade.equity)-trade.cap-cash,usedMf=Math.max(0,num(s.moneyFactor)-(s.onePay?num(s.onePayReduction):0)),base=((capCost-residualValue)/s.term)+((capCost+residualValue)*usedMf),monthlyTax=base*tax,payment=base+monthlyTax,taxOnCash=cash*tax,estimatedTotalTax=monthlyTax*s.term+taxOnCash,standardDue=payment+fees.upfront+cash+taxOnCash,onePay=payment*s.term+fees.upfront+cash+taxOnCash;
+   return {ready:true,payment,basePayment:base,monthlyTax,estimatedTotalTax,taxableAmount:base,dueUpfront:s.onePay?onePay:standardDue,onePayTotal:onePay,equivalentMonthly:payment,residualValue,adjustedResidualPct:adjustedPct,usedMf,baseMf:num(s.baseMoneyFactor),capCost,amountFinanced:capCost,fees,totalFees:fees.cap+fees.upfront,taxOnCash,incentives:incentiveTotal,selling,trade};
+ }
+ const taxable=taxSummary.taxableAmount,salesTax=taxSummary.salesTax,principal=selling+salesTax+fees.cap+fees.upfront+state.trade.payoff-allowance-cash,totalFees=fees.cap+fees.upfront;
+ if(s.type==="cash")return {ready:true,payment:Math.max(0,principal),dueUpfront:Math.max(0,principal),taxableAmount:taxable,amountFinanced:principal,salesTax,eligibleTradeTaxCredit:taxSummary.eligibleTradeTaxCredit,tradeTaxCreditApplied:state.trade.applyTradeTaxCredit!==false,totalFees,fees,incentives:incentiveTotal,selling,trade};
+ if(s.type==="finance"){const r=num(s.apr)/100/12,payment=r===0?principal/s.term:principal*r/(1-Math.pow(1+r,-s.term));return {ready:true,payment,dueUpfront:cash,taxableAmount:taxable,amountFinanced:principal,salesTax,eligibleTradeTaxCredit:taxSummary.eligibleTradeTaxCredit,tradeTaxCreditApplied:state.trade.applyTradeTaxCredit!==false,totalFees,fees,incentives:incentiveTotal,selling,trade};}
+ const balloon=msrp*num(s.balloon)/100,r=num(s.apr)/100/12,payment=r===0?(principal-balloon)/s.term:(principal-balloon/Math.pow(1+r,s.term))*r/(1-Math.pow(1+r,-s.term));
+ return {ready:true,payment,dueUpfront:cash,taxableAmount:taxable,amountFinanced:principal,finalPayment:balloon,salesTax,eligibleTradeTaxCredit:taxSummary.eligibleTradeTaxCredit,tradeTaxCreditApplied:state.trade.applyTradeTaxCredit!==false,totalFees,fees,incentives:incentiveTotal,selling,trade};
+}
+function defaultScenario(type){
+ const base={id:crypto.randomUUID(),name:"",nameSource:"auto",type:type==="onepay"?"lease":type,selected:false,term:type==="cash"?1:(type==="lease"||type==="onepay"?36:60),miles:type==="lease"||type==="onepay"?10000:"",residual:"",baseMoneyFactor:"",moneyFactor:"",onePay:type==="onepay",onePayReduction:.00080,inceptionMileage:0,inceptionCharge:.20,customMiles:0,customCharge:.20,buyApr:"",apr:"",balloon:"",priceAdjustment:0,cashAdjustment:0,tradeAdjustment:0,extraIncentive:0,incentives:[],showRate:false,showResidual:false,showFees:true,programId:""};
+ base.name=scenarioAutoName(base);
+ return base;
+}
+function renderIncentives(){
+ const host=$("incentiveRows");
+ if(!host)return;
+ const groups=(state.scenarios||[]).map(scenario=>{
+   const incentives=scenarioEligibleIncentives(scenario);
+   const legacy=scenarioLegacyIncentives(scenario);
+   const program=resolveScenarioEligibleProgram(scenario);
+   const header=`<div class="selected-incentive-group-header"><div><strong>${esc(scenarioDisplayName(scenario))}</strong><span>${esc(scenarioTypeLabel(scenario.type))}${program?` · ${esc(program.month)} ${program.year} ${esc(program.model)}`:""}</span></div><strong>${money.format(scenarioIncentiveTotal(scenario))}</strong></div>`;
+   const rows=incentives.length?incentives.map(item=>`<div class="selected-incentive-row"><div><strong>${esc(item.name)}</strong><span>${esc(incentiveAppliesLabel(item))}${item.programCode?" · "+esc(item.programCode):""}${item.legacyReview?" · Legacy review":""}</span></div><strong>${money.format(num(item.amount))}</strong><button type="button" class="danger" data-remove-scenario-incentive="${scenario.id}" data-incentive-id="${item.id}">Remove</button></div>`).join(""):"<div class=\"empty-state\">No program incentives assigned.</div>";
+   const extra=num(scenario.extraIncentive)>0?`<div class="selected-incentive-row"><div><strong>Additional Incentive</strong><span>Scenario-specific manual adjustment</span></div><strong>${money.format(num(scenario.extraIncentive))}</strong></div>`:"";
+   const legacyRows=legacy.length?`<div class="selected-incentive-legacy"><div class="legacy-label">Legacy / review incentives</div>${legacy.map(item=>`<div class="selected-incentive-row"><div><strong>${esc(item.name)}</strong><span>${esc(incentiveAppliesLabel(item))}${item.programCode?" · "+esc(item.programCode):""}${item.legacyReview?" · Review":""}</span></div><strong>${money.format(num(item.amount))}</strong></div>`).join("")}</div>`:"";
+   return `<section class="selected-incentive-group ${scenario.type}">${header}<div class="selected-incentive-list">${rows}${extra}</div>${legacyRows}</section>`;
+ });
+ host.innerHTML=groups.length?groups.join(""):'<div class="empty-state">No scenario incentives assigned yet.</div>';
+ const dealTotal=(state.scenarios||[]).reduce((sum,scenario)=>sum+scenarioIncentiveTotal(scenario),0);
+ $("incentiveTotal").textContent=money.format(dealTotal);
+}
+function renderScenarios(){
+ state.scenarios=(state.scenarios||[]).map(syncScenarioName);
+ const c=$("scenarioGrid");
+ c.innerHTML=state.scenarios.length?state.scenarios.map((s,index)=>{
+   const displayName=scenarioDisplayName(s),r=calcScenario(s),label=scenarioTypeLabel(s.type).toUpperCase(),incentiveTotal=scenarioIncentiveTotal(s);
+   const amount=r.ready?money.format(s.onePay?r.onePayTotal:r.payment):"Incomplete";
+   const paylabel=s.type==="cash"?"TOTAL CASH DUE":s.onePay?"TOTAL ONE-PAY":"PER MONTH";
+   const status=r.ready?'<span class="status-ready">Ready</span>':`<span class="status-missing">Missing: ${esc(r.missing.join(", "))}</span>`;
+   const accepted=state.acceptedScenarioId===s.id;
+   return `<article class="scenario-card ${s.type} ${accepted?"accepted":""}" draggable="true" data-scenario-card="${s.id}">
+     <div class="card-title"><span>${label}</span><span class="drag-handle" title="Drag to reorder">↕</span></div>
+     <div class="card-body">
+       <div class="scenario-choice-row">
+         <label class="check"><input type="checkbox" data-select-scenario="${s.id}" ${s.selected?"checked":""}> Present</label>
+         <label class="check accepted-check"><input type="radio" name="acceptedScenario" data-accept-scenario="${s.id}" ${accepted?"checked":""}> Accepted Deal</label>
+       </div>
+       <h3>${esc(displayName)}</h3><div class="scenario-payment">${amount}</div><div class="payment-label">${paylabel}</div><div class="scenario-incentive-summary">${money.format(incentiveTotal)} incentive${incentiveTotal===1?"":"s"}</div>${status}
+       <div class="move-actions"><button data-move-scenario="${s.id}" data-direction="-1" ${index===0?"disabled":""}>← Move Left</button><button data-move-scenario="${s.id}" data-direction="1" ${index===state.scenarios.length-1?"disabled":""}>Move Right →</button></div>
+       <div class="card-actions"><button data-edit-scenario="${s.id}">Edit</button><button data-duplicate-scenario="${s.id}">Duplicate</button><button data-rename-scenario="${s.id}">Rename</button><button data-delete-scenario="${s.id}">Delete</button></div>
+     </div></article>`;
+ }).join(""):'<div class="empty-state">No scenarios. Use Add Scenario.</div>';
+ const selected=state.scenarios.filter(s=>s.selected).length;
+ $("scenarioSelectionCount").textContent=`${selected} of 3 selected${state.acceptedScenarioId?" · Accepted deal selected":""}`;
+ const previousRollScenario=$("rollerScenario").value,rollScenarios=state.scenarios.filter(s=>s.type!=="cash");
+ $("rollerScenario").innerHTML=rollScenarios.map(s=>`<option value="${s.id}">${esc(scenarioDisplayName(s))}</option>`).join("");
+ if(rollScenarios.some(s=>s.id===previousRollScenario))$("rollerScenario").value=previousRollScenario;
+ renderQuote();
+}
+function renderQuote(){
+ readFormToState();
+ const selected=state.scenarios.filter(s=>s.selected).filter(s=>calcScenario(s).ready).slice(0,3);
+ const name=[state.customer.firstName,state.customer.lastName].filter(Boolean).join(" ");
+ const vehicle=[state.vehicle.year,state.vehicle.make,state.vehicle.model].filter(Boolean).join(" ");
+ $("quoteHeader").innerHTML=`<div><strong>${esc(name||"Customer")}</strong><div class="item-meta">${esc(vehicle||"Vehicle")}</div></div><div><strong>MSRP ${money.format(state.vehicle.msrp)}</strong><div class="item-meta">Trade Value ${money.format(state.trade.allowance)}</div></div>`;
+ $("quoteCards").innerHTML=selected.length?selected.map(s=>{
+   const displayName=scenarioDisplayName(s),r=calcScenario(s),amount=s.onePay?r.onePayTotal:r.payment,label=s.type==="cash"?"TOTAL CASH DUE":s.onePay?"TOTAL ONE-PAY":"PER MONTH",scenarioIncentives=r.incentives||0,taxSummary=calculateTaxableAmount({sellingPrice:r.selling,tradeAllowance:state.trade.allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate}),lines=[["MSRP / Market Value",money.format(state.vehicle.msrp)]];
+   if(state.presentation.combineDiscountIncentives){lines.push(["Total Discount & Incentives",money.format(state.vehicle.discount+scenarioIncentives)]);}else{lines.push(["Dealer Discount",money.format(state.vehicle.discount)],["Incentives",money.format(scenarioIncentives)]);}
+   lines.push(["Adjusted Price",money.format(r.selling)],["Trade Allowance",money.format(state.trade.allowance)],["Trade Payoff",money.format(state.trade.payoff)],["Trade Equity",money.format(state.trade.allowance-state.trade.payoff)],["Cash Up Front",money.format(state.trade.cashDown)]);
+   if(s.type==="lease"){lines.push(["Monthly Sales Tax",money.format(r.monthlyTax||0)],["Estimated Total Tax",money.format(r.estimatedTotalTax||0)],["Adjusted Cap Cost",money.format(r.capCost||0)]);}else{lines.push(["Trade Tax Credit",state.trade.applyTradeTaxCredit!==false?"Applied":"Not Applied"],["Taxable Amount",money.format(taxSummary.taxableAmount||0)],["Sales Tax",money.format(taxSummary.salesTax||0)],["Total Fees",money.format(r.totalFees||0)]);if(s.type!=="cash")lines.push(["Amount Financed",money.format(r.amountFinanced||0)]);}
+   if(s.showRate&&s.type==="lease")lines.push(["Money Factor",String(r.usedMf.toFixed(5))]);
+   if(s.showRate&&["finance","select"].includes(s.type))lines.push(["APR",num(s.apr).toFixed(2)+"%"]);
+   if(s.showResidual&&s.type==="lease")lines.push(["Adjusted Residual",r.adjustedResidualPct.toFixed(2)+"%"],["Residual Value",money.format(r.residualValue)]);
+   if(s.showResidual&&s.type==="select")lines.push(["Final Balloon Payment",money.format(r.finalPayment)]);
+   if(s.onePay)lines.unshift(["Equivalent Monthly",money.format(r.equivalentMonthly)]);
+   if(s.showFees&&s.type==="lease")r.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>lines.push([x[0],money.format(x[1].amount)]));
+   lines.push(["Total Due Up Front",money.format(r.dueUpfront)]);
+   let comparison="";
+   if(state.presentation.showPaymentComparison&&state.customer.currentPayment>0&&s.type!=="cash"){const d=r.payment-state.customer.currentPayment;comparison=`<div class="result-box">${d<=0?"Payment reduction":"Payment increase"} ${money.format(Math.abs(d))}</div>`;}
+   return `<article class="quote-card ${s.type}"><div class="card-title">${esc(displayName)}</div><div class="quote-payment">${money.format(amount)}</div><div class="payment-label">${label}</div>${comparison}<div class="quote-lines">${lines.map(x=>`<div class="quote-line"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join("")}</div></article>`;
+ }).join(""):'<div class="empty-state">Select up to three complete scenarios in Deal Builder.</div>';
+ $("signatureArea").classList.toggle("hidden",!state.presentation.showSignature);
+ $("signatureArea").innerHTML=`<p>${esc(settings().disclaimer)}</p><p>Client Signature: ______________________________</p><p>Co-Buyer Signature: ___________________________</p><p>Date: ________________________________________</p>`;
+}
+function renderWorksheet(){
+ readFormToState();
+ const name=[state.customer.firstName,state.customer.lastName].filter(Boolean).join(" "),vehicle=[state.vehicle.year,state.vehicle.make,state.vehicle.model].filter(Boolean).join(" "),selling=Math.max(0,state.vehicle.msrp-state.vehicle.discount),front=selling-state.vehicle.cost-state.vehicle.pack,tradeGross=state.trade.allowance-state.trade.acv,accepted=state.scenarios.find(s=>s.id===state.acceptedScenarioId);
+ if(accepted)syncScenarioName(accepted);
+ const result=accepted?calcScenario(accepted):null;
+ if(!accepted||!result?.ready){$("worksheetOutput").innerHTML=`<h2>BMW QUOTE WORKSHEET</h2><div class="empty-state manager-empty">Select one complete scenario as the Accepted Deal in Deal Builder. Only that scenario will appear on this worksheet.</div>`;return;}
+ const ws=(label,value)=>`<div class="worksheet-line"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`;
+ const acceptedIncentives=scenarioEligibleIncentives(accepted),totalIncentives=acceptedIncentives.reduce((sum,item)=>sum+num(item.amount),0)+num(accepted.extraIncentive),incentiveLines=acceptedIncentives.length?acceptedIncentives.map(item=>`<div class="worksheet-line"><span>${esc(item.name)}<small> (${esc(incentiveAppliesLabel(item))}${item.programCode?" · "+esc(item.programCode):""})</small></span><strong>${money.format(num(item.amount))}</strong></div>`).join("")+(num(accepted.extraIncentive)>0?`<div class="worksheet-line"><span>Additional Incentive</span><strong>${money.format(num(accepted.extraIncentive))}</strong></div>`:"")+`<div class="worksheet-line worksheet-total"><span>Total Applied Incentives</span><strong>${money.format(totalIncentives)}</strong></div>`:'<div class="item-meta">No incentives selected.</div>',taxSummary=calculateTaxableAmount({sellingPrice:result.selling,tradeAllowance:state.trade.allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate}),rateLines=accepted.type==="lease"?ws("Base / Buy MF",num(accepted.baseMoneyFactor).toFixed(5))+ws("Used / Customer MF",num(accepted.moneyFactor).toFixed(5))+ws("MF Markup",(num(accepted.moneyFactor)-num(accepted.baseMoneyFactor)).toFixed(5))+ws("Base Residual",num(accepted.residual).toFixed(2)+"%")+ws("Adjusted Residual",result.adjustedResidualPct.toFixed(2)+"%")+ws("Residual Value",money.format(result.residualValue)):accepted.type==="finance"||accepted.type==="select"?ws("Buy APR",num(accepted.buyApr).toFixed(2)+"%")+ws("Used / Customer APR",num(accepted.apr).toFixed(2)+"%")+ws("Rate Markup",(num(accepted.apr)-num(accepted.buyApr)).toFixed(2)+"%")+(accepted.type==="select"?ws("Balloon",num(accepted.balloon).toFixed(2)+"%")+ws("Final Balloon",money.format(result.finalPayment)):""):ws("Type","Cash Purchase"),acceptedDisplayName=scenarioDisplayName(accepted);
+ $("worksheetOutput").innerHTML=`<h2>BMW QUOTE WORKSHEET — ACCEPTED DEAL</h2><div class="accepted-banner">${esc(acceptedDisplayName)} · ${money.format(accepted.onePay?result.onePayTotal:result.payment)} ${accepted.type==="cash"||accepted.onePay?"":"per month"}</div><div class="worksheet-grid">
+   <div class="worksheet-block"><h3>Customer / Vehicle</h3>${ws("Client",name)}${ws("Email",state.customer.email)}${ws("Phone",state.customer.phone)}${ws("Co-Buyer",[state.customer.coFirstName,state.customer.coLastName].filter(Boolean).join(" "))}${ws("Salesperson",state.customer.salesperson)}${ws("Stock",state.vehicle.stockNumber)}${ws("VIN",state.vehicle.vin)}${ws("Vehicle",vehicle)}</div>
+   <div class="worksheet-block"><h3>Pricing</h3>${ws("MSRP",money.format(state.vehicle.msrp))}${ws("Dealer Discount",money.format(state.vehicle.discount))}${ws("Selling Price",money.format(selling))}${ws("Applied Incentives",money.format(result.incentives||0))}${ws("Adjusted Price",money.format(result.selling))}${ws("Vehicle Cost",money.format(state.vehicle.cost))}${ws("Pack",money.format(state.vehicle.pack))}${ws("Front Gross",money.format(front))}</div>
+   <div class="worksheet-block"><h3>Trade</h3>${ws("Allowance",money.format(state.trade.allowance))}${ws("ACV",money.format(state.trade.acv))}${ws("Payoff",money.format(state.trade.payoff))}${ws("Equity",money.format(state.trade.allowance-state.trade.payoff))}${ws("Trade Gross",money.format(tradeGross))}${ws("Equity Treatment",state.trade.equityMethod)}</div>
+   <div class="worksheet-block"><h3>Selected Incentives</h3>${incentiveLines}</div>
+   <div class="worksheet-block"><h3>Accepted Scenario</h3>${ws("Scenario",acceptedDisplayName)}${ws("Type",accepted.type)}${ws("Term",accepted.term+" months")}${accepted.type==="lease"?ws("Annual Mileage",Number(accepted.miles).toLocaleString("en-US")):""}${ws(accepted.onePay?"One-Pay Total":accepted.type==="cash"?"Cash Due":"Payment",money.format(accepted.onePay?result.onePayTotal:result.payment))}</div>
+   <div class="worksheet-block"><h3>Programs / Rates</h3>${rateLines}</div>
+   <div class="worksheet-block"><h3>Taxes & Fees</h3>${accepted.type==="lease"?ws("Monthly Sales Tax",money.format(result.monthlyTax||0))+ws("Estimated Total Tax",money.format(result.estimatedTotalTax||0))+ws("Tax on Cash Reduction",money.format(result.taxOnCash||0)):ws("Trade Tax Credit",result.tradeTaxCreditApplied?"Applied":"Not Applied")+ws("Eligible Trade Tax Credit",money.format(result.eligibleTradeTaxCredit||0))+ws("Taxable Amount",money.format(taxSummary.taxableAmount||0))+ws("Sales Tax",money.format(taxSummary.salesTax||0))+ws("Estimated Tax Savings",money.format((taxSummary.eligibleTradeTaxCredit*state.vehicle.taxRate/100)||0))}${ws("Document Fee",money.format(state.fees.doc.amount))}${ws("Registration / Title",money.format(state.fees.reg.amount))}${accepted.type==="lease"?ws("Acquisition Fee",money.format(state.fees.acq.amount)):""}${ws("Miscellaneous Fee",money.format(state.fees.misc.amount))}${ws("Total Included Fees",money.format(result.totalFees||0))}</div>
+   <div class="worksheet-block"><h3>Financing Summary</h3>${accepted.type==="lease"?ws("Adjusted Cap Cost",money.format(result.capCost||0))+ws("Base Payment Before Tax",money.format(result.basePayment||0))+ws("Amount Financed / Cap Cost",money.format(result.amountFinanced||0)):ws("Amount Financed",money.format(result.amountFinanced||0))+ws("Cash Down",money.format(state.trade.cashDown))+ws("Net Trade Equity",money.format(state.trade.allowance-state.trade.payoff))}${accepted.type==="select"?ws("Final Balloon Payment",money.format(result.finalPayment||0)):""}</div>
+   <details class="worksheet-block full-width verification-block" open><summary><h3>Calculation Verification</h3></summary><div class="verification-grid">${ws("MSRP",money.format(state.vehicle.msrp))}${ws("Selling Price Before Incentives",money.format(selling))}${ws("Applied Incentives",money.format(result.incentives||0))}${ws("Adjusted Selling Price",money.format(result.selling||0))}${ws("Trade Allowance",money.format(state.trade.allowance))}${ws("Trade Payoff",money.format(state.trade.payoff))}${accepted.type==="lease"?ws("Adjusted Cap Cost",money.format(result.capCost||0))+ws("Residual Value",money.format(result.residualValue||0))+ws("Base Payment",money.format(result.basePayment||0))+ws("Monthly Tax",money.format(result.monthlyTax||0)):ws("Trade Tax Credit",result.tradeTaxCreditApplied?"Applied":"Not Applied")+ws("Eligible Trade Tax Credit",money.format(result.eligibleTradeTaxCredit||0))+ws("Taxable Amount",money.format(taxSummary.taxableAmount||0))+ws("Sales Tax",money.format(taxSummary.salesTax||0))+ws("Total Fees",money.format(result.totalFees||0))+ws("Amount Financed",money.format(result.amountFinanced||0))}${accepted.type==="select"?ws("Balloon Amount",money.format(result.finalPayment||0)):""}${ws("Calculated Payment",money.format(accepted.onePay?result.onePayTotal:result.payment))}</div></details>
+   <div class="worksheet-block full-width"><h3>Due Up Front Breakdown</h3><div class="upfront-scenario">${(()=>{const upfront=[];if(accepted.type==="lease"){upfront.push([accepted.onePay?"One-Pay Lease Total":"First Payment",money.format(accepted.onePay?result.onePayTotal:result.payment)]);result.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>upfront.push([x[0],money.format(x[1].amount)]));if(state.trade.cashDown>0)upfront.push(["Cash Up Front",money.format(state.trade.cashDown)]);if(result.taxOnCash>0)upfront.push(["Tax on Cash Reduction",money.format(result.taxOnCash)]);}else if(accepted.type==="cash"){upfront.push(["Total Cash Due",money.format(result.dueUpfront)]);}else{if(state.trade.cashDown>0)upfront.push(["Cash Up Front",money.format(state.trade.cashDown)]);result.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>upfront.push([x[0],money.format(x[1].amount)]));}upfront.push(["Total Due Up Front",money.format(result.dueUpfront)]);return upfront.map(x=>ws(x[0],x[1])).join("");})()}</div></div>
+   <div class="worksheet-block"><h3>Profit / Notes</h3>${ws("Front Gross",money.format(front))}${ws("Trade Gross",money.format(tradeGross))}${ws("Reserve Share",settings().reserveShare+"%")}<p>${esc(state.notes||"")}</p></div>
+ </div>`;
+}
+function removeScenarioIncentiveFromDeal(scenarioId,incentiveId){
+ const scenario=state.scenarios.find(item=>item.id===scenarioId);
+ if(!scenario)return false;
+ const before=(scenario.incentives||[]).length;
+ scenario.incentives=(scenario.incentives||[]).filter(item=>item.id!==incentiveId);
+ return before!==scenario.incentives.length;
+}
+function scenarioFromDialog(){
+ const existing=state.scenarios.find(s=>s.id===$("scenarioId").value);
+ const type=$("scenarioType").value;
+ const term=num($("scenarioTerm").value);
+ const miles=$("scenarioMiles").value?num($("scenarioMiles").value):"";
+ const onePay=$("scenarioOnePay").checked;
+ const scenarioName=$("scenarioName").value.trim();
+ const candidate={
+   id:$("scenarioId").value||crypto.randomUUID(),
+   type,
+   programId:$("scenarioProgram").value||existing?.programId||"",
+   onePay,
+   term,
+   miles,
+   residual:$("scenarioResidual").value===""?"":num($("scenarioResidual").value),
+   baseMoneyFactor:$("scenarioBaseMf").value===""?"":num($("scenarioBaseMf").value),
+   moneyFactor:$("scenarioMf").value===""?"":num($("scenarioMf").value),
+   onePayReduction:num($("scenarioOnePayReduction").value),
+   inceptionMileage:num($("scenarioInceptionMileage").value),
+   inceptionCharge:num($("scenarioInceptionCharge").value),
+   customMiles:num($("scenarioCustomMiles").value),
+   customCharge:num($("scenarioCustomCharge").value),
+   buyApr:$("scenarioBuyApr").value===""?"":num($("scenarioBuyApr").value),
+   apr:$("scenarioApr").value===""?"":num($("scenarioApr").value),
+   balloon:$("scenarioBalloon").value===""?"":num($("scenarioBalloon").value),
+   priceAdjustment:num($("scenarioPriceAdjustment").value),
+   cashAdjustment:num($("scenarioCashAdjustment").value),
+   tradeAdjustment:num($("scenarioTradeAdjustment").value),
+   extraIncentive:num($("scenarioExtraIncentive").value),
+   incentives:(existing?.incentives||[]).map(item=>normalizeScenarioIncentive(item)),
+   showRate:$("scenarioShowRate").checked,
+   showResidual:$("scenarioShowResidual").checked,
+   showFees:$("scenarioShowFees").checked,
+   selected:existing?.selected||false
+ };
+ const autoName=scenarioAutoName(candidate);
+ const existingName=existing?.name&&typeof existing.name==="string"?existing.name.trim():"";
+ const isExistingAuto=existing?normalizeScenarioNameSource(existing)==="auto":false;
+ const shouldStayAutomatic=scenarioName===""||scenarioName===autoName||(isExistingAuto&&scenarioName===existingName);
+ const nameSource=shouldStayAutomatic?"auto":(existing?.nameSource==="custom"&&scenarioName===existingName?"custom":(scenarioName!==""&&scenarioName!==autoName?"custom":"auto"));
+ candidate.name=nameSource==="custom"?scenarioName:autoName;
+ candidate.nameSource=nameSource;
+ const program=programs().find(item=>item.id===candidate.programId)||resolveProgramForType(candidate.type)||resolveScenarioEligibleProgram(existing||candidate);
+ if(program){
+   candidate.programId=program.id;
+   if(["finance","select"].includes(candidate.type)){
+     const termChanged=!existing||num(existing.term)!==num(candidate.term);
+     if(termChanged)applyProgramRateForScenarioTerm(candidate,program);
+   }
+   syncScenarioProgramIncentives(candidate,program);
+ }else{
+   candidate.incentives=(candidate.incentives||[]).map(item=>normalizeScenarioIncentive(item));
+ }
+ return candidate;
+}
+function openScenario(s=null){
+ const type=s?s.type:$("scenarioTemplate").value;
+ const base=s?cloneScenarioWithIncentives(s):defaultScenario(type);
+ if(!base.programId){
+   const active=resolveProgramForType(base.type);
+   if(active)base.programId=active.id;
+ }
+ const source=normalizeScenarioNameSource(base);
+ const title=source==="custom"?base.name:scenarioAutoName(base);
+ $("scenarioId").value=base.id;
+ setScenarioNameFieldState(source,title);
+ $("scenarioType").value=base.type;
+ populateScenarioProgramOptions(base.programId||"");
+ $("scenarioOnePay").checked=base.onePay;
+ $("scenarioTerm").value=base.term;
+ $("scenarioMiles").value=base.miles;
+ $("scenarioResidual").value=base.residual;
+ $("scenarioBaseMf").value=base.baseMoneyFactor??"";
+ $("scenarioMf").value=base.moneyFactor;
+ $("scenarioOnePayReduction").value=base.onePayReduction;
+ $("scenarioInceptionMileage").value=base.inceptionMileage;
+ $("scenarioInceptionCharge").value=base.inceptionCharge;
+ $("scenarioCustomMiles").value=base.customMiles;
+ $("scenarioCustomCharge").value=base.customCharge;
+ $("scenarioBuyApr").value=base.buyApr??"";
+ $("scenarioApr").value=base.apr;
+ $("scenarioBalloon").value=base.balloon;
+ $("scenarioPriceAdjustment").value=base.priceAdjustment;
+ $("scenarioCashAdjustment").value=base.cashAdjustment;
+ $("scenarioTradeAdjustment").value=base.tradeAdjustment;
+ $("scenarioExtraIncentive").value=base.extraIncentive;
+ $("scenarioShowRate").checked=base.showRate;
+ $("scenarioShowResidual").checked=base.showResidual;
+ $("scenarioShowFees").checked=base.showFees;
+ updateScenarioFields();
+ updateScenarioPreview();
+ $("scenarioDialog").showModal();
+}
+function updateScenarioPreview(){
+ const existing=state.scenarios.find(s=>s.id===$("scenarioId").value);
+ const draft=scenarioFromDialog();
+ const dialogNameSource=$("scenarioName").dataset.nameSource||normalizeScenarioNameSource(draft);
+ if(dialogNameSource==="auto"){
+   draft.name=scenarioAutoName(draft);
+   draft.nameSource="auto";
+   setScenarioNameFieldState("auto",draft.name);
+ }
+ if(["finance","select"].includes(draft.type)){
+   const selectedProgram=programs().find(item=>item.id===($("scenarioProgram").value||existing?.programId||""))||null;
+   const termChanged=!existing||num(existing.term)!==num(draft.term);
+   if(selectedProgram&&termChanged)applyProgramRateForScenarioTerm(draft,selectedProgram);
+   $("scenarioBuyApr").value=draft.buyApr??"";
+   $("scenarioApr").value=draft.apr??"";
+   if(draft.type==="select")$("scenarioBalloon").value=draft.balloon??"";
+ }
+ const r=calcScenario(draft);
+ $("scenarioPreview").textContent=r.ready?(draft.onePay?`One-Pay ${money.format(r.onePayTotal)} · Equivalent ${money.format(r.equivalentMonthly)}`:`Estimated ${money.format(r.payment)}`):"Missing: "+r.missing.join(", ");
+}
 function applyProgramToDialog(){
  const program=programs().find(item=>item.id===$("scenarioProgram").value);
  if(!program)return;
-
  const draft=scenarioFromDialog();
+ draft.programId=program.id;
  applyProgramToScenarioObject(draft,program);
-
+ syncScenarioProgramIncentives(draft,program);
  $("scenarioTerm").value=draft.term||"";
  $("scenarioResidual").value=draft.residual??"";
  $("scenarioBaseMf").value=draft.baseMoneyFactor??"";
@@ -991,15 +1234,297 @@ function applyProgramToDialog(){
  $("scenarioBuyApr").value=draft.buyApr??"";
  $("scenarioApr").value=draft.apr??"";
  $("scenarioBalloon").value=draft.balloon??"";
-
- const added=mergeProgramIncentivesIntoDeal(program);
+ updateScenarioPreview();
+ toast(`Program rates and incentives loaded${draft.incentives.length?` with ${draft.incentives.length} incentive${draft.incentives.length===1?"":"s"}`:""}.`);
+}
+function buildProgramApplicationPreview(program){
+ if(!program)return '<div class="empty-state">Select a program to preview the changes before applying it.</div>';
+ const rows=(state.scenarios||[]).map(scenario=>{
+   const eligible=(program.incentives||[])
+     .filter(item=>num(item.amount)>0&&incentiveAppliesTo(item,scenario.type))
+     .map(item=>normalizeScenarioIncentive(item,{
+       sourceProgramId:program.id,
+       sourceIncentiveId:item.id||"",
+       sourceKind:"program",
+       programCode:item.programCode||program.modelCode||"",
+       category:item.category||"customer"
+     }));
+   const currentKeys=new Set((scenario.incentives||[]).map(item=>incentiveKey(normalizeScenarioIncentive(item))));
+   const already=eligible.filter(item=>currentKeys.has(incentiveKey(item)));
+   const toAdd=eligible.filter(item=>!currentKeys.has(incentiveKey(item)));
+   return {scenario,eligible,already,toAdd};
+ }).filter(row=>row.eligible.length||num(row.scenario.extraIncentive)>0);
+ if(!rows.length)return '<div class="empty-state">No scenarios in this deal can use the selected program.</div>';
+ return rows.map(row=>{
+   const scenario=row.scenario;
+   const title=`${scenarioDisplayName(scenario)} · ${scenarioTypeLabel(scenario.type)}`;
+   const eligibleCount=row.eligible.length;
+   const alreadyCount=row.already.length;
+   const addCount=row.toAdd.length;
+   const lines=row.eligible.length?row.eligible.map(item=>`<div class="selected-incentive-row"><div><strong>${esc(item.name)}</strong><span>${esc(incentiveAppliesLabel(item))}${item.programCode?" · "+esc(item.programCode):""}</span></div><strong>${money.format(num(item.amount))}</strong><span class="preview-status ${row.already.some(existing=>incentiveKey(existing)===incentiveKey(item))?"ready":"pending"}">${row.already.some(existing=>incentiveKey(existing)===incentiveKey(item))?"Already present":"Will add"}</span></div>`).join(""):'<div class="empty-state">No incentives eligible for this scenario.</div>';
+   return `<section class="program-preview-scenario"><div class="program-preview-header"><div><strong>${esc(title)}</strong><span>${eligibleCount} eligible · ${alreadyCount} already present · ${addCount} will add</span></div></div>${lines}${num(scenario.extraIncentive)>0?`<div class="program-preview-note">Additional Incentive remains scenario-specific.</div>`:""}</section>`;
+ }).join("");
+}
+function renderProgramApplicationPreview(program){
+ const host=$("programPickerPreview");
+ if(!host)return;
+ currentProgramApplicationPreview=program||null;
+ host.innerHTML=buildProgramApplicationPreview(program);
+ $("applyProgramPreview").disabled=!program;
+}
+function openProgramPicker(){
+ readFormToState();
+ const all=programs().filter(program=>program.status!=="expired");
+ const matches=matchingPrograms();
+ const months=[...new Set(all.map(program=>program.month).filter(Boolean))].sort((a,b)=>String(b).localeCompare(String(a)));
+ const years=[...new Set(all.map(program=>String(program.year)).filter(Boolean))].sort((a,b)=>Number(b)-Number(a));
+ $("programPickerMonth").innerHTML='<option value="">All Months</option>'+months.map(month=>`<option value="${month}">${month}</option>`).join("");
+ $("programPickerYear").innerHTML='<option value="">All Years</option>'+years.map(year=>`<option value="${year}">${year}</option>`).join("");
+ if(matches.length){
+   $("programPickerMonth").value=matches[0].month||"";
+   $("programPickerYear").value=String(state.vehicle.year||matches[0].year||"");
+ }
+ $("programPickerSearch").value="";
+ renderProgramPickerResults();
+ renderProgramApplicationPreview(matches[0]||null);
+ $("programPickerResults").onclick=e=>{
+   const button=e.target.closest("[data-preview-program]");
+   if(!button)return;
+   const program=programs().find(item=>item.id===button.dataset.previewProgram);
+   renderProgramApplicationPreview(program||null);
+ };
+ $("applyProgramPreview").onclick=()=>{
+   if(currentProgramApplicationPreview)applyProgramToDeal(currentProgramApplicationPreview.id);
+ };
+ $("programPickerDialog").showModal();
+}
+function renderProgramPickerResults(){
+ const month=$("programPickerMonth").value;
+ const year=$("programPickerYear").value;
+ const query=normalizeModelName($("programPickerSearch").value);
+ currentProgramPickerRows=programs()
+   .filter(program=>program.status!=="expired")
+   .filter(program=>!month||program.month===month)
+   .filter(program=>!year||String(program.year)===year)
+   .filter(program=>{
+     if(!query)return true;
+     const haystack=normalizeModelName(`${program.model||""} ${program.modelCode||""}`);
+     return haystack.includes(query)||query.includes(haystack);
+   })
+   .sort((a,b)=>programMatchScore(b)-programMatchScore(a)||String(b.month).localeCompare(String(a.month)));
+ $("programPickerSummary").textContent=`${currentProgramPickerRows.length} program${currentProgramPickerRows.length===1?"":"s"} shown for ${year||"all years"}${month?` · ${month}`:""}${state.vehicle.model?` · ${state.vehicle.model}`:""}.`;
+ $("programPickerResults").innerHTML=currentProgramPickerRows.length
+   ? currentProgramPickerRows.map(program=>{
+       const incentiveCount=(program.incentives||[]).length;
+       return `<article class="program-pick-card">
+         <div>
+           <strong>${esc(program.month)} · ${program.year} ${esc(program.model)}</strong>
+           <span>${esc(program.modelCode||"No model code")} · ${esc(program.status)}</span>
+         </div>
+         <div class="program-pick-values">
+           <span>Residual <strong>${program.residual===""?"—":program.residual+"%"}</strong></span>
+           <span>MF <strong>${program.moneyFactor===""?"—":program.moneyFactor}</strong></span>
+           <span>Finance <strong>${program.financeApr===""?"—":program.financeApr+"%"}</strong></span>
+           <span>Select <strong>${program.selectApr===""?"—":program.selectApr+"%"}</strong></span>
+           <span>Incentives <strong>${incentiveCount}</strong></span>
+         </div>
+         <button type="button" class="secondary" data-preview-program="${program.id}">Preview Changes</button>
+       </article>`;
+     }).join("")
+   : '<div class="empty-state">No matching programs. Adjust the month, year or model search.</div>';
+}
+function applyProgramToDeal(programId,options={}){
+ readFormToState();
+ const program=programs().find(item=>item.id===programId);
+ if(!program){
+   toast("The selected program could not be found.");
+   return;
+ }
+ if(!state.vehicle.year)state.vehicle.year=program.year;
+ if(!state.vehicle.model)state.vehicle.model=program.model;
+ let updated=0;
+ let added=0;
+ state.scenarios.forEach(scenario=>{
+   if(["lease","finance","select"].includes(scenario.type)){
+     applyProgramToScenarioObject(scenario,program);
+     updated++;
+   }
+   scenario.programId=program.id;
+   const result=syncScenarioProgramIncentives(scenario,program);
+   added+=result.added.length;
+ });
+ currentProgramApplicationPreview=null;
+ writeStateToForm();
  renderIncentives();
  renderScenarios();
- updateScenarioPreview();
+ renderWorksheet();
  scheduleAutosave();
-
- toast(`Program rates and residuals loaded${added?` with ${added} new incentive${added===1?"":"s"}`:""}.`);
+ if($("programPickerDialog")?.open)$("programPickerDialog").close();
+ if(options.openDeal!==false)showPage("deal");
+ toast(`${program.month} ${program.year} ${program.model} applied to ${updated} scenario${updated===1?"":"s"}${added?` and ${added} incentive${added===1?"":"s"}`:""}.`);
 }
+function renderProgramApplicationPreview(program){
+ const host=$("programPickerPreview");
+ if(!host)return;
+ currentProgramApplicationPreview=program||null;
+ host.innerHTML=buildProgramApplicationPreview(program);
+ $("applyProgramPreview").disabled=!program;
+}
+function applyScenarioOwnedSelectedIncentives(){
+ const picked=[...$("availableIncentives").querySelectorAll("[data-pick-incentive]:checked")];
+ if(!picked.length){
+   toast("Select at least one incentive before clicking Apply Selected.");
+   updateIncentivePickerButtons();
+   return;
+ }
+ const lookup=new Map(currentIncentivePickerItems.map(({program,incentive})=>[`${program.id}|${incentive.id}`,{program,incentive}]));
+ let added=0;
+ let touched=0;
+ for(const box of picked){
+   const found=lookup.get(`${box.dataset.programId}|${box.dataset.pickIncentive}`);
+   if(!found)continue;
+   const incentive=found.incentive;
+   const program=found.program;
+   state.scenarios.forEach(scenario=>{
+     if(!incentiveAppliesTo(incentive,scenario.type))return;
+     if(resolveScenarioEligibleProgram(scenario)?.id!==program.id)return;
+     const normalized=normalizeScenarioIncentive(incentive,{
+       sourceProgramId:program.id,
+       sourceIncentiveId:incentive.id||"",
+       sourceKind:"program",
+       programCode:incentive.programCode||program.modelCode||"",
+       category:incentive.category||"customer"
+     });
+     scenario.incentives=Array.isArray(scenario.incentives)?scenario.incentives:[];
+     if(scenario.incentives.some(item=>incentiveKey(item)===incentiveKey(normalized)))return;
+     scenario.incentives.push(normalized);
+     added++;
+     touched++;
+   });
+ }
+ $("incentiveDialog").close();
+ renderIncentives();
+ renderScenarios();
+ renderWorksheet();
+ scheduleAutosave();
+ toast(`${added} incentive${added===1?"":"s"} distributed across ${touched} scenario${touched===1?"":"s"}.`);
+}
+function applyScenarioOwnedProgramPreview(){
+ if(currentProgramApplicationPreview)applyProgramToDeal(currentProgramApplicationPreview.id);
+}
+function hydrateDealIncentives(deal){
+ migrateLegacyDealIncentives(deal);
+ return deal;
+}
+function hasMeaningfulDraft(){
+ return Boolean(
+  state.customer.firstName||state.customer.lastName||state.customer.email||state.customer.phone||
+  state.vehicle.stockNumber||state.vehicle.vin||state.vehicle.model||state.vehicle.msrp||
+  state.trade.allowance||(state.scenarios||[]).some(s=>scenarioEligibleIncentives(s).length||num(s.extraIncentive)||validateScenario(s).length===0)
+ );
+}
+function restoreAutosaveDraft(){
+ try{
+   const raw=localStorage.getItem(KEYS.draft);
+   if(!raw)return false;
+   const draft=JSON.parse(raw);
+   if(!draft?.deal)return false;
+   state=hydrateDealIncentives(draft.deal);
+   state.trade=state.trade||{allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true};
+   state.trade.applyTradeTaxCredit=state.trade.applyTradeTaxCredit!==false;
+   autosaveRestored=true;
+   writeStateToForm();
+   renderIncentives();
+   renderScenarios();
+   setAutosaveStatus("Draft restored from "+new Date(draft.savedAt).toLocaleString(),"restored");
+   return true;
+ }catch(error){
+   localStorage.removeItem(KEYS.draft);
+   return false;
+ }
+}
+async function loadDeal(id,duplicate=false){
+ const rows=await loadAllDeals(),d=rows.find(x=>x.id===id);
+ if(!d)return;
+ state=hydrateDealIncentives(structuredClone(d));
+ state.trade=state.trade||{allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true};
+ state.trade.applyTradeTaxCredit=state.trade.applyTradeTaxCredit!==false;
+ if(duplicate){
+   state.id=crypto.randomUUID();
+   state.quoteNumber="Q-"+new Date().toISOString().replace(/\D/g,"").slice(0,14);
+   state.createdAt=new Date().toISOString();
+   state.updatedAt=state.createdAt;
+ }
+ writeStateToForm();
+ renderIncentives();
+ renderScenarios();
+ resetRollPayment();
+ showPage("deal");
+ toast(duplicate?"Deal duplicated.":"Deal opened.");
+}
+document.body.addEventListener("click",e=>{
+ const selectIncentivesButton=e.target.closest("#selectIncentivesButton");
+ if(selectIncentivesButton){
+   setTimeout(()=>{$("applyIncentives").onclick=applyScenarioOwnedSelectedIncentives;},0);
+ }
+ const applyProgramButton=e.target.closest("#applyBmwProgramButton");
+ if(applyProgramButton){
+   setTimeout(()=>{
+     const results=$("programPickerResults");
+     if(results){
+       results.onclick=event=>{
+         const button=event.target.closest("[data-preview-program]");
+         if(!button)return;
+         const program=programs().find(item=>item.id===button.dataset.previewProgram);
+         renderProgramApplicationPreview(program||null);
+       };
+     }
+     const applyPreview=$("applyProgramPreview");
+     if(applyPreview)applyPreview.onclick=applyScenarioOwnedProgramPreview;
+   },0);
+ }
+ const applyIncentives=e.target.closest("#applyIncentives");
+ if(applyIncentives){
+   applyScenarioOwnedSelectedIncentives();
+   e.preventDefault();
+   e.stopImmediatePropagation();
+   return;
+ }
+ const remove=e.target.closest("[data-remove-scenario-incentive]");
+ if(remove){
+   const scenarioId=remove.dataset.removeScenarioIncentive;
+   const incentiveId=remove.dataset.incentiveId;
+   const scenario=state.scenarios.find(item=>item.id===scenarioId);
+   const incentive=scenario?.incentives?.find(item=>item.id===incentiveId);
+   if(!scenario||!incentive)return;
+   if(!confirm(`Remove "${incentive.name}" from this scenario?`))return;
+   if(removeScenarioIncentiveFromDeal(scenarioId,incentiveId)){
+     renderIncentives();
+     renderScenarios();
+     renderWorksheet();
+     scheduleAutosave();
+     toast("Incentive removed from the scenario.");
+   }
+   e.preventDefault();
+   e.stopImmediatePropagation();
+   return;
+ }
+ const preview=e.target.closest("[data-preview-program]");
+ if(preview){
+   const program=programs().find(item=>item.id===preview.dataset.previewProgram);
+   renderProgramApplicationPreview(program||null);
+   e.preventDefault();
+   e.stopImmediatePropagation();
+   return;
+ }
+ const applyPreview=e.target.closest("#applyProgramPreview");
+ if(applyPreview){
+   const programId=currentProgramApplicationPreview?.id||"";
+   if(programId)applyProgramToDeal(programId);
+   e.preventDefault();
+   e.stopImmediatePropagation();
+ }
+},true);
 function loadSettingsForm(){const s=settings();$("dealerName").value=s.dealerName;$("defaultTax").value=s.defaultTax;$("reserveShare").value=s.reserveShare;$("defaultSalesperson").value=s.defaultSalesperson;$("defaultDocFee").value=s.docFee;$("defaultRegFee").value=s.regFee;$("defaultAcqFee").value=s.acqFee;$("defaultMiscFee").value=s.miscFee;$("salespeople").value=s.salespeople.join("\n");$("disclaimer").value=s.disclaimer;}
 function saveSettings(){const s={dealerName:$("dealerName").value,defaultTax:num($("defaultTax").value),reserveShare:num($("reserveShare").value),defaultSalesperson:$("defaultSalesperson").value,docFee:num($("defaultDocFee").value),regFee:num($("defaultRegFee").value),acqFee:num($("defaultAcqFee").value),miscFee:num($("defaultMiscFee").value),salespeople:$("salespeople").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),disclaimer:$("disclaimer").value};localStorage.setItem(KEYS.settings,JSON.stringify(s));applySettingsToDeal(false);toast("Dealer settings saved.");}
 function initializeSupabase(){
@@ -1069,7 +1594,7 @@ function updateIncentivePickerButtons(){
 function buildIncentivePicker(matches){
  const host=$("availableIncentives");
  const fragment=document.createDocumentFragment();
- const appliedKeys=new Set(state.incentives.map(x=>`${x.sourceProgramId}|${x.sourceIncentiveId}`));
+ const appliedKeys=new Set((state.scenarios||[]).flatMap(scenario=>(scenario.incentives||[]).map(item=>`${item.sourceProgramId||scenario.programId||""}|${item.sourceIncentiveId||item.id||item.name}`)));
  currentIncentivePickerItems=[];
  for(const program of matches){
    for(const incentive of (program.incentives||[])){
@@ -1118,38 +1643,6 @@ function openIncentivePicker(programId=""){
  updateIncentivePickerButtons();
  $("incentiveDialog").showModal();
 }
-function refreshAfterIncentiveChange(){
- renderIncentives();
- requestAnimationFrame(()=>{
-   renderScenarios();
-   renderWorksheet();
-   scheduleAutosave();
- });
-}
-function applyPickedIncentives(){
- const picked=[...$("availableIncentives").querySelectorAll("[data-pick-incentive]:checked")];
- if(!picked.length){
-   toast("Select at least one incentive before clicking Apply Selected.");
-   updateIncentivePickerButtons();
-   return;
- }
- const lookup=new Map(currentIncentivePickerItems.map(({program,incentive})=>[`${program.id}|${incentive.id}`,{program,incentive}]));
- const selected=[];
- for(const box of picked){
-   const found=lookup.get(`${box.dataset.programId}|${box.dataset.pickIncentive}`);
-   if(!found)continue;
-   selected.push({...found.incentive,id:crypto.randomUUID(),sourceProgramId:found.program.id,sourceIncentiveId:found.incentive.id});
- }
- if(!selected.length){
-   toast("The selected incentives could not be found in the program record.");
-   return;
- }
- state.incentives=selected;
- $("incentiveDialog").close();
- refreshAfterIncentiveChange();
- toast(`${selected.length} incentive${selected.length===1?"":"s"} applied.`);
-}
-
 function openAddProgramIncentiveDialog(){
  const programId=currentIncentiveProgramIds[0];
  const program=programs().find(p=>p.id===programId);
@@ -1360,6 +1853,125 @@ function mergeWrappedProgramLines(lines){
  return merged;
 }
 
+function lineStartsWithModelCode(line){
+ const normalized=normalizePdfLine(line);
+ return normalized.match(/^([0-9]{2}[A-Z][A-Z0-9])\b/)?.[1]||"";
+}
+
+function lineContainsAnyModelCode(line){
+ return /(?:^|\s)([0-9]{2}[A-Z][A-Z0-9])(?:\s|$)/.test(normalizePdfLine(line));
+}
+
+function isSplitRowDetailLine(line){
+ const normalized=normalizePdfLine(line);
+ if(!normalized)return false;
+ if(lineStartsWithModelCode(normalized))return false;
+ if(lineContainsAnyModelCode(normalized))return false;
+ return /\s(?:Yes|No)\s+\d+(?:\.\d+)?\s*%\s+\$/.test(normalized);
+}
+
+function buildCoordinateProgramCandidates(pageLineGroups){
+ const candidates=[];
+ pageLineGroups.forEach(page=>{
+ const lines=page.lines||[];
+ lines.forEach((entry,index)=>{
+  const code=lineStartsWithModelCode(entry.text);
+  if(!isBmwModelCodeToken(code))return;
+  const normalized=normalizePdfLine(entry.text);
+  if(likelyProgramRow(normalized))return;
+  const codeOnly=normalized===code;
+  if(!codeOnly && normalized.split(/\s+/).length>2)return;
+
+  const nearby=[];
+  for(let look=Math.max(0,index-3);look<=Math.min(lines.length-1,index+3);look++){
+   if(look===index)continue;
+   const target=lines[look];
+   if(!target||!isSplitRowDetailLine(target.text))continue;
+   const yDistance=Math.abs(entry.y-target.y);
+   const rowDistance=Math.abs(index-look);
+   nearby.push({target,yDistance,rowDistance});
+  }
+
+  nearby.sort((a,b)=>a.yDistance-b.yDistance||a.rowDistance-b.rowDistance);
+  const best=nearby[0];
+  if(!best)return;
+
+  const detail=normalizePdfLine(best.target.text);
+  if(!detail)return;
+
+  candidates.push({
+   pageNo:page.pageNo,
+   source:"coordinate-merge",
+   recovered:`${code} ${detail}`,
+   fragments:[entry.text,best.target.text]
+  });
+ });
+ });
+ return candidates;
+}
+
+function modelContaminationReasons(model,code){
+ const clean=normalizePdfLine(model);
+ const reasons=[];
+ if(!clean)return ["model text is empty"];
+ if(/\b20\d{2}\b/.test(clean))reasons.push("contains standalone model year");
+ const codeTokens=[...clean.matchAll(/\b([0-9]{2}[A-Z][A-Z0-9])\b/g)].map(match=>match[1]);
+ if(codeTokens.length){
+ if(codeTokens.some(token=>token!==code))reasons.push("contains another model code");
+ else reasons.push("contains model code token");
+ }
+ if(/\b\d{3,4}[A-Z]\b/.test(clean))reasons.push("contains code-like neighboring token");
+ if(/\b(?:Yes|No)\b/.test(clean))reasons.push("contains row eligibility text");
+ if(clean.split(/\s+/).length>8)reasons.push("contains unusually long model text from neighboring row");
+ return reasons;
+}
+
+function candidateSourceRank(source){
+ switch(source){
+  case "single-line-clean":
+   return 400;
+  case "coordinate-merge":
+   return 300;
+  case "wrapped-line-recovery":
+   return 200;
+  case "line-recovery":
+   return 180;
+  case "broad-fallback":
+   return 100;
+  default:
+   return 120;
+ }
+}
+
+function modelInconsistentWithFragments(model,fragments){
+ const cleanModel=normalizePdfLine(model).toLowerCase();
+ if(!cleanModel)return true;
+ if(!Array.isArray(fragments)||!fragments.length)return false;
+ const joined=fragments.map(fragment=>normalizePdfLine(fragment).toLowerCase()).join(" ");
+ if(!joined)return false;
+ return joined.indexOf(cleanModel)===-1;
+}
+
+function scoreProgramCandidate(row,candidate){
+ const reasons=[];
+ let score=candidateSourceRank(candidate.source);
+ if(candidate.pageNo)score+=15;
+ const contamination=modelContaminationReasons(row.model,row.modelCode);
+ if(contamination.length){
+  score-=300;
+  reasons.push(...contamination.map(reason=>`penalty: ${reason}`));
+ }
+ if(modelInconsistentWithFragments(row.model,candidate.fragments)){
+  score-=240;
+  reasons.push("penalty: model text inconsistent with source fragments");
+ }
+ if(row.model.split(/\s+/).length===1){
+  score-=40;
+  reasons.push("penalty: model text too short");
+ }
+ return {score,reasons,contamination};
+}
+
 function currencyValue(token){const s=String(token||"").replace(/[$,\s]/g,"");return s==="-"||s===""?0:num(s)}
 function parseProgramRow(rawLine,meta){
  const line=normalizePdfLine(rawLine)
@@ -1502,6 +2114,7 @@ async function importProgramPdf(file){
    }
 
    const rawLines=[];
+   const pageLineGroups=[];
    let meta={
      month:"",
      effectiveDate:"",
@@ -1525,16 +2138,21 @@ async function importProgramPdf(file){
        groups.get(y).push(item);
      });
 
+     const pageLines=[];
      [...groups.entries()]
        .sort((a,b)=>b[0]-a[0])
-       .forEach(([,items])=>{
+       .forEach(([y,items])=>{
          const line=items
            .sort((a,b)=>a.transform[4]-b.transform[4])
            .map(item=>item.str)
            .join(" ");
          const clean=normalizePdfLine(line);
-         if(clean)rawLines.push(clean);
+         if(clean){
+           rawLines.push(clean);
+           pageLines.push({y,text:clean});
+         }
        });
+     pageLineGroups.push({pageNo,lines:pageLines});
    }
 
    stage="combining PDF table rows";
@@ -1565,9 +2183,9 @@ async function importProgramPdf(file){
    // valid BMW model row (for example: "20 26XG X5 xDr40i ..."). The old
    // anchored test silently skipped those rows. Recover the row by locating the
    // first BMW model-code pattern that is followed by model text and Yes/No.
-   const candidateLines=[];
+   const candidateRecords=[];
    const candidateKeys=new Set();
-   const addCandidate=recovered=>{
+   const addCandidate=(recovered,source,pageNo,fragments=[])=>{
      recovered=normalizePdfLine(stripLeadingPdfArtifacts(recovered));
      if(!recovered)return;
      const codeMatch=recovered.match(/^([0-9]{2}[A-Z][A-Z0-9])\s+/);
@@ -1575,71 +2193,153 @@ async function importProgramPdf(file){
      const key=codeMatch[1]+"|"+recovered.slice(0,160);
      if(!candidateKeys.has(key)){
        candidateKeys.add(key);
-       candidateLines.push(recovered);
+       candidateRecords.push({
+         pageNo:pageNo||null,
+         modelCode:codeMatch[1],
+         recovered,
+         source:source||"unknown",
+         fragments:Array.isArray(fragments)?fragments:[]
+       });
      }
    };
 
    // First pass: normal line-by-line recovery.
    lines.forEach(sourceLine=>{
      const line=normalizePdfLine(sourceLine);
+     const startsWithCode=isBmwModelCodeToken(lineStartsWithModelCode(line));
      const matches=[...line.matchAll(/(?:^|\s)([0-9]{2}[A-Z][A-Z0-9])\s+(.+?)\s+(?:Yes|No)\s+\d+(?:\.\d+)?\s*%/g)];
      matches.forEach(match=>{
        const start=match.index+(match[0].startsWith(" ")?1:0);
-       addCandidate(line.slice(start));
+       const source=start===0&&startsWithCode?"single-line-clean":"wrapped-line-recovery";
+       addCandidate(line.slice(start),source,null,[line]);
      });
    });
 
-   // Second pass: rebuild rows from the complete PDF text stream. Some BMW
-   // pages split one table row across several y-coordinates, so the model code,
-   // model name and rate columns never exist in a single extracted line. Slice
-   // from each BMW model code to the next code and let parseProgramRow validate
-   // the segment. This specifically recovers rows such as 26XG and 26XT, but is
-   // intentionally generic for future monthly PDFs.
-   const flatPdfText=normalizePdfLine(rawLines.join(" "));
-   const codeMatches=[...flatPdfText.matchAll(/(?:^|\s)([0-9]{2}[A-Z][A-Z0-9])\s+/g)];
-   codeMatches.forEach((match,index)=>{
-     const start=match.index+(match[0].startsWith(" ")?1:0);
-     const next=codeMatches[index+1];
-     const end=next ? next.index+(next[0].startsWith(" ")?1:0) : Math.min(flatPdfText.length,start+1200);
-     const segment=flatPdfText.slice(start,end);
-     if(/\s(?:Yes|No)\s+\d+(?:\.\d+)?\s*%/.test(segment))addCandidate(segment);
+   // Second pass: recover split rows by using page-local coordinates instead of
+   // a fixed-width text window. This prevents a code-only line from borrowing
+   // the next model row when PDF extraction separates code and details.
+   const coordinateCandidates=buildCoordinateProgramCandidates(pageLineGroups);
+   coordinateCandidates.forEach(candidate=>{
+     addCandidate(candidate.recovered,candidate.source,candidate.pageNo,candidate.fragments);
    });
 
-   // Third pass: parse a fixed-width window after every model code. Do not stop
-   // at the next code-looking token because page headers, footnotes, and PDF
-   // artifacts can resemble BMW model codes and prematurely cut a valid row.
-   // parseProgramRow only consumes the first complete 14-column rate set, so
-   // the extra trailing text is harmless.
-   codeMatches.forEach(match=>{
-     const start=match.index+(match[0].startsWith(" ")?1:0);
-     const window=flatPdfText.slice(start,Math.min(flatPdfText.length,start+1600));
-     if(/^[0-9]{2}[A-Z][A-Z0-9]\s+.+?\s+(?:Yes|No)\s+\d+(?:\.\d+)?\s*%/.test(window)){
-       addCandidate(window);
-     }
-   });
+   const flatPdfText=normalizePdfLine(rawLines.join(" "));
 
    const parsed=[];
    const rowErrors=[];
+   const diagnosticWarnings=[];
+   const rowDiagnostics=[];
+   const duplicateCollisions=[];
 
-   candidateLines.forEach((line,index)=>{
+   candidateRecords.forEach((candidate,index)=>{
+     const trace={
+       candidateIndex:index,
+       pageNo:candidate.pageNo,
+       modelCode:candidate.modelCode,
+       sourcePass:candidate.source,
+       reconstructedModel:"",
+       sourceFragments:candidate.fragments.join(" || "),
+       parseResult:"not-parsed",
+       dedupeResult:"not-applicable",
+       qualityScore:0,
+       qualityNotes:""
+     };
      try{
-       const row=parseProgramRow(line,meta);
-       if(row)parsed.push(row);
+       const row=parseProgramRow(candidate.recovered,meta);
+       if(!row){
+         trace.parseResult="rejected: malformed row";
+         rowErrors.push(`Row ${index+1} (${candidate.modelCode}) on page ${candidate.pageNo||"?"} is malformed.`);
+         rowDiagnostics.push(trace);
+         return;
+       }
+       trace.reconstructedModel=row.model;
+       const quality=scoreProgramCandidate(row,candidate);
+       trace.qualityScore=quality.score;
+       trace.qualityNotes=quality.reasons.join("; ");
+       const severeContamination=quality.contamination.filter(reason=>
+         /another model code|standalone model year|row eligibility text|neighboring row|model code token/i.test(reason)
+       );
+       const inconsistentModel=modelInconsistentWithFragments(row.model,candidate.fragments);
+       if(severeContamination.length||inconsistentModel){
+         const rejectReasons=[
+           ...severeContamination,
+           ...(inconsistentModel?["model text inconsistent with source fragments"]:[])
+         ];
+         trace.parseResult=`rejected: contaminated model (${rejectReasons.join("; ")})`;
+         rowErrors.push(
+           `Row ${index+1} (${row.modelCode}) on page ${candidate.pageNo||"?"} rejected: ${rejectReasons.join("; ")}.`
+         );
+         rowDiagnostics.push(trace);
+         return;
+       }
+       trace.parseResult="parsed";
+       parsed.push({
+         row,
+         candidate,
+         candidateIndex:index,
+         qualityScore:quality.score,
+         qualityNotes:quality.reasons
+       });
+       rowDiagnostics.push(trace);
      }catch(error){
-       console.error("Program row parse failed:",line,error);
+       trace.parseResult=`error: ${error?.message||String(error)}`;
+       rowDiagnostics.push(trace);
+       console.error("Program row parse failed:",candidate.recovered,error);
        rowErrors.push(`Row ${index+1}: ${error?.message||String(error)}`);
      }
    });
 
-   importedProgramRows=parsed;
+   importedProgramRows=parsed.map(item=>item.row);
 
    stage="removing duplicate program rows";
-   const unique=new Map();
-   importedProgramRows.forEach(row=>{
-     const key=`${row.month}|${row.modelCode}`;
-     if(!unique.has(key))unique.set(key,row);
+   const groupedByCode=new Map();
+   parsed.forEach(item=>{
+     const key=`${item.row.month}|${item.row.modelCode}`;
+     if(!groupedByCode.has(key))groupedByCode.set(key,[]);
+     groupedByCode.get(key).push(item);
    });
-   importedProgramRows=[...unique.values()];
+
+   const rankedRows=[];
+   groupedByCode.forEach((items,key)=>{
+     items.sort((a,b)=>{
+       if(b.qualityScore!==a.qualityScore)return b.qualityScore-a.qualityScore;
+       const sourceRankDiff=candidateSourceRank(b.candidate.source)-candidateSourceRank(a.candidate.source);
+       if(sourceRankDiff!==0)return sourceRankDiff;
+       if((b.candidate.pageNo||0)!==(a.candidate.pageNo||0))return (b.candidate.pageNo||0)-(a.candidate.pageNo||0);
+       return a.candidateIndex-b.candidateIndex;
+     });
+     const winner=items[0];
+     rankedRows.push(winner.row);
+     const winnerTrace=rowDiagnostics.find(item=>item.candidateIndex===winner.candidateIndex);
+     if(winnerTrace)winnerTrace.dedupeResult=`kept winner (score ${winner.qualityScore})`;
+     if(items.length>1){
+       items.slice(1).forEach(loser=>{
+         const loserTrace=rowDiagnostics.find(item=>item.candidateIndex===loser.candidateIndex);
+         if(loserTrace){
+           loserTrace.dedupeResult=`rejected duplicate (score ${loser.qualityScore})`;
+         }
+         duplicateCollisions.push({
+           modelCode:winner.row.modelCode,
+           month:winner.row.month,
+           kept:{
+             model:winner.row.model,
+             sourcePass:winner.candidate.source,
+             pageNo:winner.candidate.pageNo||"",
+             qualityScore:winner.qualityScore,
+             reason:`higher quality score (${winner.qualityScore} > ${loser.qualityScore})`
+           },
+           rejected:{
+             model:loser.row.model,
+             sourcePass:loser.candidate.source,
+             pageNo:loser.candidate.pageNo||"",
+             qualityScore:loser.qualityScore,
+             reason:(loser.qualityNotes||[]).join("; ")||`lower quality score (${loser.qualityScore})`
+           }
+         });
+       });
+     }
+   });
+   importedProgramRows=rankedRows;
 
    // Keep an explicit audit trail for rows that have repeatedly been missed in
    // BMW PDFs. This does not fabricate programs; it only reports whether the
@@ -1652,6 +2352,62 @@ async function importProgramPdf(file){
      rowErrors.push(`Found in PDF text but not parsed: ${missingAuditCodes.join(", ")}`);
    }
 
+   const expectedRows={
+     "26XG":"X5 xDr40i",
+     "26XT":"X5 xDr50e",
+     "26SJ":"X5 M60i",
+     "26XK":"X5 M",
+     "26XO":"X5 sDr40i"
+   };
+   Object.entries(expectedRows).forEach(([code,expectedModel])=>{
+     const row=importedProgramRows.find(item=>item.modelCode===code);
+     const normalizedActual=normalizePdfLine(row?.model||"");
+     const normalizedExpected=normalizePdfLine(expectedModel);
+     if(!row){
+       diagnosticWarnings.push(`Validation check: ${code} is missing after parse/dedupe.`);
+       return;
+     }
+     if(normalizedActual!==normalizedExpected){
+       diagnosticWarnings.push(`Validation check: ${code} expected "${expectedModel}" but parsed "${row.model}".`);
+     }
+   });
+
+   console.groupCollapsed("PDF import diagnostics");
+   console.table(rowDiagnostics.map(item=>({
+     page:item.pageNo||"",
+     modelCode:item.modelCode,
+     sourcePass:item.sourcePass,
+     reconstructedModel:item.reconstructedModel,
+     sourceFragments:item.sourceFragments,
+     parseResult:item.parseResult,
+     qualityScore:item.qualityScore,
+     qualityNotes:item.qualityNotes,
+     dedupeResult:item.dedupeResult
+   })));
+   if(duplicateCollisions.length){
+     console.table(duplicateCollisions.map(collision=>({
+       modelCode:collision.modelCode,
+       keptCandidate:collision.kept.model,
+       keptSourcePass:collision.kept.sourcePass,
+       keptPage:collision.kept.pageNo,
+       keptQualityScore:collision.kept.qualityScore,
+       keptReason:collision.kept.reason,
+       rejectedCandidate:collision.rejected.model,
+       rejectedSourcePass:collision.rejected.sourcePass,
+       rejectedPage:collision.rejected.pageNo,
+       rejectedQualityScore:collision.rejected.qualityScore,
+       rejectedReason:collision.rejected.reason
+     })));
+   }
+   console.groupEnd();
+   window.__lastPdfImportDiagnostics={
+     totalCandidates:candidateRecords.length,
+     totalParsedRows:parsed.length,
+     totalReviewRows:importedProgramRows.length,
+     duplicateCollisions,
+     rowDiagnostics
+   };
+
    $("importMetadata").textContent=
      `${file.name} · ${pdf.numPages} pages · `+
      `Effective ${meta.effectiveDate||"not detected"} through `+
@@ -1663,7 +2419,7 @@ async function importProgramPdf(file){
      warnings.push("The effective dates need review.");
    }
    if(!importedProgramRows.length){
-     warnings.push(`No program rows were detected from ${candidateLines.length} possible rows.`);
+     warnings.push(`No program rows were detected from ${candidateRecords.length} possible rows.`);
    }
 
    const missingResidualRows=importedProgramRows.filter(row=>!num(row.residual));
@@ -1680,6 +2436,7 @@ async function importProgramPdf(file){
        "The remaining rows can still be reviewed and imported."
      );
    }
+   diagnosticWarnings.forEach(message=>warnings.push(message));
 
    const warningsEl=$("importWarnings");
    warningsEl.classList.toggle("hidden",warnings.length===0);
@@ -1827,15 +2584,18 @@ function saveApprovedImports(){
  setPdfImportStatus(`${checked.length} programs saved`,"success");
  toast(`${checked.length} programs imported with residuals.`);
 }
-function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>e.addEventListener("input",updateScenarioPreview));$("incentiveRows").addEventListener("click",e=>{
- const id=e.target.dataset.removeIncentive;
- if(!id)return;
- const incentive=state.incentives.find(x=>x.id===id);
- if(!incentive)return;
- if(!confirm(`Remove "${incentive.name}" from this deal?`))return;
- state.incentives=state.incentives.filter(x=>x.id!==id);
- refreshAfterIncentiveChange();
- toast("Incentive removed from the deal.");
+function bindEvents(){bindNav();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
+ const scenarioId=e.target.dataset.removeScenarioIncentive,incentiveId=e.target.dataset.incentiveId;
+ if(!scenarioId||!incentiveId)return;
+ const scenario=state.scenarios.find(item=>item.id===scenarioId),incentive=scenario?.incentives?.find(item=>item.id===incentiveId);
+ if(!scenario||!incentive)return;
+ if(!confirm(`Remove "${incentive.name}" from ${scenarioDisplayName(scenario)}?`))return;
+ if(!removeScenarioIncentiveFromDeal(scenarioId,incentiveId))return;
+ renderIncentives();
+ renderScenarios();
+ renderWorksheet();
+ scheduleAutosave();
+ toast("Incentive removed from the scenario.");
 });$("scenarioGrid").addEventListener("click",e=>{
  const moveId=e.target.dataset.moveScenario;if(moveId){moveScenario(moveId,num(e.target.dataset.direction));return}
  const id=e.target.dataset.editScenario||e.target.dataset.duplicateScenario||e.target.dataset.renameScenario||e.target.dataset.deleteScenario;if(!id)return;
@@ -1860,7 +2620,7 @@ $("programPickerResults").addEventListener("click",event=>{
  if(id)applyProgramToDeal(id);
 });
 $("closeIncentiveDialog").onclick=$("cancelIncentives").onclick=()=>$("incentiveDialog").close();
-$("applyIncentives").onclick=applyPickedIncentives;
+$("applyIncentives").onclick=applyScenarioOwnedSelectedIncentives;
 $("addIncentiveToProgram").onclick=openAddProgramIncentiveDialog;
 $("availableIncentives").addEventListener("change",e=>{
  if(e.target.matches("[data-pick-incentive]"))updateIncentivePickerButtons();
