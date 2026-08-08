@@ -90,7 +90,7 @@
             <label>MSRP / Market Value<input id="msrp" type="number" min="0" step=".01"></label>
             <label>Dealer Discount<input id="discount" type="number" min="0" step=".01" value="0"></label>
             <label>Adjusted Selling Price<div id="sellingPriceDisplay" class="readout">$0.00</div></label>
-            <label class="required">Sales Tax %<input id="taxRate" type="number" min="0" step=".01" placeholder="Enter 0 if tax exempt"></label>
+            <label class="required">Sales Tax %<input id="taxRate" type="number" min="0" step=".01" inputmode="decimal" placeholder="Enter 0 if tax exempt"></label>
             <label>Vehicle Cost<input id="vehicleCost" type="number" min="0" step=".01"></label>
             <label>Pack / Internal Cost<input id="pack" type="number" min="0" step=".01"></label>
           </div>
@@ -231,9 +231,9 @@
             <label>Base Residual %<input id="programResidual" type="number" step=".01"></label>
             <label>Money Factor<input id="programMf" type="number" step=".00001"></label>
             <label>One-Pay MF Reduction<input id="programOnePayReduction" type="number" step=".00001" value=".00080"></label>
-            <label>Finance APR %<input id="programFinanceApr" type="number" step=".01"></label>
+            <label>Finance APR %<input id="programFinanceApr" type="number" step=".01" inputmode="decimal"></label>
             <label>Finance Term<input id="programFinanceTerm" type="number" value="60"></label>
-            <label>Select APR %<input id="programSelectApr" type="number" step=".01"></label>
+            <label>Select APR %<input id="programSelectApr" type="number" step=".01" inputmode="decimal"></label>
             <label>Select Term<input id="programSelectTerm" type="number" value="60"></label>
             <label>Select Balloon %<input id="programBalloon" type="number" step=".01"></label>
             <label>Program Code<input id="programCode"></label>
@@ -352,9 +352,9 @@
         <label class="lease-field">Deduction Per Mile<input id="scenarioInceptionCharge" type="number" step=".01" value=".20"></label>
         <label class="lease-field">Custom Miles<input id="scenarioCustomMiles" type="number" value="0"></label>
         <label class="lease-field">Custom Deduction Per Mile<input id="scenarioCustomCharge" type="number" step=".01" value=".20"></label>
-        <label class="rate-field required">Buy APR %<input id="scenarioBuyApr" type="number" step=".01"></label>
-        <label class="rate-field required">Used / Customer APR %<input id="scenarioApr" type="number" step=".01"></label>
-        <label class="select-field required">Balloon %<input id="scenarioBalloon" type="number" step=".01"></label>
+        <label class="rate-field required">Buy APR %<input id="scenarioBuyApr" type="number" step=".01" inputmode="decimal"></label>
+        <label class="rate-field required">Used / Customer APR %<input id="scenarioApr" type="number" step=".01" inputmode="decimal"></label>
+        <label class="select-field required">Balloon %<input id="scenarioBalloon" type="number" step=".01" inputmode="decimal"></label>
         <label>Price Adjustment<input id="scenarioPriceAdjustment" type="number" step=".01" value="0"></label>
         <label>Cash Adjustment<input id="scenarioCashAdjustment" type="number" step=".01" value="0"></label>
         <label>Trade Adjustment<input id="scenarioTradeAdjustment" type="number" step=".01" value="0"></label>
@@ -423,11 +423,11 @@
         <label>Model Year<input id="quickYear" type="number" required></label>
         <label>Model Code<input id="quickModelCode"></label>
         <label class="span2">Model / Trim<input id="quickModel" required></label>
-        <label>36-mo Residual @ 15K<input id="quickResidual" type="number" step=".01"></label>
-        <label>Base Money Factor<input id="quickMf" type="number" step=".00001"></label>
-        <label>Retail APR 24–60<input id="quickRetailApr" type="number" step=".01"></label>
-        <label>Retail APR 61–72<input id="quickRetailAprLong" type="number" step=".01"></label>
-        <label>Select APR<input id="quickSelectApr" type="number" step=".01"></label>
+        <label>36-mo Residual @ 15K<input id="quickResidual" type="number" step=".01" inputmode="decimal"></label>
+        <label>Base Money Factor<input id="quickMf" type="number" step=".00001" inputmode="decimal"></label>
+        <label>Retail APR 24–60<input id="quickRetailApr" type="number" step=".01" inputmode="decimal"></label>
+        <label>Retail APR 61–72<input id="quickRetailAprLong" type="number" step=".01" inputmode="decimal"></label>
+        <label>Select APR<input id="quickSelectApr" type="number" step=".01" inputmode="decimal"></label>
         <label>Lease Credit<input id="quickLeaseCredit" type="number" step=".01"></label>
         <label>Purchase Credit<input id="quickPurchaseCredit" type="number" step=".01"></label>
         <label>Cash Purchase Credit<input id="quickCashCredit" type="number" step=".01"></label>
