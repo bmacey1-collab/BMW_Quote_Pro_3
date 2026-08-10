@@ -6,10 +6,17 @@ const KEYS={settings:"bqp3_settings",programs:"bqp3_programs",deals:"bqp3_deals"
 let supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,draggedScenarioId=null,importedProgramRows=[],pdfJsModulePromise=null,currentIncentiveProgramIds=[],currentProgramPickerRows=[],currentProgramApplicationPreview=null;
 let savedDealsCache=[],savedDealsLoadedAt=0,savedDealFilter="all";
 let incentiveMatchCache=new Map(),currentIncentivePickerItems=[];
+let vinDecodeRequestTokens={vehicle:0,trade:0};
 let state=createEmptyDeal();
 
+function createQuoteNumber(){
+ const stamp=new Date().toISOString().replace(/\D/g,"").slice(0,17);
+ const suffix=crypto.randomUUID().split("-")[0].toUpperCase();
+ return `Q-${stamp}-${suffix}`;
+}
+
 function createEmptyDeal(){
- return {id:crypto.randomUUID(),quoteNumber:"Q-"+new Date().toISOString().replace(/\D/g,"").slice(0,14),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),
+ return {id:crypto.randomUUID(),quoteNumber:createQuoteNumber(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),
  customer:{clientId:"",firstName:"",lastName:"",coFirstName:"",coLastName:"",email:"",phone:"",salesperson:"",currentPayment:0},
  vehicle:{stockNumber:"",vin:"",year:"",make:"BMW",model:"",msrp:0,discount:0,cost:0,pack:0,taxRate:null},
  trade:{vin:"",vehicle:"",allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true},
@@ -667,6 +674,8 @@ async function decodeVin(target){
  const id=target==="trade"?"tradeVin":"vin";
  const field=$(id);
  const vin=normalizeVinInput(field.value);
+ const requestId=++vinDecodeRequestTokens[target];
+ const isCurrentRequest=()=>vinDecodeRequestTokens[target]===requestId&&normalizeVinInput(field.value)===vin;
  field.value=vin;
  if(vin.length!==17){toast("Enter a 17-character VIN.");return}
  if(!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)){toast("VIN can only use letters A-H, J-N, P, R-Z and numbers.");return}
@@ -674,11 +683,13 @@ async function decodeVin(target){
   const decodeVinUrl="https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/"+encodeURIComponent(vin)+"?format=json&cache=false";
   const decodeValuesUrl="https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValuesExtended/"+encodeURIComponent(vin)+"?format=json";
   const primaryRes=await fetch(decodeVinUrl,{cache:"no-store"});
+  if(!isCurrentRequest())return;
   const primaryData=await primaryRes.json();
   let decoded=parseVinVariables(primaryData?.Results);
   const modelText=buildDecodedModelText(decoded);
   if(!decoded.modelYear||!decoded.make||!modelText){
    const fallbackRes=await fetch(decodeValuesUrl,{cache:"no-store"});
+  if(!isCurrentRequest())return;
    const fallbackData=await fallbackRes.json();
    const fallback=parseVinValuesRow(fallbackData?.Results?.[0]);
    decoded={
@@ -691,6 +702,7 @@ async function decodeVin(target){
     errorText:decoded.errorText||fallback.errorText
    };
   }
+  if(!isCurrentRequest())return;
   const finalModelText=buildDecodedModelText(decoded);
   const finalYear=decoded.modelYear||yearFromVinCode(vin);
   if(target==="trade")$("tradeVehicle").value=[finalYear,decoded.make,finalModelText].filter(Boolean).join(" ");
@@ -759,13 +771,31 @@ function clearAutosaveDraft(){
  setAutosaveStatus("No unsaved draft");
 }
 async function saveDeal(){readFormToState();state.updatedAt=new Date().toISOString();let rows=localDeals();const clientMatch=findMatchingClient(rows);if(!state.customer.clientId)state.customer.clientId=clientMatch?.customer?.clientId||crypto.randomUUID();let idx=rows.findIndex(d=>d.id===state.id);if(idx>=0)rows[idx]=structuredClone(state);else rows.unshift(structuredClone(state));saveLocalDeals(rows);savedDealsCache=[];savedDealsLoadedAt=0;if(supabaseClient&&currentUser){const result=await supabaseClient.from("v3_deals").upsert({id:state.id,user_id:currentUser.id,quote_number:state.quoteNumber,client_name:[state.customer.firstName,state.customer.lastName].filter(Boolean).join(" "),vehicle:[state.vehicle.year,state.vehicle.make,state.vehicle.model].filter(Boolean).join(" "),deal_data:state,updated_at:state.updatedAt});if(result.error){toast("Saved locally. Supabase: "+result.error.message);return}}clearAutosaveDraft();toast("Deal saved.");updateClientHistoryDisplays();renderDashboard();}
+function mergeDealsById(localRows,remoteRows){
+ const local=Array.isArray(localRows)?localRows:[];
+ const remote=Array.isArray(remoteRows)?remoteRows:[];
+ const merged=new Map();
+ const rank=deal=>new Date(deal?.updatedAt||deal?.createdAt||0).getTime()||0;
+ local.forEach(deal=>{if(deal?.id)merged.set(deal.id,deal);});
+ remote.forEach(deal=>{
+  if(!deal?.id)return;
+  const existing=merged.get(deal.id);
+  if(!existing||rank(deal)>=rank(existing))merged.set(deal.id,deal);
+ });
+ local.forEach(deal=>{if(!deal?.id)merged.set(crypto.randomUUID(),deal);});
+ remote.forEach(deal=>{if(!deal?.id)merged.set(crypto.randomUUID(),deal);});
+ return [...merged.values()];
+}
 async function loadAllDeals(force=false){
  const now=Date.now();
  if(!force&&savedDealsCache.length&&now-savedDealsLoadedAt<30000)return savedDealsCache;
  let rows=localDeals();
  if(supabaseClient&&currentUser){
    const r=await supabaseClient.from("v3_deals").select("*").order("updated_at",{ascending:false});
-   if(!r.error&&r.data?.length)rows=r.data.map(x=>x.deal_data);
+   if(!r.error&&r.data?.length){
+    const remoteDeals=r.data.map(x=>x.deal_data).filter(Boolean);
+    rows=mergeDealsById(rows,remoteDeals);
+   }
  }
  savedDealsCache=rows.sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));
  savedDealsLoadedAt=now;
@@ -954,6 +984,24 @@ async function uploadLocalProgramsToSupabase(){
  toast(`${completed} local programs are now shared across devices.`);
 }
 
+function mergeProgramsPreserveLocal(localRows,remoteRows){
+ const local=Array.isArray(localRows)?localRows:[];
+ const remote=Array.isArray(remoteRows)?remoteRows:[];
+ const keyFor=program=>`${String(program?.month||"").trim()}|${String(program?.modelCode||"").trim().toUpperCase()}`;
+ const merged=new Map();
+ local.forEach(program=>{
+  const key=keyFor(program);
+  if(key!=="|")merged.set(key,program);
+ });
+ remote.forEach(program=>{
+  const key=keyFor(program);
+  if(key==="|")return;
+  merged.set(key,program);
+ });
+ const unkeyed=[...local,...remote].filter(program=>keyFor(program)==="|");
+ return [...merged.values(),...unkeyed];
+}
+
 async function loadProgramsFromSupabase(showMessages=true){
  if(!supabaseClient||!currentUser){
    if(showMessages)setProgramSyncStatus("Not signed in. Showing programs stored in this browser.","local");
@@ -1005,7 +1053,8 @@ async function loadProgramsFromSupabase(showMessages=true){
    incentives:incentivesByProgram.get(row.id)||[]
  }));
 
- saveProgramsLocal(remote);
+ const mergedPrograms=mergeProgramsPreserveLocal(programs(),remote);
+ saveProgramsLocal(mergedPrograms);
  renderPrograms();
  // Do not clear the incentive editor after a background sync. If the user has
  // already opened a program for editing, clearing only this section makes the
