@@ -604,7 +604,106 @@ function scenarioFromDialog(){
   return finalScenario;
 }
 function updateScenarioPreview(){const old=state.scenarios.findIndex(s=>s.id===$("scenarioId").value),draft=scenarioFromDialog();const source=normalizeScenarioNameSource(draft);if(source==="auto")setScenarioNameFieldState("auto",draft.name);if(old>=0)state.scenarios[old]=draft;else state.scenarios.push(draft);const r=calcScenario(draft);$("scenarioPreview").textContent=r.ready?(draft.onePay?`One-Pay ${money.format(r.onePayTotal)} · Equivalent ${money.format(r.equivalentMonthly)}`:`Estimated ${money.format(r.payment)}`):"Missing: "+r.missing.join(", ");if(old>=0)state.scenarios[old]=draft;else state.scenarios.pop();}
-async function decodeVin(target){const id=target==="trade"?"tradeVin":"vin",vin=$(id).value.trim().toUpperCase();if(vin.length!==17){toast("Enter a 17-character VIN.");return}try{const res=await fetch("https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValuesExtended/"+encodeURIComponent(vin)+"?format=json"),data=await res.json(),r=data.Results?.[0];if(target==="trade")$("tradeVehicle").value=[r.ModelYear,r.Make,r.Model,r.Trim].filter(Boolean).join(" ");else{$("year").value=r.ModelYear||"";$("make").value=r.Make||"BMW";$("model").value=[r.Model,r.Trim].filter(Boolean).join(" ")}updateComputed();toast("VIN decoded.")}catch(e){toast("VIN decoding failed.")}}
+function normalizeVinInput(raw){
+ return String(raw||"").toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g,"").trim();
+}
+function yearFromVinCode(vin){
+ const code=vin?.[9];
+ if(!code)return "";
+ const sequence="ABCDEFGHJKLMNPRSTVWXY123456789";
+ const index=sequence.indexOf(code);
+ if(index<0)return "";
+ const candidates=[1980+index,2010+index,2040+index];
+ const maxReasonableYear=new Date().getFullYear()+2;
+ const match=candidates.filter(year=>year>=2001&&year<=maxReasonableYear).sort((a,b)=>b-a)[0];
+ return match?String(match):"";
+}
+function parseVinVariables(results){
+ const map={};
+ (Array.isArray(results)?results:[]).forEach(item=>{
+  const key=String(item?.Variable||"").trim();
+  const value=String(item?.Value||"").trim();
+  if(!key||!value||value.toUpperCase()==="NULL")return;
+  map[key]=value;
+ });
+ return {
+  modelYear:map["Model Year"]||"",
+  make:map["Make"]||"",
+  model:map["Model"]||"",
+  trim:map["Trim"]||"",
+  series:map["Series"]||map["Series2"]||"",
+  errorCode:map["Error Code"]||"",
+  errorText:map["Error Text"]||""
+ };
+}
+function parseVinValuesRow(row){
+ return {
+  modelYear:String(row?.ModelYear||"").trim(),
+  make:String(row?.Make||"").trim(),
+  model:String(row?.Model||"").trim(),
+  trim:String(row?.Trim||"").trim(),
+  series:String(row?.Series||"").trim(),
+  errorCode:String(row?.ErrorCode||"").trim(),
+  errorText:String(row?.ErrorText||"").trim()
+ };
+}
+function buildDecodedModelText(decoded){
+ const parts=[decoded.model,decoded.trim,decoded.series].filter(Boolean);
+ const seen=new Set();
+ return parts.filter(part=>{
+  const key=part.toLowerCase();
+  if(seen.has(key))return false;
+  seen.add(key);
+  return true;
+ }).join(" ");
+}
+function hasVinDecodeError(errorCode,errorText){
+ if(!errorCode&&!errorText)return false;
+ const codes=String(errorCode||"").split(/[;,\s]+/).map(code=>code.trim()).filter(Boolean);
+ if(codes.length&&codes.every(code=>code==="0"))return false;
+ return true;
+}
+async function decodeVin(target){
+ const id=target==="trade"?"tradeVin":"vin";
+ const field=$(id);
+ const vin=normalizeVinInput(field.value);
+ field.value=vin;
+ if(vin.length!==17){toast("Enter a 17-character VIN.");return}
+ if(!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)){toast("VIN can only use letters A-H, J-N, P, R-Z and numbers.");return}
+ try{
+  const decodeVinUrl="https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/"+encodeURIComponent(vin)+"?format=json&cache=false";
+  const decodeValuesUrl="https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValuesExtended/"+encodeURIComponent(vin)+"?format=json";
+  const primaryRes=await fetch(decodeVinUrl,{cache:"no-store"});
+  const primaryData=await primaryRes.json();
+  let decoded=parseVinVariables(primaryData?.Results);
+  const modelText=buildDecodedModelText(decoded);
+  if(!decoded.modelYear||!decoded.make||!modelText){
+   const fallbackRes=await fetch(decodeValuesUrl,{cache:"no-store"});
+   const fallbackData=await fallbackRes.json();
+   const fallback=parseVinValuesRow(fallbackData?.Results?.[0]);
+   decoded={
+    modelYear:decoded.modelYear||fallback.modelYear,
+    make:decoded.make||fallback.make,
+    model:decoded.model||fallback.model,
+    trim:decoded.trim||fallback.trim,
+    series:decoded.series||fallback.series,
+    errorCode:decoded.errorCode||fallback.errorCode,
+    errorText:decoded.errorText||fallback.errorText
+   };
+  }
+  const finalModelText=buildDecodedModelText(decoded);
+  const finalYear=decoded.modelYear||yearFromVinCode(vin);
+  if(target==="trade")$("tradeVehicle").value=[finalYear,decoded.make,finalModelText].filter(Boolean).join(" ");
+  else{
+   $("year").value=finalYear||"";
+   $("make").value=decoded.make||"BMW";
+   $("model").value=finalModelText;
+  }
+  updateComputed();
+  if(hasVinDecodeError(decoded.errorCode,decoded.errorText))toast("VIN decoded with warnings. Verify year/model before saving.");
+  else toast("VIN decoded.");
+ }catch(e){toast("VIN decoding failed.")}
+}
 function resetRollPayment(options={}){if(!options.preserveScenario&&$("rollerScenario").options.length)$("rollerScenario").selectedIndex=0;$("rollerTarget").value="";$("rollerVariable").value="discount";$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box";}
 function rollPayment(){readFormToState();const s=state.scenarios.find(x=>x.id===$("rollerScenario").value),target=num($("rollerTarget").value),variable=$("rollerVariable").value,out=$("rollerResult");if(!s||target<=0){out.textContent="Choose a scenario and target payment.";out.className="result-box error";return}const r0=calcScenario(s);if(!r0.ready){out.textContent="Complete the scenario first: "+r0.missing.join(", ");out.className="result-box error";return}let low=0,high=Math.max(state.vehicle.msrp*2,100000),best=null;for(let i=0;i<100;i++){const mid=(low+high)/2,o={};o[variable]=mid;const r=calcScenario(s,o);if(!r.ready)break;best={value:mid,payment:r.payment};if(Math.abs(r.payment-target)<.01)break;if(r.payment>target)low=mid;else high=mid}const current=variable==="discount"?state.vehicle.discount:variable==="cashDown"?state.trade.cashDown:state.trade.allowance,label=variable==="discount"?"Required dealer discount":variable==="cashDown"?"Required cash up front":"Required trade allowance";out.innerHTML=`<strong>${label}: ${money.format(best.value)}</strong><br>Change: ${best.value-current>=0?"+":"−"}${money.format(Math.abs(best.value-current))} · Payment ${money.format(best.payment)}`;out.className="result-box success";}
 function normalizeClientText(value){return String(value||"").trim().toLowerCase().replace(/\s+/g," ")}
