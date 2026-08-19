@@ -150,6 +150,17 @@ function updateComputed(){
  renderScenarios();
  renderWorksheet();
 }function mileageAdjustment(m){return ({7500:4,10000:3,12000:2,15000:0})[Number(m)]||0;}
+function customMileageDeduction(s){
+  const customMiles=Math.max(0,num(s.customMiles));
+  if(!customMiles)return 0;
+  const charge=Math.max(0,num(s.customCharge));
+  const termYears=Math.max(0,num(s.term))/12;
+  if(customMiles>15000 && termYears>0){
+    const annualOverage=customMiles-15000;
+    return annualOverage*termYears*charge;
+  }
+  return customMiles*charge;
+}
 function incentiveAppliesTo(item,type){const a=item.appliesToTypes||item.appliesTo||"all";return Array.isArray(a)?a.includes("all")||a.includes(type):a==="all"||a===type;}
 function incentiveAppliesLabel(item){const a=item.appliesToTypes||item.appliesTo||"all",v=Array.isArray(a)?a:[a],l={all:"All Types",lease:"Lease",finance:"Finance",cash:"Cash",select:"BMW Select"};return v.map(x=>l[x]||x).join(", ");}
 function normalizeIncentiveTypes(value){
@@ -1244,7 +1255,8 @@ function calcScenario(s,override={}){
  const allowance=Math.max(0,override.tradeAllowance??state.trade.allowance+s.tradeAdjustment);
  const tax=state.vehicle.taxRate/100,trade=tradeAllocation(allowance),taxSummary=calculateTaxableAmount({sellingPrice:selling,tradeAllowance:allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate});
  if(s.type==="lease"){
-   const adjustedPct=num(s.residual)+mileageAdjustment(s.miles),inceptionDed=Math.max(0,num(s.inceptionMileage)-500)*num(s.inceptionCharge),customDed=num(s.customMiles)*num(s.customCharge),residualValue=Math.max(0,msrp*adjustedPct/100-inceptionDed-customDed),usedMf=Math.max(0,num(s.moneyFactor)-(s.onePay?num(s.onePayReduction):0));
+   const customAnnualMiles=Math.max(0,num(s.customMiles));
+   const adjustedPct=customAnnualMiles>15000?num(s.residual):num(s.residual)+mileageAdjustment(s.miles),inceptionDed=Math.max(0,num(s.inceptionMileage)-500)*num(s.inceptionCharge),customDed=customMileageDeduction(s),residualValue=Math.max(0,msrp*adjustedPct/100-inceptionDed-customDed),usedMf=Math.max(0,num(s.moneyFactor)-(s.onePay?num(s.onePayReduction):0));
    const buildLeaseResult=(cashValue)=>{const leaseCashTax=Math.max(0,cashValue*tax),fees=feeTotals(s.type,{cashTaxAmount:leaseCashTax}),capCost=selling+fees.cap+Math.max(0,-trade.equity)-trade.cap-cashValue,base=((capCost-residualValue)/s.term)+((capCost+residualValue)*usedMf),monthlyTax=base*tax,payment=base+monthlyTax,estimatedTotalTax=monthlyTax*s.term+leaseCashTax,standardDue=payment+fees.upfront+cashValue,onePay=payment*s.term+fees.upfront+cashValue;return {cashValue,leaseCashTax,fees,capCost,base,monthlyTax,payment,estimatedTotalTax,standardDue,onePay};};
    let solvedCash=requestedCash,targetDueAtSigning=null,targetDueUnreachable=false;
    if(!s.onePay&&s.useDueTarget&&num(s.dueTarget)>0){targetDueAtSigning=num(s.dueTarget);const minResult=buildLeaseResult(0);if(targetDueAtSigning<=minResult.standardDue){solvedCash=0;targetDueUnreachable=true;}else{let low=0,high=Math.max(targetDueAtSigning,requestedCash,msrp,1000),highResult=buildLeaseResult(high),guard=0;while(highResult.standardDue<targetDueAtSigning&&guard<30){high*=2;highResult=buildLeaseResult(high);guard++;}for(let i=0;i<50;i++){const mid=(low+high)/2,midResult=buildLeaseResult(mid);if(midResult.standardDue<targetDueAtSigning)low=mid;else high=mid;}solvedCash=high;}}
