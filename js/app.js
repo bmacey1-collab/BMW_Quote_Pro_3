@@ -458,6 +458,49 @@ function populateScenarioProgramOptions(selectedId=""){
  select.value=selectedId||"";
 }
 
+// BMW does not publish the Select balloon percentage, so it is only ever a value
+// the user entered. balloonByTerm holds those entries keyed by Select term;
+// program.balloon stays the fallback for records saved before this existed.
+function programBalloonForTerm(program,term){
+ if(!program)return "";
+ const byTerm=program.balloonByTerm||{};
+ const key=String(num(term)||"");
+ const remembered=key?byTerm[key]:undefined;
+ if(remembered!==""&&remembered!=null)return num(remembered);
+ // Once term-specific values exist, an unrecorded term stays blank rather than
+ // borrowing another term's balloon, which would silently misprice the deal.
+ if(Object.keys(byTerm).length)return "";
+ if(program.balloon===""||program.balloon==null)return "";
+ return num(program.balloon);
+}
+
+function rememberSelectBalloon(scenario){
+ if(!scenario||scenario.type!=="select")return;
+ const balloon=num(scenario.balloon);
+ const term=num(scenario.term);
+ if(!(balloon>0)||!term)return;
+ const rows=programs();
+ const program=rows.find(item=>item.id===scenario.programId);
+ if(!program)return;
+ const byTerm={...(program.balloonByTerm||{})};
+ if(num(byTerm[term])===balloon)return;
+ byTerm[term]=balloon;
+ program.balloonByTerm=byTerm;
+ if(program.balloon===""||program.balloon==null)program.balloon=balloon;
+ saveProgramsLocal(rows);
+ if(supabaseClient&&currentUser){
+   saveProgramToSupabase(program)
+     .then(result=>{
+       if(result?.error){
+         setProgramSyncStatus("Balloon % saved locally; Supabase failed: "+result.error.message,"error");
+       }
+     })
+     .catch(error=>{
+       setProgramSyncStatus("Balloon % saved locally; Supabase failed: "+(error?.message||String(error)),"error");
+     });
+ }
+}
+
 function applyProgramToScenarioObject(scenario,program){
  const source=structuredClone(program);
  scenario.programId=source.id;
@@ -482,7 +525,8 @@ function applyProgramToScenarioObject(scenario,program){
    if(scenario.apr===""||num(scenario.apr)<num(source.selectApr)){
      scenario.apr=source.selectApr===""?"":num(source.selectApr);
    }
-   if(source.balloon!==""&&source.balloon!=null)scenario.balloon=num(source.balloon);
+   const rememberedBalloon=programBalloonForTerm(source,scenario.term);
+   if(rememberedBalloon!=="")scenario.balloon=rememberedBalloon;
  }
  return scenario;
 }
@@ -520,7 +564,8 @@ function applyProgramRateForScenarioTerm(scenario,program){
  const normalizedSelectRate=selectRate===""||selectRate==null?"":num(selectRate);
  scenario.buyApr=normalizedSelectRate;
  scenario.apr=normalizedSelectRate;
- if(resolvedProgram.balloon!==""&&resolvedProgram.balloon!=null)scenario.balloon=num(resolvedProgram.balloon);
+ const rememberedBalloon=programBalloonForTerm(resolvedProgram,scenario.term);
+ if(rememberedBalloon!=="")scenario.balloon=rememberedBalloon;
 }
 
 function openProgramPicker(){
@@ -1116,6 +1161,14 @@ async function saveProgram(){
  let rows=programs();
  const sameKey=rows.find(x=>x.month===p.month&&String(x.modelCode||"").toUpperCase()===p.modelCode&&x.id!==p.id);
  if(sameKey)p.id=sameKey.id;
+
+ // Carry forward remembered Select balloon entries; the editor field is
+ // authoritative for the program's own Select term.
+ const priorProgram=rows.find(x=>x.id===p.id);
+ const carriedBalloons={...(priorProgram?.balloonByTerm||{})};
+ if(p.balloon!==""&&num(p.selectTerm))carriedBalloons[num(p.selectTerm)]=num(p.balloon);
+ if(Object.keys(carriedBalloons).length)p.balloonByTerm=carriedBalloons;
+
  const i=rows.findIndex(x=>x.id===p.id);
  i>=0?rows[i]=p:rows.push(p);
  saveProgramsLocal(rows);
@@ -1156,7 +1209,7 @@ function duplicateProgram(id){
 
 function editProgramFromObject(p,isNew=false){
  let hidden=$("programId");if(!hidden){hidden=document.createElement("input");hidden.type="hidden";hidden.id="programId";$("page-programs").appendChild(hidden)}hidden.value=isNew?"":p.id;
- [["programMonth",p.month],["programManufacturer",p.manufacturer],["programYear",p.year],["programModel",p.model],["programStatus",p.status],["programEffectiveDate",p.effectiveDate],["programExpirationDate",p.expirationDate],["programRestrictions",p.restrictions],["programLeaseTerm",p.leaseTerm],["programResidual",p.residual],["programMf",p.moneyFactor],["programOnePayReduction",p.onePayReduction],["programFinanceApr",p.financeApr],["programFinanceTerm",p.financeTerm],["programSelectApr",p.selectApr],["programSelectTerm",p.selectTerm],["programBalloon",p.balloon],["programCode",p.modelCode||p.programCode]].forEach(x=>$(x[0]).value=x[1]??"");
+ [["programMonth",p.month],["programManufacturer",p.manufacturer],["programYear",p.year],["programModel",p.model],["programStatus",p.status],["programEffectiveDate",p.effectiveDate],["programExpirationDate",p.expirationDate],["programRestrictions",p.restrictions],["programLeaseTerm",p.leaseTerm],["programResidual",p.residual],["programMf",p.moneyFactor],["programOnePayReduction",p.onePayReduction],["programFinanceApr",p.financeApr],["programFinanceTerm",p.financeTerm],["programSelectApr",p.selectApr],["programSelectTerm",p.selectTerm],["programBalloon",programBalloonForTerm(p,p.selectTerm)],["programCode",p.modelCode||p.programCode]].forEach(x=>$(x[0]).value=x[1]??"");
  renderProgramIncentiveEditor((p.incentives||[]).map(i=>({...i,programCode:i.programCode||p.modelCode||""})));
  showPage("programs");
 }
@@ -1200,7 +1253,13 @@ async function bulkUpdatePrograms(){
  const changed=programs().filter(p=>p.month===month&&(!filter||JSON.stringify([p.model,p.modelCode,p.year]).toLowerCase().includes(filter)));
  if(!changed.length){toast("No matching programs found.");return}
  if(!confirm(`Set ${field} to ${value} on ${changed.length} programs?`))return;
- changed.forEach(p=>p[field]=value);saveProgramsLocal(programs());renderPrograms();
+ changed.forEach(p=>{
+  p[field]=value;
+  // A bulk balloon change must also replace the remembered entry for that term,
+  // otherwise the older remembered value would still win when applied.
+  if(field==="balloon"&&num(p.selectTerm))p.balloonByTerm={...(p.balloonByTerm||{}),[num(p.selectTerm)]:value};
+ });
+ saveProgramsLocal(programs());renderPrograms();
  await syncChangedPrograms(changed,`${changed.length} programs updated`);
 }
 
@@ -2933,6 +2992,12 @@ function saveApprovedImports(){
      row.month===program.month &&
      row.modelCode===program.modelCode
    );
+   // Balloon percentages are never published by BMW, so a re-import must not
+   // discard the ones the user already entered for this program.
+   if(existing>=0&&rows[existing].balloonByTerm){
+     program.balloonByTerm={...rows[existing].balloonByTerm};
+     if(program.balloon===""||program.balloon==null)program.balloon=rows[existing].balloon??"";
+   }
    existing>=0?rows[existing]=program:rows.push(program);
  });
 
@@ -2953,7 +3018,7 @@ function saveApprovedImports(){
  toast(`${checked.length} programs imported with residuals.`);
 }
 function bindNumericInputNormalization(){document.querySelectorAll('input[type="number"],input[data-decimal-input="true"]').forEach(input=>{if(input.dataset.numericNormalized)return;input.dataset.numericNormalized="true";input.addEventListener("input",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value){const start=input.selectionStart??normalized.length;input.value=normalized;const caret=Math.min(start,normalized.length);input.setSelectionRange(caret,caret)}});input.addEventListener("blur",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value)input.value=normalized;});});}
-function bindEvents(){bindNav();bindNumericInputNormalization();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("exportPdfTextButton").onclick=exportPdfExtractionReport;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
+function bindEvents(){bindNav();bindNumericInputNormalization();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("exportPdfTextButton").onclick=exportPdfExtractionReport;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);rememberSelectBalloon(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
  const scenarioId=e.target.dataset.removeScenarioIncentive,incentiveId=e.target.dataset.incentiveId;
  if(!scenarioId||!incentiveId)return;
  const scenario=state.scenarios.find(item=>item.id===scenarioId),incentive=scenario?.incentives?.find(item=>item.id===incentiveId);
