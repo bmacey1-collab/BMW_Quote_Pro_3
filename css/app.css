@@ -8,7 +8,7 @@
 .autosave-status.restored{color:#1c69d4}
 .autosave-status.error{color:#a11}
 .client-group{border:1px solid #d9e1e9;border-radius:13px;background:#f8fafc;overflow:hidden}
-.client-group-header{padding:13px 15px;background:#eef3f8;border-bottom:1px solid #d9e1e9}
+.client-group-header{padding:13px 15px;background:#eef3f8;border-bottom:1px solid #d9e1e9;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .client-quote-list{display:grid;gap:8px;padding:10px}
 .full-width{grid-column:1/-1}
 .upfront-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}

@@ -914,12 +914,12 @@ async function renderSaved(force=false){
    const latest=deals[0];
    const name=[latest.customer?.firstName,latest.customer?.lastName].filter(Boolean).join(" ")||"Unnamed Client";
    const contact=[latest.customer?.email,latest.customer?.phone].filter(Boolean).join(" · ");
-   return `<section class="client-group"><div class="client-group-header"><div><strong>${esc(name)}</strong><div class="item-meta">${esc(contact)}${contact?" · ":""}${deals.length} quote${deals.length===1?"":"s"}</div></div></div><div class="client-quote-list">${deals.map(d=>savedCard(d,true)).join("")}</div></section>`;
+   return `<section class="client-group"><div class="client-group-header"><div><strong>${esc(name)}</strong><div class="item-meta">${esc(contact)}${contact?" · ":""}${deals.length} quote${deals.length===1?"":"s"}</div></div><div class="button-row"><button class="secondary" data-new-vehicle-deal="${latest.id}">New Vehicle for Client</button></div></div><div class="client-quote-list">${deals.map(d=>savedCard(d,true)).join("")}</div></section>`;
  }).join("")||'<div class="empty-state">No saved deals match your search or filter.</div>';
 }
 function savedCard(d,full=false){
  const name=[d.customer?.firstName,d.customer?.lastName].filter(Boolean).join(" ")||"Unnamed Client",vehicle=[d.vehicle?.year,d.vehicle?.make,d.vehicle?.model].filter(Boolean).join(" ")||"Vehicle",m=dealPrimaryMetrics(d),stock=d.vehicle?.stockNumber?`Stock ${d.vehicle.stockNumber}`:"",salesperson=d.customer?.salesperson||"";
- return `<div class="${full?"saved-item":"recent-item"}"><div><strong>${esc(name)}</strong><div class="item-meta">${esc(vehicle)} · ${esc(d.quoteNumber||"")} · ${new Date(d.updatedAt||d.createdAt).toLocaleString()}</div><div class="saved-item-details">${m.type?`<span class="saved-badge">${esc(m.type)}</span>`:""}${m.payment?`<span>${money.format(m.payment)}${m.type==="cash"?"":"/mo"}</span>`:""}${stock?`<span>${esc(stock)}</span>`:""}${salesperson?`<span>${esc(salesperson)}</span>`:""}</div></div><div class="button-row"><button class="secondary" data-load-deal="${d.id}">Open</button>${full?`<button class="secondary" data-duplicate-deal="${d.id}">Duplicate</button>`:""}</div></div>`;
+ return `<div class="${full?"saved-item":"recent-item"}"><div><strong>${esc(name)}</strong><div class="item-meta">${esc(vehicle)} · ${esc(d.quoteNumber||"")} · ${new Date(d.updatedAt||d.createdAt).toLocaleString()}</div><div class="saved-item-details">${m.type?`<span class="saved-badge">${esc(m.type)}</span>`:""}${m.payment?`<span>${money.format(m.payment)}${m.type==="cash"?"":"/mo"}</span>`:""}${stock?`<span>${esc(stock)}</span>`:""}${salesperson?`<span>${esc(salesperson)}</span>`:""}</div></div><div class="button-row"><button class="secondary" data-load-deal="${d.id}">Open</button>${full?`<button class="secondary" data-duplicate-deal="${d.id}">Duplicate</button><button class="secondary" data-new-vehicle-deal="${d.id}">New Vehicle</button>`:""}</div></div>`;
 }
 function setProgramSyncStatus(message,kind=""){
  const el=$("programSyncStatus");
@@ -1806,6 +1806,56 @@ function restoreAutosaveDraft(){
    return false;
  }
 }
+// A different model carries its own rates, residuals and incentives, so only the
+// structure the manager chose is kept; everything program-derived is blanked.
+function resetScenarioForNewVehicle(scenario){
+ const fresh=defaultScenario(scenario.onePay?"onepay":scenario.type);
+ fresh.type=scenario.type==="onepay"?"lease":scenario.type;
+ fresh.onePay=Boolean(scenario.onePay);
+ fresh.term=num(scenario.term)||fresh.term;
+ fresh.miles=scenario.miles===""||scenario.miles==null?"":num(scenario.miles);
+ fresh.useDueTarget=Boolean(scenario.useDueTarget);
+ fresh.dueTarget=num(scenario.dueTarget)||0;
+ fresh.selected=Boolean(scenario.selected);
+ fresh.showRate=Boolean(scenario.showRate);
+ fresh.showResidual=Boolean(scenario.showResidual);
+ fresh.showFees=scenario.showFees!==false;
+ fresh.nameSource="auto";
+ fresh.name=scenarioAutoName(fresh);
+ return fresh;
+}
+
+function createDealForNewVehicle(source){
+ const prior=structuredClone(source);
+ const deal=createEmptyDeal();
+ deal.customer={...deal.customer,...(prior.customer||{})};
+ deal.trade={...deal.trade,...(prior.trade||{})};
+ deal.trade.applyTradeTaxCredit=prior.trade?.applyTradeTaxCredit!==false;
+ deal.fees={...deal.fees,...(prior.fees||{})};
+ deal.fees.cashTax={amount:0,treatment:deal.fees.cashTax?.treatment||"upfront"};
+ deal.presentation={...deal.presentation,...(prior.presentation||{})};
+ deal.scenarios=(Array.isArray(prior.scenarios)?prior.scenarios:[])
+   .map(resetScenarioForNewVehicle);
+ return deal;
+}
+
+async function startNewVehicleDeal(id){
+ const rows=await loadAllDeals();
+ const source=rows.find(item=>item.id===id);
+ if(!source){
+   toast("That saved deal could not be found.");
+   return;
+ }
+ state=createDealForNewVehicle(source);
+ clearAutosaveDraft();
+ writeStateToForm();
+ renderIncentives();
+ renderScenarios();
+ resetRollPayment();
+ showPage("deal");
+ toast("New deal started. Enter the vehicle, then apply its program.");
+}
+
 async function loadDeal(id,duplicate=false){
  const rows=await loadAllDeals(),d=rows.find(x=>x.id===id);
  if(!d)return;
@@ -3091,7 +3141,7 @@ document.querySelectorAll("[data-saved-filter]").forEach(button=>button.addEvent
  document.querySelectorAll("[data-saved-filter]").forEach(b=>b.classList.toggle("active",b===button));
  renderSaved();
 }));
-document.body.addEventListener("click",e=>{if(e.target.dataset.loadDeal)loadDeal(e.target.dataset.loadDeal);if(e.target.dataset.duplicateDeal)loadDeal(e.target.dataset.duplicateDeal,true);if(e.target.dataset.useProgram){applyProgramToDeal(e.target.dataset.useProgram)}if(e.target.dataset.editProgram)editProgram(e.target.dataset.editProgram);if(e.target.dataset.duplicateProgram)duplicateProgram(e.target.dataset.duplicateProgram);if(e.target.dataset.archiveProgram){let rows=programs(),p=rows.find(x=>x.id===e.target.dataset.archiveProgram);p.status=p.status==="expired"?"confirmed":"expired";saveProgramsLocal(rows);renderPrograms();
+document.body.addEventListener("click",e=>{if(e.target.dataset.loadDeal)loadDeal(e.target.dataset.loadDeal);if(e.target.dataset.duplicateDeal)loadDeal(e.target.dataset.duplicateDeal,true);if(e.target.dataset.newVehicleDeal)startNewVehicleDeal(e.target.dataset.newVehicleDeal);if(e.target.dataset.useProgram){applyProgramToDeal(e.target.dataset.useProgram)}if(e.target.dataset.editProgram)editProgram(e.target.dataset.editProgram);if(e.target.dataset.duplicateProgram)duplicateProgram(e.target.dataset.duplicateProgram);if(e.target.dataset.archiveProgram){let rows=programs(),p=rows.find(x=>x.id===e.target.dataset.archiveProgram);p.status=p.status==="expired"?"confirmed":"expired";saveProgramsLocal(rows);renderPrograms();
  if(supabaseClient&&currentUser)saveProgramToSupabase(p)}});$("saveConnection").onclick=()=>{localStorage.setItem(KEYS.connection,JSON.stringify({url:$("supabaseUrl").value.trim(),key:$("supabaseKey").value.trim()}));initializeSupabase();updateConnectionStatus("Connection saved.")};$("testConnection").onclick=async()=>{if(!supabaseClient&&!initializeSupabase()){updateConnectionStatus("Enter and save connection details.");return}const r=await supabaseClient.auth.getSession();updateConnectionStatus(r.error?r.error.message:"Connection works.")};$("createAccount").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signUp({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Account created. Check email if confirmation is enabled.")};$("signIn").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signInWithPassword({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Signed in.");if(!r.error){currentUser=r.data.user;await loadProgramsFromSupabase(true)}};$("signOut").onclick=async()=>{if(supabaseClient)await supabaseClient.auth.signOut();currentUser=null;updateConnectionStatus()};}
 function init(){loadSettingsForm();const c=JSON.parse(localStorage.getItem(KEYS.connection)||"null");if(c){$("supabaseUrl").value=c.url||"";$("supabaseKey").value=c.key||"";initializeSupabase()}applySettingsToDeal(true);if(!restoreAutosaveDraft()){state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);writeStateToForm();setAutosaveStatus("Draft ready")}bindEvents();runNumericNormalizationSelfCheck();renderIncentives();renderScenarios();renderDashboard();renderPrograms();renderProgramIncentiveEditor([]);updateClientHistoryDisplays();setPdfImportStatus("Importer ready");setProgramSyncStatus(currentUser?"Loading shared programs…":"Programs are local until you sign in and sync.");$("programMonth").value=new Date().toISOString().slice(0,7);}
 document.addEventListener("DOMContentLoaded",init);
