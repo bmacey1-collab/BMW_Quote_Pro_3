@@ -1,0 +1,425 @@
+File: August-2026- (1).pdf
+Pages: 7
+Candidate rows found: 52
+Rows parsed: 52
+Rows after dedupe: 51
+
+===== PAGE 1 (63 lines) =====
+BMW August Programs 2026 (effective: 8/3/26 - 8/31/26)
+Not Lockable - Must deliver by 8/31/26
+Version 1
+Rates apply to Ultra, Super Elite, and Elite tiers only; see General Program Guidelines for STD/STPL/PROG/PRPL adjustments. Incentives based on NEW Retail / Program Type 1 (Personal Sale), <300 miles.
+This document is for reference only; final eligibility determined by Sales Support Inquiry by VIN (IBV). See the Sales Support Guidelines in CenterNet for details. 8/3/26
+GKL Specific - see
+BEV Lease Loan Non-FS Conquest Loyalty
+bulletin
+39 Mo. FS FS Cash FS Lease/
+Model NA Model 36 mo RV FS Lease FS Retail FS Retail Select OwnersC Conquest Loyalty Dealer Total GKL GKL
+Model Lease Lease/Pre Purchase Purchase Purchase
+10699brian.macey 08 10699brian.macey 08 10699brian.macey 08 10699brian.macey 08
+Year Code (15k m) Credit (24-60) (61-72) 24-60 hoice Credit Contribution Loyalty Loyalty Conquest
+Eligibility pay Credit Credit Loyalty
+i5 eDr40i No 50% $ 3,750 0.00160 3.99% 4.99% $ 3,750 3.99% 3.84% $ 3,750 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+275T
+275V i5 xDr40i No 50% $ 3,750 0.00150 3.99% 4.99% $ 3,750 3.99% 3.60% $ 3,750 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+2026 275U i5 M60 No 50% $ 3,750 0.00195 3.99% 4.99% $ 3,750 3.99% 4.68% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+i7 xDr60 No 50% $ - 0.00100 3.99% 4.99% $ - 3.99% 2.40% $ - $ - $ 2,000 $ 1,000 $ 3,000 $ - $ -
+277Q
+2027
+277R i7 50 xDrive No 50% $ - 0.00085 3.99% 4.99% $ - 3.99% 2.04% $ - $ - $ 2,000 $ 1,000 $ 3,000 $ - $ -
+27IK iX3 50 xDrive No 53% $ - 0.00240 4.99% 5.59% $ - 4.99% 5.76% $ - $ - $ - $ - $ - $ - $ -
+i4 eDr40 No 52% $ 3,750 0.00035 3.99% 4.99% $ 3,750 3.99% 0.84% $ 3,750 $ - $ 500 $ 500 $ 1,000 $ - $ -
+26DA
+26DB i4 M60 AWD No 52% $ 3,750 0.00085 3.99% 4.99% $ 3,750 3.99% 2.04% $ 3,750 $ - $ 500 $ 500 $ 1,000 $ - $ -
+i4 xDr40 No 53% $ 3,750 0.00035 3.99% 4.99% $ 3,750 3.99% 0.84% $ 3,750 $ - $ 500 $ 500 $ 1,000 $ - $ -
+26DF
+265T i5 eDr40i No 50% $ 3,750 0.00060 3.99% 4.99% $ 3,750 3.99% 1.44% $ 3,750 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+i5 M60 No 50% $ 3,750 0.00135 3.99% 4.99% $ 3,750 3.99% 3.24% $ 3,750 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+265U
+265V i5 xDr40i No 50% $ 3,750 0.00060 3.99% 4.99% $ 3,750 3.99% 1.44% $ 3,750 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+267Q i7 xDr60i No 50% $ 7,500 0.00100 0.9% 1.99% $ 7,500 0.90% 2.40% $ 7,500 $ - $ 4,000 $ 1,000 $ 5,000 $ 2,000 $ 2,000
+2026
+i7 50e No 50% $ 7,500 0.00100 0.9% 1.99% $ 7,500 0.90% 2.40% $ 7,500 $ - $ 4,000 $ 1,000 $ 5,000 $ 2,000 $ 2,000
+267R
+267S i7 M70 No 50% $ 7,500 0.00170 0.9% 1.99% $ 7,500 0.90% 4.08% $ 7,500 $ - $ 4,000 $ 1,000 $ 5,000 $ 2,000 $ 2,000
+iX M70 No 50% $ 7,500 0.00110 2.99% 3.99% $ - 2.99% 2.64% $ 7,500 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+26IH
+26II iX 45 No 50% $ 7,500 0.00175 2.99% 3.99% $ - 2.99% 4.20% $ 7,500 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2
+iX 60 No 50% $ 7,500 0.00175 2.99% 3.99% $ - 2.99% 4.20% $ 7,500 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+26IJ
+25DA i4 eDr40 No 51% $ 7,500 0.00045 3.99% 4.99% $ 7,500 3.99% 1.08% $ 7,500 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+i4 M50 AWD No 51% $ 7,500 0.00070 3.99% 4.99% $ 7,500 3.99% 1.68% $ 7,500 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+25DB
+25DF i4 xDr40 No 51% $ 7,500 0.00020 3.99% 4.99% $ 7,500 3.99% 0.48% $ 7,500 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+i5 eDr40i No 47% $ 7,500 0.00055 3.99% 4.99% $ 7,500 3.99% 1.32% $ 7,500 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+255T
+255U i5 M60 No 47% $ 7,500 0.00045 3.99% 4.99% $ 7,500 3.99% 1.08% $ 7,500 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+i5 xDr40i No 47% $ 7,500 0.00050 3.99% 4.99% $ 7,500 3.99% 1.20% $ 7,500 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+255V
+2025 257Q i7 xDr60i No 50% $ 7,500 0.00100 0.9% 1.99% $ 7,500 0.90% 2.40% $ 7,500 $ - $ 4,000 $ 1,000 $ 5,000 $ 2,000 $ 2,000
+i7 50e No 50% $ 7,500 0.00095 0.9% 1.99% $ 7,500 0.90% 2.28% $ 7,500 $ - $ 4,000 $ 1,000 $ 5,000 $ 2,000 $ 2,000
+257R
+257S i7 M70 No 50% $ 7,500 0.00130 0.9% 1.99% $ 7,500 0.90% 3.12% $ 7,500 $ - $ 4,000 $ 1,000 $ 5,000 $ 2,000 $ 2,000
+iX xDr 50i No 49% $ 12,000 0.00030 3.99% 4.99% $ 7,500 3.99% 0.72% $ 7,500 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+25II
+25IJ iX M60i No 49% $ 12,000 0.00065 3.99% 4.99% $ 7,500 3.99% 1.56% $ 7,500 $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+© 2026 BMW of North America, LLC. The contents of this document are confidential and should not be shared with third parties for distribution.
+# CONFIDENTIAL
+699brian.macey 08/21/2026
+0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 06
+
+===== PAGE 2 (56 lines) =====
+BMW August Programs 2026 (effective: 8/3/26 - 8/31/26)
+Not Lockable - Must deliver by 8/31/26
+Version 1
+Rates apply to Ultra, Super Elite, and Elite tiers only; see General Program Guidelines for STD/STPL/PROG/PRPL adjustments. Incentives based on NEW Retail / Program Type 1 (Personal Sale), <300 miles.
+This document is for reference only; final eligibility determined by Sales Support Inquiry by VIN (IBV). See the Sales Support Guidelines in CenterNet for details. 8/3/26
+GKL Specific - see
+ICE/PHEV Lease Loan Non-FS Conquest Loyalty
+bulletin
+39 Mo. FS FS Cash FS Lease/
+Model NA Model 36 mo RV FS Lease FS Retail FS Retail Select OwnersC Conquest Loyalty Dealer Total GKL GKL
+Model Lease Lease/Pre Purchase Purchase Purchase
+10699brian.macey 08 10699brian.macey 08 10699brian.macey 08 10699brian.macey 08
+Year Code (15k m) Credit (24-60) (61-72) 24-60 hoice Credit Contribution Loyalty Loyalty Conquest
+Eligibility pay Credit Credit Loyalty
+228i Gran Coupe Yes 54% $ - 0.00115 4.99% 5.59% $ - 4.99% 2.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+272V
+272T 228i xDrive Gran Coupe Yes 54% $ - 0.00115 4.99% 5.59% $ - 4.99% 2.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+M235i xDrive Gran Coupe Yes 54% $ - 0.00095 4.99% 5.59% $ - 4.99% 2.28% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+272U
+2026
+272C M240i Coupe Yes 52% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+M240i xDrive Coupe Yes 52% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+272K
+272R M2 No 52% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+M2 xDrive No 52% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+272S
+27TN M3 No 50% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+27TP M3 Comp No 50% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+27TQ M3 Cmp AWD No 50% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+274R 430i Gran Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+274T 430i xDrive Gran Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+274U 440i Gran Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+274V M440i xDrive Gran Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+274B 430i Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+274D 430i xDrive Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+274E M440i Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+2027
+274G M440i xDrive Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2
+274H M4 Cp No 53% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+274J 430i Convertible Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+274K 430i xDrive Convertible Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+274M M4 xDrive Competition Conv No 53% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+274O M440i Convertible Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+274P M440i xDrive Convertible Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+274X M4 Comp Cp No 53% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+27DC M4CmpCpAWD No 53% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+275E 550 xe Yes 55% $ - 0.00180 3.99% 4.99% $ - 3.99% 4.32% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+275F M5 No 54% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+275G M5 Wagon No 54% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+275A 530i Yes 55% $ - 0.00180 3.99% 4.99% $ - 3.99% 4.32% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+275B 530xi Yes 55% $ - 0.00180 3.99% 4.99% $ - 3.99% 4.32% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+© 2026 BMW of North America, LLC. The contents of this document are confidential and should not be shared with third parties for distribution.
+# CONFIDENTIAL
+699brian.macey 08/21/2026
+0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 06
+
+===== PAGE 3 (38 lines) =====
+BMW August Programs 2026 (effective: 8/3/26 - 8/31/26)
+Not Lockable - Must deliver by 8/31/26
+Version 1
+Rates apply to Ultra, Super Elite, and Elite tiers only; see General Program Guidelines for STD/STPL/PROG/PRPL adjustments. Incentives based on NEW Retail / Program Type 1 (Personal Sale), <300 miles.
+This document is for reference only; final eligibility determined by Sales Support Inquiry by VIN (IBV). See the Sales Support Guidelines in CenterNet for details. 8/3/26
+GKL Specific - see
+ICE/PHEV Lease Loan Non-FS Conquest Loyalty
+bulletin
+39 Mo. FS FS Cash FS Lease/
+Model NA Model 36 mo RV FS Lease FS Retail FS Retail Select OwnersC Conquest Loyalty Dealer Total GKL GKL
+Model Lease Lease/Pre Purchase Purchase Purchase
+10699brian.macey 08 10699brian.macey 08 10699brian.macey 08 10699brian.macey 08
+Year Code (15k m) Credit (24-60) (61-72) 24-60 hoice Credit Contribution Loyalty Loyalty Conquest
+Eligibility pay Credit Credit Loyalty
+540xi Yes 55% $ - 0.00180 3.99% 4.99% $ - 3.99% 4.32% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+275D
+277F 740 No 50% $ - 0.00145 3.99% 4.99% $ - 3.99% 3.48% $ - $ - $ 2,000 $ 1,000 $ 3,000 $ - $ -
+740 xDrive No 50% $ - 0.00145 3.99% 4.99% $ - 3.99% 3.48% $ - $ - $ 2,000 $ 1,000 $ 3,000 $ - $ -
+277N
+2026
+27XB X1 xDr28i Yes 53% $ - 0.00190 4.99% 5.59% $ - 4.99% 4.56% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+27XC X1 M35i Yes 53% $ - 0.00190 4.99% 5.59% $ - 4.99% 4.56% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+27XY X2 xDrive28i No 52% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+27XZ X2 M35i No 52% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+27XG X5 40 xDrive No 53% $ - 0.00240 4.99% 5.59% $ - 4.99% 5.76% $ - $ - $ - $ - $ - $ - $ -
+2027
+27XL X6 xDr40i Yes 49% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+27XM X6 M60i Yes 49% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+27XN X6 M Competition No 49% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+27SA X7 xDrive40i * Yes 50% $ - 0.00140 1.99% 2.99% $ - 1.99% 3.36% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+27SL X7 M60i Yes 50% $ - 0.00140 2.99% 3.99% $ - 2.99% 3.36% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+27SV XM Label No 51% $ - 0.00190 4.99% 5.59% $ - 4.99% 4.56% $ - $ - $ 7,500 $ - $ 7,500 $ - $ -
+* Eligible for 15-month lease, see bulletin C4-US-V-1-0826-05 for more details.
+10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2
+© 2026 BMW of North America, LLC. The contents of this document are confidential and should not be shared with third parties for distribution.
+# CONFIDENTIAL
+699brian.macey 08/21/2026
+0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 06
+
+===== PAGE 4 (54 lines) =====
+BMW August Programs 2026 (effective: 8/3/26 - 8/31/26)
+Not Lockable - Must deliver by 8/31/26
+Version 1
+Rates apply to Ultra, Super Elite, and Elite tiers only; see General Program Guidelines for STD/STPL/PROG/PRPL adjustments. Incentives based on NEW Retail / Program Type 1 (Personal Sale), <300 miles.
+This document is for reference only; final eligibility determined by Sales Support Inquiry by VIN (IBV). See the Sales Support Guidelines in CenterNet for details. 8/3/26
+GKL Specific - see
+ICE/PHEV Lease Loan Non-FS Conquest Loyalty
+bulletin
+39 Mo. FS FS Cash FS Lease/
+Model NA Model 36 mo RV FS Lease FS Retail FS Retail Select OwnersC Conquest Loyalty Dealer Total GKL GKL
+Model Lease Lease/Pre Purchase Purchase Purchase
+10699brian.macey 08 10699brian.macey 08 10699brian.macey 08 10699brian.macey 08
+Year Code (15k m) Credit (24-60) (61-72) 24-60 hoice Credit Contribution Loyalty Loyalty Conquest
+Eligibility pay Credit Credit Loyalty
+230i Coupe Yes 52% $ - 0.00240 5.59% 5.59% $ 750 5.59% 5.76% $ 750 $ - $ 500 $ 500 $ 1,000 $ - $ -
+262B
+262C M240i Coupe Yes 52% $ - 0.00240 5.59% 5.59% $ 750 5.59% 5.76% $ 750 $ - $ 500 $ 500 $ 1,000 $ - $ -
+230i xDrive Coupe Yes 52% $ - 0.00240 5.59% 5.59% $ 750 5.59% 5.76% $ 750 $ - $ 500 $ 500 $ 1,000 $ - $ -
+262J
+2026
+262K M240i xDrive Coupe Yes 52% $ - 0.00240 5.59% 5.59% $ 750 5.59% 5.76% $ 750 $ - $ 500 $ 500 $ 1,000 $ - $ -
+262R M2 No 52% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+262T 228i xDrive Gran Coupe Yes 54% $ - 0.00095 2.99% 3.99% $ - 2.99% 2.28% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+262U M235i xDrive Gran Coupe Yes 54% $ - 0.00095 2.99% 3.99% $ - 2.99% 2.28% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+262V 228i Gran Coupe Yes 54% $ - 0.00095 2.99% 3.99% $ - 2.99% 2.28% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+262W M2 CS No 40% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+263A M340xi NA Yes 54% $ 1,000 0.00120 2.99% 3.99% $ - 2.99% 2.88% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+263O 330i Yes 54% $ 1,000 0.00090 0.9% 1.99% $ - 0.90% 2.16% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+263Q M340xi Yes 54% $ 1,000 0.00120 2.99% 3.99% $ - 2.99% 2.88% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+263T M340i NA Yes 54% $ 1,000 0.00120 2.99% 3.99% $ - 2.99% 2.88% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+263W 330xi Yes 54% $ 1,000 0.00090 0.9% 1.99% $ - 0.90% 2.16% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+263X 330xi NA Yes 54% $ 1,000 0.00090 0.9% 1.99% $ - 0.90% 2.16% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+263Y 330i NA Yes 54% $ 1,000 0.00090 0.9% 1.99% $ - 0.90% 2.16% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+2026 263Z M340i Yes 54% $ 1,000 0.00120 2.99% 3.99% $ - 2.99% 2.88% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+26TN M3 No 53% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2
+26TP M3 Comp No 53% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+26TQ M3 Cmp AWD No 53% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+264B 430i Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+264D 430i xDrive Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+264E M440i Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+M440i xDrive Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+264G
+264H M4 Cp No 53% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+430i Convertible Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+264J
+264K 430i xDrive Convertible Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+264M M4 xDrive Competition Conv No 53% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+264O M440i Convertible Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+264P M440i xDrive Convertible Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+© 2026 BMW of North America, LLC. The contents of this document are confidential and should not be shared with third parties for distribution.
+# CONFIDENTIAL
+699brian.macey 08/21/2026
+0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 06
+
+===== PAGE 5 (54 lines) =====
+BMW August Programs 2026 (effective: 8/3/26 - 8/31/26)
+Not Lockable - Must deliver by 8/31/26
+Version 1
+Rates apply to Ultra, Super Elite, and Elite tiers only; see General Program Guidelines for STD/STPL/PROG/PRPL adjustments. Incentives based on NEW Retail / Program Type 1 (Personal Sale), <300 miles.
+This document is for reference only; final eligibility determined by Sales Support Inquiry by VIN (IBV). See the Sales Support Guidelines in CenterNet for details. 8/3/26
+GKL Specific - see
+ICE/PHEV Lease Loan Non-FS Conquest Loyalty
+bulletin
+39 Mo. FS FS Cash FS Lease/
+Model NA Model 36 mo RV FS Lease FS Retail FS Retail Select OwnersC Conquest Loyalty Dealer Total GKL GKL
+Model Lease Lease/Pre Purchase Purchase Purchase
+10699brian.macey 08 10699brian.macey 08 10699brian.macey 08 10699brian.macey 08
+Year Code (15k m) Credit (24-60) (61-72) 24-60 hoice Credit Contribution Loyalty Loyalty Conquest
+Eligibility pay Credit Credit Loyalty
+430i Gran Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+264R
+264T 430i xDrive Gran Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+440i Gran Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+264U
+2026
+264V M440i xDrive Gran Coupe Yes 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+264X M4 Comp Cp No 53% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+26DC M4CmpCpAWD No 53% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+265E 550 xe Yes 55% $ 1,000 0.00095 2.99% 3.99% $ 1,000 2.99% 2.28% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+265F M5 No 54% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+265G M5 Wagon No 54% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+265A 530i Yes 55% $ 1,000 0.00140 2.99% 3.99% $ 1,000 2.99% 3.36% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+265B 530xi Yes 55% $ 1,000 0.00140 2.99% 3.99% $ 1,000 2.99% 3.36% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+265D 540xi Yes 55% $ 1,000 0.00140 2.99% 3.99% $ 1,000 2.99% 3.36% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+267P 750xe Yes 50% $ 3,000 0.00105 0.9% 1.99% $ 2,000 0.90% 2.52% $ - $ - $ 4,000 $ 1,000 $ 5,000 $ 2,000 $ 2,000
+267F 740i Yes 50% $ 2,000 0.00070 0.9% 1.99% $ 2,000 0.90% 1.68% $ - $ - $ 4,000 $ 1,000 $ 5,000 $ 2,000 $ 2,000
+267I 760xi * Yes 50% $ 2,000 0.00055 0.9% 1.99% $ 2,000 0.90% 1.32% $ - $ - $ 4,000 $ 1,000 $ 5,000 $ 2,000 $ 2,000
+267N 740xi Yes 50% $ 2,000 0.00070 0.9% 1.99% $ 2,000 0.90% 1.68% $ - $ - $ 4,000 $ 1,000 $ 5,000 $ 2,000 $ 2,000
+2026 268A 840i Coupe Yes 50% $ 2,000 0.00210 3.99% 4.99% $ 2,000 3.99% 5.04% $ - $ - $ 1,500 $ 1,000 $ 2,500 $ 2,000 $ -
+268B 840i xDrive Coupe Yes 50% $ 2,000 0.00210 3.99% 4.99% $ 2,000 3.99% 5.04% $ - $ - $ 1,500 $ 1,000 $ 2,500 $ 2,000 $ -
+10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2
+268C M850i xDrive Coupe Yes 50% $ 2,000 0.00210 3.99% 4.99% $ 2,000 3.99% 5.04% $ - $ - $ 1,500 $ 1,000 $ 2,500 $ 2,000 $ -
+268D 840i Convertible Yes 50% $ 2,000 0.00210 3.99% 4.99% $ 2,000 3.99% 5.04% $ - $ - $ 1,500 $ 1,000 $ 2,500 $ 2,000 $ -
+268E 840i xDrive Convertible Yes 50% $ 2,000 0.00210 3.99% 4.99% $ 2,000 3.99% 5.04% $ - $ - $ 1,500 $ 1,000 $ 2,500 $ 2,000 $ -
+268G M850i xDrive Convertible Yes 50% $ 2,000 0.00210 3.99% 4.99% $ 2,000 3.99% 5.04% $ - $ - $ 1,500 $ 1,000 $ 2,500 $ 2,000 $ -
+268H 840i Gran Coupe Yes 50% $ 2,000 0.00210 3.99% 4.99% $ 2,000 3.99% 5.04% $ - $ - $ 1,500 $ 1,000 $ 2,500 $ 2,000 $ -
+268I 840i xDrive Gran Coupe Yes 50% $ 2,000 0.00210 3.99% 4.99% $ 2,000 3.99% 5.04% $ - $ - $ 1,500 $ 1,000 $ 2,500 $ 2,000 $ -
+268J M850i xDrive Gran Coupe Yes 50% $ 2,000 0.00210 3.99% 4.99% $ 2,000 3.99% 5.04% $ - $ - $ 1,500 $ 1,000 $ 2,500 $ 2,000 $ -
+26XB X1 xDr28i Yes 53% $ 1,000 0.00170 2.0% 2.99% $ - 1.99% 4.08% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+26XC X1 M35i Yes 53% $ - 0.00170 2.99% 3.99% $ - 2.99% 4.08% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+26XY X2 xDr28i No 52% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+26XZ X2 M35i No 52% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+26XD X3 30 Yes 54% $ 1,000 0.00170 2.0% 2.99% $ - 1.99% 4.08% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+26XE X3 M50i Yes 54% $ - 0.00170 2.99% 3.99% $ - 2.99% 4.08% $ - $ - $ 500 $ 500 $ 1,000 $ - $ -
+* Eligible for 15-month lease, see bulletin C4-US-V-1-0826-05 for more details.
+© 2026 BMW of North America, LLC. The contents of this document are confidential and should not be shared with third parties for distribution.
+# CONFIDENTIAL
+699brian.macey 08/21/2026
+0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 06
+
+===== PAGE 6 (37 lines) =====
+BMW August Programs 2026 (effective: 8/3/26 - 8/31/26)
+Not Lockable - Must deliver by 8/31/26
+Version 1
+Rates apply to Ultra, Super Elite, and Elite tiers only; see General Program Guidelines for STD/STPL/PROG/PRPL adjustments. Incentives based on NEW Retail / Program Type 1 (Personal Sale), <300 miles.
+This document is for reference only; final eligibility determined by Sales Support Inquiry by VIN (IBV). See the Sales Support Guidelines in CenterNet for details. 8/3/26
+GKL Specific - see
+ICE/PHEV Lease Loan Non-FS Conquest Loyalty
+bulletin
+39 Mo. FS FS Cash FS Lease/
+Model NA Model 36 mo RV FS Lease FS Retail FS Retail Select OwnersC Conquest Loyalty Dealer Total GKL GKL
+Model Lease Lease/Pre Purchase Purchase Purchase
+10699brian.macey 08 10699brian.macey 08 10699brian.macey 08 10699brian.macey 08
+Year Code (15k m) Credit (24-60) (61-72) 24-60 hoice Credit Contribution Loyalty Loyalty Conquest
+Eligibility pay Credit Credit Loyalty
+X5 xDr50e Yes 49% $ 2,000 0.00155 2.0% 2.99% $ 1,000 1.99% 3.72% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+26XT
+26SJ X5 M60i Yes 49% $ 2,000 0.00180 2.0% 2.99% $ - 1.99% 4.32% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+X5 xDr40i Yes 49% $ 2,000 0.00180 0.9% 1.99% $ 1,000 0.90% 4.32% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+26XG
+2026
+26XK X5 M No 49% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+26XO X5 sDr40i Yes 49% $ 2,000 0.00180 0.9% 1.99% $ 1,000 0.90% 4.32% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+26XL X6 xDr40i Yes 49% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+26XM X6 M60i Yes 49% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ 1,000 $ 1,000 $ 2,000 $ - $ -
+26XN X6 M Competition No 49% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+2026
+26SA X7 xDrive40i Yes 50% $ 1,000 0.00135 0.9% 1.99% $ - 0.90% 3.24% $ - $ 1,000 $ 1,000 $ 1,000 $ 2,000 $ - $ -
+26SL X7 M60i Yes 50% $ 1,000 0.00135 0.9% 1.99% $ - 0.90% 3.24% $ - $ 1,000 $ 1,000 $ 1,000 $ 2,000 $ 2,000 $ -
+26SQ XB7 No 44% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+26SV XM Label No 51% $ 7,500 0.00190 4.99% 5.59% $ 7,500 4.99% 4.56% $ 7,500 $ - $ 7,500 $ - $ 7,500 $ 2,000 $ -
+26ZA Z4 sDr30i No 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+26ZB Z4 M40i No 51% $ - 0.00240 5.59% 5.59% $ - 5.59% 5.76% $ - $ - $ - $ - $ - $ - $ -
+10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2
+© 2026 BMW of North America, LLC. The contents of this document are confidential and should not be shared with third parties for distribution.
+# CONFIDENTIAL
+699brian.macey 08/21/2026
+0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 06
+
+===== PAGE 7 (50 lines) =====
+AMP BEV Program Support
+Bulletin: C4-US-V-1-0826-07
+August Program
+LEGACY
+(no changes since Jan program)
+By Jan. 2, 2026 After Jan. 2, 2026
+Retailed as Retail Type 6 - Service Loaner
+Mileage Max (no minimum) Retailed Q2 2025 or earlier: 15,000 Retailed Q3/Q4 2025: 10,000 15,000
+Time In-Service Max (no minimum) Retailed Q2 2025 or earlier: 24 months Retailed Q3/Q4 2025: 9 months 24 months
+10699brian.macey 08 10699brian.macey 08 10699brian.macey 08 10699brian.macey 08
+Must be before time in-service
+Deadline for 2nd Consumer Retail Must be before time in-service max 8/31/26 - Not Lockable
+max
+New Car program eligibility Standard Guidelines Apply
+2026
+Lease Credits Lease Credits
+Model Year Model Code Model RV (@ 15k) MF (Legacy)* Lease Credits (Legacy)* MF (Legacy)* MF (National)
+(Legacy)* (National)
+26DA i4 eDrive40 52% 0.00165 $7,500 0.00165 $7,500 0.00035 $3,750
+26DF i4 xDrive40 53% 0.00155 $7,500 0.00155 $7,500 0.00035 $3,750
+26DB i4 M60 52% 0.00195 $7,500 0.00195 $7,500 0.00085 $3,750
+265T i5 eDrive40 50% 0.00175 $7,500 0.00175 $7,500 0.00060 $3,750
+265V i5 xDrive40 50% 0.00170 $7,500 0.00170 $7,500 0.00060 $3,750
+267R i7 eDrive50 50% 0.00100 $7,500 0.00100 $7,500 0.00100 $7,500
+267Q i7 xDrive60 50% 0.00100 $7,500 0.00100 $7,500 0.00100 $7,500
+2026
+267S i7 M70 50% 0.00170 $7,500 0.00170 $7,500 0.00170 $7,500
+26II iX xDrive45 50% 0.00175 $7,500 0.00175 $7,500 0.00175 $7,500
+26IJ iX xDrive60 50% 0.00175 $7,500 0.00175 $7,500 0.00175 $7,500
+26IH iX M70 50% 0.00110 $7,500 0.00110 $7,500 0.00110 $7,500
+10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2026 10699brian.macey 08/21/2
+Lease Credits Lease Credits
+MF (National) Lease Credits (National) MF (National) MF (National)
+(National) (National)
+25DA i4 eDrive40 51% 0.00045 $7,500 0.00045 $7,500 0.00045 $7,500
+25DF i4 xDrive40 51% 0.00020 $7,500 0.00020 $7,500 0.00020 $7,500
+25DB i4 M50 51% 0.00070 $7,500 0.00070 $7,500 0.00070 $7,500
+255T i5 eDrive40 47% 0.00055 $7,500 0.00055 $7,500 0.00055 $7,500
+255V i5 xDrive40 47% 0.00050 $7,500 0.00050 $7,500 0.00050 $7,500
+255U i5 M60 47% 0.00045 $7,500 0.00045 $7,500 0.00045 $7,500
+257R i7 eDrive50 50% 0.00095 $7,500 0.00095 $7,500 0.00095 $7,500
+2025
+257Q i7 xDrive60 50% 0.00100 $7,500 0.00100 $7,500 0.00100 $7,500
+257S i7 M70 50% 0.00130 $7,500 0.00130 $7,500 0.00130 $7,500
+25II iX xDrive50 49% 0.00030 $7,500 0.00030 $7,500 0.00030 $7,500
+25IJ iX M60 49% 0.00065 $7,500 0.00065 $7,500 0.00065 $7,500
+© 2026 BMW of North America, LLC. The contents of this document are confidential and should not be shared with third parties for distribution.
+# CONFIDENTIAL
+699brian.macey 08/21/2026
+0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 0699brian.macey 08/21/2026 06
+
+===== ROW DIAGNOSTICS =====
+#0 | page= | code=27IK | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=iX3 50 xDrive | notes=
+#1 | page= | code=26DB | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=i4 M60 AWD | notes=
+#2 | page= | code=26DF | pass=single-line-clean | result=parsed | dedupe=rejected duplicate (score 100) | model=265T i5 eDr40i | notes=penalty: contains code-like neighboring token
+#3 | page= | code=26II | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=iX 45 | notes=
+#4 | page= | code=25DA | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=i4 eDr40 | notes=
+#5 | page= | code=25DF | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=i4 xDr40 | notes=
+#6 | page= | code=25IJ | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=iX M60i | notes=
+#7 | page= | code=27TN | pass=single-line-clean | result=parsed | dedupe=kept winner (score 360) | model=M3 | notes=penalty: model text too short
+#8 | page= | code=27TP | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=M3 Comp | notes=
+#9 | page= | code=27TQ | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=M3 Cmp AWD | notes=
+#10 | page= | code=27DC | pass=single-line-clean | result=parsed | dedupe=kept winner (score 360) | model=M4CmpCpAWD | notes=penalty: model text too short
+#11 | page= | code=27XB | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X1 xDr28i | notes=
+#12 | page= | code=27XC | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X1 M35i | notes=
+#13 | page= | code=27XY | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X2 xDrive28i | notes=
+#14 | page= | code=27XZ | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X2 M35i | notes=
+#15 | page= | code=27XG | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X5 40 xDrive | notes=
+#16 | page= | code=27XL | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X6 xDr40i | notes=
+#17 | page= | code=27XM | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X6 M60i | notes=
+#18 | page= | code=27XN | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X6 M Competition | notes=
+#19 | page= | code=27SA | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X7 xDrive40i * | notes=
+#20 | page= | code=27SL | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X7 M60i | notes=
+#21 | page= | code=27SV | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=XM Label | notes=
+#22 | page= | code=26TN | pass=single-line-clean | result=parsed | dedupe=kept winner (score 360) | model=M3 | notes=penalty: model text too short
+#23 | page= | code=26TP | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=M3 Comp | notes=
+#24 | page= | code=26TQ | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=M3 Cmp AWD | notes=
+#25 | page= | code=26DC | pass=single-line-clean | result=parsed | dedupe=kept winner (score 360) | model=M4CmpCpAWD | notes=penalty: model text too short
+#26 | page= | code=26XB | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X1 xDr28i | notes=
+#27 | page= | code=26XC | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X1 M35i | notes=
+#28 | page= | code=26XY | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X2 xDr28i | notes=
+#29 | page= | code=26XZ | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X2 M35i | notes=
+#30 | page= | code=26XD | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X3 30 | notes=
+#31 | page= | code=26XE | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X3 M50i | notes=
+#32 | page= | code=26SJ | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X5 M60i | notes=
+#33 | page= | code=26XK | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X5 M | notes=
+#34 | page= | code=26XO | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X5 sDr40i | notes=
+#35 | page= | code=26XL | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X6 xDr40i | notes=
+#36 | page= | code=26XM | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X6 M60i | notes=
+#37 | page= | code=26XN | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X6 M Competition | notes=
+#38 | page= | code=26SA | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X7 xDrive40i | notes=
+#39 | page= | code=26SL | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=X7 M60i | notes=
+#40 | page= | code=26SQ | pass=single-line-clean | result=parsed | dedupe=kept winner (score 360) | model=XB7 | notes=penalty: model text too short
+#41 | page= | code=26SV | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=XM Label | notes=
+#42 | page= | code=26ZA | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=Z4 sDr30i | notes=
+#43 | page= | code=26ZB | pass=single-line-clean | result=parsed | dedupe=kept winner (score 400) | model=Z4 M40i | notes=
+#44 | page=1 | code=26DA | pass=coordinate-merge | result=parsed | dedupe=kept winner (score 315) | model=i4 eDr40 | notes=
+#45 | page=1 | code=26DF | pass=coordinate-merge | result=parsed | dedupe=kept winner (score 315) | model=i4 xDr40 | notes=
+#46 | page=1 | code=26IH | pass=coordinate-merge | result=parsed | dedupe=kept winner (score 315) | model=iX M70 | notes=
+#47 | page=1 | code=26IJ | pass=coordinate-merge | result=parsed | dedupe=kept winner (score 315) | model=iX 60 | notes=
+#48 | page=1 | code=25DB | pass=coordinate-merge | result=parsed | dedupe=kept winner (score 315) | model=i4 M50 AWD | notes=
+#49 | page=1 | code=25II | pass=coordinate-merge | result=parsed | dedupe=kept winner (score 315) | model=iX xDr 50i | notes=
+#50 | page=6 | code=26XT | pass=coordinate-merge | result=parsed | dedupe=kept winner (score 315) | model=X5 xDr50e | notes=
+#51 | page=6 | code=26XG | pass=coordinate-merge | result=parsed | dedupe=kept winner (score 315) | model=X5 xDr40i | notes=

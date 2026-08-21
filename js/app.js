@@ -2108,23 +2108,44 @@ function normalizePdfLine(line){
    .trim();
 }
 
+// BMW NA model codes are four characters: two digits followed by either a
+// letter plus an alphanumeric (26XG, 27TN, 26DA) or a digit plus a letter
+// (275T, 263O, 268I). A bare four-digit model year such as 2026 must not match.
+const MODEL_CODE_SOURCE="(?:[0-9]{2}[A-Z][A-Z0-9]|[0-9]{3}[A-Z])";
+const MODEL_CODE_EXACT=new RegExp(`^${MODEL_CODE_SOURCE}$`);
+const MODEL_CODE_LEADING=new RegExp(`^(${MODEL_CODE_SOURCE})\\b`);
+const MODEL_CODE_LEADING_SPACED=new RegExp(`^(${MODEL_CODE_SOURCE})\\s+`);
+const MODEL_CODE_ANYWHERE=new RegExp(`(?:^|\\s)(${MODEL_CODE_SOURCE})(?:\\s|$)`);
+const MODEL_CODE_GLOBAL=new RegExp(`\\b(${MODEL_CODE_SOURCE})\\b`,"g");
+const PROGRAM_ROW_LOCATE=new RegExp(
+ `(?:^|\\s)${MODEL_CODE_SOURCE}\\s+.+?\\s+(?:Yes|No)\\s+\\d+(?:\\.\\d+)?\\s*%`
+);
+const PROGRAM_ROW_SCAN=new RegExp(
+ `(?:^|\\s)(${MODEL_CODE_SOURCE})\\s+(.+?)\\s+(?:Yes|No)\\s+\\d+(?:\\.\\d+)?\\s*%`,
+ "g"
+);
+const PROGRAM_ROW_HEADER=new RegExp(
+ `^(${MODEL_CODE_SOURCE})\\s+(.+?)\\s+(Yes|No)\\s+(\\d+(?:\\.\\d+)?)\\s*%\\s+(.*)$`
+);
+
 function isBmwModelCodeToken(value){
  const token=String(value||"").trim();
- return /^[0-9]{2}[A-Z][A-Z0-9]$/.test(token) && !/^\d{4}$/.test(token);
+ return MODEL_CODE_EXACT.test(token) && !/^\d{4}$/.test(token);
 }
 
 function stripLeadingPdfArtifacts(line){
  const normalized=normalizePdfLine(line);
  if(!normalized)return normalized;
- const match=normalized.match(/([0-9]{2}[A-Z][A-Z0-9])\s+.+?(?:Yes|No)\s+\d+(?:\.\d+)?\s*%/);
+ const match=normalized.match(PROGRAM_ROW_LOCATE);
  if(!match)return normalized;
- return normalized.slice(normalized.indexOf(match[1]));
+ const start=match.index+(match[0].startsWith(" ")?1:0);
+ return normalized.slice(start);
 }
 
 function likelyProgramRow(line){
  const normalized=normalizePdfLine(line);
  if(!normalized)return false;
- const codeMatch=normalized.match(/^.*?([0-9]{2}[A-Z][A-Z0-9])\s+/);
+ const codeMatch=normalized.match(MODEL_CODE_ANYWHERE);
  const code=codeMatch?.[1];
  return !!code && isBmwModelCodeToken(code) &&
    /\s(?:Yes|No)\s+\d+(?:\.\d+)?\s*%\s+\$/.test(normalized) &&
@@ -2136,13 +2157,13 @@ function mergeWrappedProgramLines(lines){
  for(let i=0;i<lines.length;i++){
    let line=normalizePdfLine(lines[i]);
    if(!line)continue;
-   const leadingCode=line.match(/^([0-9]{2}[A-Z][A-Z0-9])/)?.[1] || "";
+   const leadingCode=line.match(MODEL_CODE_LEADING)?.[1] || "";
    if(isBmwModelCodeToken(leadingCode)){
      let combined=line;
      let look=i+1;
      while(look<lines.length && !likelyProgramRow(combined) && look<=i+3){
        const next=normalizePdfLine(lines[look]);
-       const nextCode=next.match(/^([0-9]{2}[A-Z][A-Z0-9])/)?.[1] || "";
+       const nextCode=next.match(MODEL_CODE_LEADING)?.[1] || "";
        if(isBmwModelCodeToken(nextCode))break;
        if(next && !/^(BMW July Programs|Not Lockable|Rates apply|This document|Model Year|BEV|Lease|Loan|Non-FS|Conquest|Loyalty)/i.test(next)){
          combined+=" "+next;
@@ -2159,11 +2180,11 @@ function mergeWrappedProgramLines(lines){
 
 function lineStartsWithModelCode(line){
  const normalized=normalizePdfLine(line);
- return normalized.match(/^([0-9]{2}[A-Z][A-Z0-9])\b/)?.[1]||"";
+ return normalized.match(MODEL_CODE_LEADING)?.[1]||"";
 }
 
 function lineContainsAnyModelCode(line){
- return /(?:^|\s)([0-9]{2}[A-Z][A-Z0-9])(?:\s|$)/.test(normalizePdfLine(line));
+ return MODEL_CODE_ANYWHERE.test(normalizePdfLine(line));
 }
 
 function isSplitRowDetailLine(line){
@@ -2219,7 +2240,7 @@ function modelContaminationReasons(model,code){
  const reasons=[];
  if(!clean)return ["model text is empty"];
  if(/\b20\d{2}\b/.test(clean))reasons.push("contains standalone model year");
- const codeTokens=[...clean.matchAll(/\b([0-9]{2}[A-Z][A-Z0-9])\b/g)].map(match=>match[1]);
+ const codeTokens=[...clean.matchAll(MODEL_CODE_GLOBAL)].map(match=>match[1]);
  if(codeTokens.length){
  if(codeTokens.some(token=>token!==code))reasons.push("contains another model code");
  else reasons.push("contains model code token");
@@ -2284,9 +2305,7 @@ function parseProgramRow(rawLine,meta){
    .replace(/\s+/g," ");
 
  // BMW PDFs may extract the base residual as 55%, 55 %, or 55.0%.
- const header=line.match(
-   /^([0-9]{2}[A-Z][A-Z0-9])\s+(.+?)\s+(Yes|No)\s+(\d+(?:\.\d+)?)\s*%\s+(.*)$/
- );
+ const header=line.match(PROGRAM_ROW_HEADER);
  if(!header)return null;
 
  const code=header[1];
@@ -2379,6 +2398,53 @@ function parseProgramRow(rawLine,meta){
    incentives
  };
 }
+// Diagnostic export: writes the exact text PDF.js extracted, plus the parser's
+// per-candidate trace, so import gaps can be investigated from the real file.
+function exportPdfExtractionReport(){
+ const text=window.__lastPdfImportText;
+ if(!text||!Array.isArray(text.pages)||!text.pages.length){
+   toast("Import a BMW program PDF first, then export the extracted text.");
+   return;
+ }
+ const diagnostics=window.__lastPdfImportDiagnostics||{};
+ const lines=[];
+ lines.push(`File: ${text.fileName}`);
+ lines.push(`Pages: ${text.pageCount}`);
+ lines.push(`Candidate rows found: ${diagnostics.totalCandidates??"n/a"}`);
+ lines.push(`Rows parsed: ${diagnostics.totalParsedRows??"n/a"}`);
+ lines.push(`Rows after dedupe: ${diagnostics.totalReviewRows??"n/a"}`);
+ lines.push("");
+ text.pages.forEach(page=>{
+   lines.push(`===== PAGE ${page.pageNo} (${page.lines.length} lines) =====`);
+   page.lines.forEach(line=>lines.push(line));
+   lines.push("");
+ });
+ if(Array.isArray(diagnostics.rowDiagnostics)&&diagnostics.rowDiagnostics.length){
+   lines.push("===== ROW DIAGNOSTICS =====");
+   diagnostics.rowDiagnostics.forEach(item=>{
+     lines.push([
+       `#${item.candidateIndex}`,
+       `page=${item.pageNo||""}`,
+       `code=${item.modelCode}`,
+       `pass=${item.sourcePass}`,
+       `result=${item.parseResult}`,
+       `dedupe=${item.dedupeResult}`,
+       `model=${item.reconstructedModel}`,
+       `notes=${item.qualityNotes}`
+     ].join(" | "));
+   });
+ }
+ const blob=new Blob([lines.join("\n")],{type:"text/plain"});
+ const url=URL.createObjectURL(blob);
+ const link=document.createElement("a");
+ link.href=url;
+ link.download=`${(text.fileName||"program").replace(/\.pdf$/i,"")}-extracted.txt`;
+ document.body.appendChild(link);
+ link.click();
+ link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+ toast("Extracted PDF text downloaded.");
+}
 async function importProgramPdf(file){
  if(!file)return;
 
@@ -2459,6 +2525,17 @@ async function importProgramPdf(file){
      pageLineGroups.push({pageNo,lines:pageLines});
    }
 
+   // Raw extraction snapshot so a failing PDF can be exported and diagnosed
+   // without sharing the source document.
+   window.__lastPdfImportText={
+     fileName:file.name,
+     pageCount:pdf.numPages,
+     pages:pageLineGroups.map(page=>({
+       pageNo:page.pageNo,
+       lines:page.lines.map(entry=>entry.text)
+     }))
+   };
+
    stage="combining PDF table rows";
    const lines=mergeWrappedProgramLines(rawLines);
    const full=lines.join("\n");
@@ -2492,7 +2569,7 @@ async function importProgramPdf(file){
    const addCandidate=(recovered,source,pageNo,fragments=[])=>{
      recovered=normalizePdfLine(stripLeadingPdfArtifacts(recovered));
      if(!recovered)return;
-     const codeMatch=recovered.match(/^([0-9]{2}[A-Z][A-Z0-9])\s+/);
+     const codeMatch=recovered.match(MODEL_CODE_LEADING_SPACED);
      if(!codeMatch)return;
      const key=codeMatch[1]+"|"+recovered.slice(0,160);
      if(!candidateKeys.has(key)){
@@ -2511,7 +2588,7 @@ async function importProgramPdf(file){
    lines.forEach(sourceLine=>{
      const line=normalizePdfLine(sourceLine);
      const startsWithCode=isBmwModelCodeToken(lineStartsWithModelCode(line));
-     const matches=[...line.matchAll(/(?:^|\s)([0-9]{2}[A-Z][A-Z0-9])\s+(.+?)\s+(?:Yes|No)\s+\d+(?:\.\d+)?\s*%/g)];
+     const matches=[...line.matchAll(PROGRAM_ROW_SCAN)];
      matches.forEach(match=>{
        const start=match.index+(match[0].startsWith(" ")?1:0);
        const source=start===0&&startsWithCode?"single-line-clean":"wrapped-line-recovery";
@@ -2526,8 +2603,6 @@ async function importProgramPdf(file){
    coordinateCandidates.forEach(candidate=>{
      addCandidate(candidate.recovered,candidate.source,candidate.pageNo,candidate.fragments);
    });
-
-   const flatPdfText=normalizePdfLine(rawLines.join(" "));
 
    const parsed=[];
    const rowErrors=[];
@@ -2645,36 +2720,25 @@ async function importProgramPdf(file){
    });
    importedProgramRows=rankedRows;
 
-   // Keep an explicit audit trail for rows that have repeatedly been missed in
-   // BMW PDFs. This does not fabricate programs; it only reports whether the
-   // actual PDF text produced a parsed row.
-   const x5AuditCodes=["26XG","26XT"];
+   // Report any model code that clearly appears in the PDF table but produced
+   // no reviewable row. This does not fabricate programs; it only reports gaps.
    const parsedCodes=new Set(importedProgramRows.map(row=>row.modelCode));
-   const missingAuditCodes=x5AuditCodes.filter(code=>flatPdfText.includes(code)&&!parsedCodes.has(code));
+   const codesSeenInPdf=new Set();
+   pageLineGroups.forEach(page=>{
+     page.lines.forEach(entry=>{
+       const text=normalizePdfLine(entry.text);
+       const leading=lineStartsWithModelCode(text);
+       if(isBmwModelCodeToken(leading))codesSeenInPdf.add(leading);
+     });
+   });
+   const missingAuditCodes=[...codesSeenInPdf].filter(code=>!parsedCodes.has(code));
    if(missingAuditCodes.length){
      console.error("PDF rows found in text but not parsed:",missingAuditCodes);
-     rowErrors.push(`Found in PDF text but not parsed: ${missingAuditCodes.join(", ")}`);
+     diagnosticWarnings.push(
+       `${missingAuditCodes.length} model code${missingAuditCodes.length===1?"":"s"} `+
+       `appeared in the PDF but produced no row: ${missingAuditCodes.join(", ")}.`
+     );
    }
-
-   const expectedRows={
-     "26XG":"X5 xDr40i",
-     "26XT":"X5 xDr50e",
-     "26SJ":"X5 M60i",
-     "26XK":"X5 M",
-     "26XO":"X5 sDr40i"
-   };
-   Object.entries(expectedRows).forEach(([code,expectedModel])=>{
-     const row=importedProgramRows.find(item=>item.modelCode===code);
-     const normalizedActual=normalizePdfLine(row?.model||"");
-     const normalizedExpected=normalizePdfLine(expectedModel);
-     if(!row){
-       diagnosticWarnings.push(`Validation check: ${code} is missing after parse/dedupe.`);
-       return;
-     }
-     if(normalizedActual!==normalizedExpected){
-       diagnosticWarnings.push(`Validation check: ${code} expected "${expectedModel}" but parsed "${row.model}".`);
-     }
-   });
 
    console.groupCollapsed("PDF import diagnostics");
    console.table(rowDiagnostics.map(item=>({
@@ -2889,7 +2953,7 @@ function saveApprovedImports(){
  toast(`${checked.length} programs imported with residuals.`);
 }
 function bindNumericInputNormalization(){document.querySelectorAll('input[type="number"],input[data-decimal-input="true"]').forEach(input=>{if(input.dataset.numericNormalized)return;input.dataset.numericNormalized="true";input.addEventListener("input",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value){const start=input.selectionStart??normalized.length;input.value=normalized;const caret=Math.min(start,normalized.length);input.setSelectionRange(caret,caret)}});input.addEventListener("blur",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value)input.value=normalized;});});}
-function bindEvents(){bindNav();bindNumericInputNormalization();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
+function bindEvents(){bindNav();bindNumericInputNormalization();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("exportPdfTextButton").onclick=exportPdfExtractionReport;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
  const scenarioId=e.target.dataset.removeScenarioIncentive,incentiveId=e.target.dataset.incentiveId;
  if(!scenarioId||!incentiveId)return;
  const scenario=state.scenarios.find(item=>item.id===scenarioId),incentive=scenario?.incentives?.find(item=>item.id===incentiveId);
