@@ -23,7 +23,7 @@ function createEmptyDeal(){
  fees:{doc:{amount:595,treatment:"upfront"},reg:{amount:130,treatment:"upfront"},acq:{amount:925,treatment:"capitalize"},misc:{amount:0,treatment:"capitalize"},cashTax:{amount:0,treatment:"upfront"}},
  incentiveMigrationVersion:1,scenarios:[],acceptedScenarioId:"",notes:"",presentation:{showPaymentComparison:true,combineDiscountIncentives:false,showSignature:false}};
 }
-function settings(){return JSON.parse(localStorage.getItem(KEYS.settings)||"null")||{dealerName:"BMW of Peabody",defaultTax:6.25,reserveShare:70,defaultSalesperson:"Brian Macey",docFee:595,regFee:130,acqFee:925,miscFee:0,salespeople:["Brian Macey"],disclaimer:"Figures are estimates and remain subject to credit approval, vehicle availability, final appraisal, and current manufacturer programs."};}
+function settings(){const saved=JSON.parse(localStorage.getItem(KEYS.settings)||"null")||{};return {dealerName:"BMW of Peabody",defaultTax:6.25,reserveShare:70,defaultSalesperson:"Brian Macey",docFee:595,regFee:130,acqFee:925,miscFee:0,onePayReduction:.00080,inceptionCharge:.20,customCharge:.20,salespeople:["Brian Macey"],disclaimer:"Figures are estimates and remain subject to credit approval, vehicle availability, final appraisal, and current manufacturer programs.",...saved};}
 let programCache=JSON.parse(localStorage.getItem(KEYS.programs)||"[]");
 function programs(){return programCache;}
 function saveProgramsLocal(rows){
@@ -1329,7 +1329,8 @@ function calcScenario(s,override={}){
  return {ready:true,payment,dueUpfront:cash,taxableAmount:taxable,amountFinanced:principal,finalPayment:balloon,salesTax,eligibleTradeTaxCredit:taxSummary.eligibleTradeTaxCredit,tradeTaxCreditApplied:state.trade.applyTradeTaxCredit!==false,totalFees,fees,incentives:incentiveTotal,selling,trade};
 }
 function defaultScenario(type){
- const base={id:crypto.randomUUID(),name:"",nameSource:"auto",type:type==="onepay"?"lease":type,selected:false,term:type==="cash"?1:(type==="lease"||type==="onepay"?36:60),miles:type==="lease"||type==="onepay"?10000:"",residual:"",baseMoneyFactor:"",moneyFactor:"",onePay:type==="onepay",onePayReduction:.00080,inceptionMileage:0,inceptionCharge:.20,customMiles:0,customCharge:.20,useDueTarget:false,dueTarget:0,buyApr:"",apr:"",balloon:"",priceAdjustment:0,cashAdjustment:0,tradeAdjustment:0,extraIncentive:0,incentives:[],showRate:false,showResidual:false,showFees:true,programId:""};
+ const dealerSettings=settings();
+ const base={id:crypto.randomUUID(),name:"",nameSource:"auto",type:type==="onepay"?"lease":type,selected:false,term:type==="cash"?1:(type==="lease"||type==="onepay"?36:60),miles:type==="lease"||type==="onepay"?10000:"",residual:"",baseMoneyFactor:"",moneyFactor:"",onePay:type==="onepay",onePayReduction:num(dealerSettings.onePayReduction),inceptionMileage:0,inceptionCharge:num(dealerSettings.inceptionCharge),customMiles:0,customCharge:num(dealerSettings.customCharge),useDueTarget:false,dueTarget:0,buyApr:"",apr:"",balloon:"",priceAdjustment:0,cashAdjustment:0,tradeAdjustment:0,extraIncentive:0,incentives:[],showRate:false,showResidual:false,showFees:true,programId:""};
  base.name=scenarioAutoName(base);
  return base;
 }
@@ -1938,8 +1939,8 @@ document.body.addEventListener("click",e=>{
    e.stopImmediatePropagation();
  }
 },true);
-function loadSettingsForm(){const s=settings();$("dealerName").value=s.dealerName;$("defaultTax").value=s.defaultTax;$("reserveShare").value=s.reserveShare;$("defaultSalesperson").value=s.defaultSalesperson;$("defaultDocFee").value=s.docFee;$("defaultRegFee").value=s.regFee;$("defaultAcqFee").value=s.acqFee;$("defaultMiscFee").value=s.miscFee;$("salespeople").value=s.salespeople.join("\n");$("disclaimer").value=s.disclaimer;}
-function saveSettings(){const s={dealerName:$("dealerName").value,defaultTax:num($("defaultTax").value),reserveShare:num($("reserveShare").value),defaultSalesperson:$("defaultSalesperson").value,docFee:num($("defaultDocFee").value),regFee:num($("defaultRegFee").value),acqFee:num($("defaultAcqFee").value),miscFee:num($("defaultMiscFee").value),salespeople:$("salespeople").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),disclaimer:$("disclaimer").value};localStorage.setItem(KEYS.settings,JSON.stringify(s));applySettingsToDeal(false);toast("Dealer settings saved.");}
+function loadSettingsForm(){const s=settings();$("dealerName").value=s.dealerName;$("defaultTax").value=s.defaultTax;$("reserveShare").value=s.reserveShare;$("defaultSalesperson").value=s.defaultSalesperson;$("defaultDocFee").value=s.docFee;$("defaultRegFee").value=s.regFee;$("defaultAcqFee").value=s.acqFee;$("defaultMiscFee").value=s.miscFee;$("defaultOnePayReduction").value=s.onePayReduction;$("defaultInceptionCharge").value=s.inceptionCharge;$("defaultCustomCharge").value=s.customCharge;$("salespeople").value=s.salespeople.join("\n");$("disclaimer").value=s.disclaimer;}
+function saveSettings(){const s={dealerName:$("dealerName").value,defaultTax:num($("defaultTax").value),reserveShare:num($("reserveShare").value),defaultSalesperson:$("defaultSalesperson").value,docFee:num($("defaultDocFee").value),regFee:num($("defaultRegFee").value),acqFee:num($("defaultAcqFee").value),miscFee:num($("defaultMiscFee").value),onePayReduction:num($("defaultOnePayReduction").value),inceptionCharge:num($("defaultInceptionCharge").value),customCharge:num($("defaultCustomCharge").value),salespeople:$("salespeople").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),disclaimer:$("disclaimer").value};localStorage.setItem(KEYS.settings,JSON.stringify(s));applySettingsToDeal(false);toast("Dealer settings saved.");}
 function initializeSupabase(){
  const c=JSON.parse(localStorage.getItem(KEYS.connection)||"null");
  if(!c?.url||!c?.key)return false;

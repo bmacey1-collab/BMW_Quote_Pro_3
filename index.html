@@ -232,7 +232,7 @@
             <label>Lease Term<input id="programLeaseTerm" type="number" value="36"></label>
             <label>Base Residual %<input id="programResidual" type="number" step=".01"></label>
             <label>Money Factor<input id="programMf" type="text" inputmode="decimal" data-decimal-input="true"></label>
-            <label>One-Pay MF Reduction<input id="programOnePayReduction" type="text" inputmode="decimal" data-decimal-input="true" value=".00050"></label>
+            <label>One-Pay MF Reduction<input id="programOnePayReduction" type="text" inputmode="decimal" data-decimal-input="true" value=".0008"></label>
             <label>Finance APR %<input id="programFinanceApr" type="text" inputmode="decimal" data-decimal-input="true"></label>
             <label>Finance Term<input id="programFinanceTerm" type="number" value="60"></label>
             <label>Select APR %<input id="programSelectApr" type="text" inputmode="decimal" data-decimal-input="true"></label>
@@ -307,6 +307,9 @@
             <label>Default Registration<input id="defaultRegFee" type="number" value="135"></label>
             <label>Default Acquisition<input id="defaultAcqFee" type="number" value="925"></label>
             <label>Default Misc Fee<input id="defaultMiscFee" type="number" value="0"></label>
+            <label>One-Pay MF Reduction<input id="defaultOnePayReduction" type="text" inputmode="decimal" data-decimal-input="true" value=".0008"></label>
+            <label>Deduction Per Mile<input id="defaultInceptionCharge" type="number" step=".01" value=".20"></label>
+            <label>Custom Deduction Per Mile<input id="defaultCustomCharge" type="number" step=".01" value=".20"></label>
             <label class="span2">Salespeople — one per line<textarea id="salespeople">Brian Macey</textarea></label>
             <label class="span2">Quote Disclaimer<textarea id="disclaimer">Figures are estimates and remain subject to credit approval, vehicle availability, final appraisal, and current manufacturer programs.</textarea></label>
           </div>
@@ -351,9 +354,9 @@
         <label class="lease-field required">Used / Customer Money Factor<input id="scenarioMf" type="text" inputmode="decimal" data-decimal-input="true"></label>
         <label class="lease-field">One-Pay MF Reduction<input id="scenarioOnePayReduction" type="text" inputmode="decimal" data-decimal-input="true" value=".00050"></label>
         <label class="lease-field">In-Service Mileage<input id="scenarioInceptionMileage" type="number" value="0"></label>
-        <label class="lease-field">Deduction Per Mile<input id="scenarioInceptionCharge" type="number" step=".01" value=".25"></label>
+        <label class="lease-field">Deduction Per Mile<input id="scenarioInceptionCharge" type="number" step=".01" value=".20"></label>
         <label class="lease-field">Custom Miles<input id="scenarioCustomMiles" type="number" value="0"></label>
-        <label class="lease-field">Custom Deduction Per Mile<input id="scenarioCustomCharge" type="number" step=".01" value=".25"></label>
+        <label class="lease-field">Custom Deduction Per Mile<input id="scenarioCustomCharge" type="number" step=".01" value=".20"></label>
         <label class="lease-field check"><input id="scenarioUseDueTarget" type="checkbox"> Use Total Due at Signing Target</label>
         <label class="lease-field" id="scenarioDueTargetWrap">Target Total Due at Signing<input id="scenarioDueTarget" type="number" step=".01" min="0" value="0"></label>
         <label class="rate-field required">Buy APR %<input id="scenarioBuyApr" type="text" inputmode="decimal" data-decimal-input="true"></label>
