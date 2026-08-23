@@ -3068,7 +3068,18 @@ function saveApprovedImports(){
  setPdfImportStatus(`${checked.length} programs saved`,"success");
  toast(`${checked.length} programs imported with residuals.`);
 }
-function bindNumericInputNormalization(){document.querySelectorAll('input[type="number"],input[data-decimal-input="true"]').forEach(input=>{if(input.dataset.numericNormalized)return;input.dataset.numericNormalized="true";input.addEventListener("input",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value){const start=input.selectionStart??normalized.length;input.value=normalized;const caret=Math.min(start,normalized.length);input.setSelectionRange(caret,caret)}});input.addEventListener("blur",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value)input.value=normalized;});});}
+function bindNumericInputNormalization(){
+  document.querySelectorAll('input[type="number"]').forEach(input=>{
+    const stepValue=(input.getAttribute("step")||"").trim();
+    const shouldUseDecimalInput=stepValue!=="" && stepValue!="1" && stepValue!="any" && Number(stepValue)!==0 && !Number.isInteger(Number(stepValue));
+    if(shouldUseDecimalInput){
+      input.type="text";
+      input.setAttribute("inputmode","decimal");
+      input.setAttribute("data-decimal-input","true");
+    }
+  });
+  document.querySelectorAll('input[type="number"],input[data-decimal-input="true"]').forEach(input=>{if(input.dataset.numericNormalized)return;input.dataset.numericNormalized="true";input.addEventListener("input",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value){const start=input.selectionStart??normalized.length;input.value=normalized;const caret=Math.min(start,normalized.length);input.setSelectionRange(caret,caret)}});input.addEventListener("blur",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value)input.value=normalized;});});
+}
 function buildQuoteEmailBody(){
   readFormToState();
   const selected=state.scenarios.filter(s=>s.selected).filter(s=>calcScenario(s).ready).slice(0,3);
