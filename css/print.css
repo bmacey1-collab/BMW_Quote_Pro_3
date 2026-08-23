@@ -1,1 +1,2 @@
+@page{size:landscape;margin:0.5in}
 @media print{body{background:#fff}.app-shell{width:100%;margin:0;box-shadow:none}.app-header,.main-nav,.build-chip,.button-row,.toast{display:none!important}.page{display:none!important;padding:0}.print-quote #page-quote{display:block!important}.print-worksheet #page-worksheet{display:block!important}.quote-grid{grid-template-columns:repeat(3,1fr)!important}.quote-card,.worksheet-block{break-inside:avoid}.scenario-card{box-shadow:none}}
