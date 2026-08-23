@@ -116,11 +116,11 @@
         <div class="panel">
           <h3>Fees</h3>
           <div class="fee-grid">
-            <div class="fee-row"><span>Document Fee</span><input id="docFee" type="number" min="0" step=".01"><select id="docTreatment"><option value="upfront">Pay Up Front</option><option value="capitalize">Include in Payment</option><option value="none">Not Applicable</option></select></div>
-            <div class="fee-row"><span>Registration / Title</span><input id="regFee" type="number" min="0" step=".01"><select id="regTreatment"><option value="upfront">Pay Up Front</option><option value="capitalize">Include in Payment</option><option value="none">Not Applicable</option></select></div>
+            <div class="fee-row"><span>Document Fee</span><input id="docFee" type="number" min="0" step=".01"><select id="docTreatment"><option value="capitalize">Include in Payment</option><option value="upfront">Pay Up Front</option><option value="none">Not Applicable</option></select></div>
+            <div class="fee-row"><span>Registration / Title</span><input id="regFee" type="number" min="0" step=".01"><select id="regTreatment"><option value="capitalize">Include in Payment</option><option value="upfront">Pay Up Front</option><option value="none">Not Applicable</option></select></div>
             <div class="fee-row"><span>Lease Acquisition Fee</span><input id="acqFee" type="number" min="0" step=".01"><select id="acqTreatment"><option value="capitalize">Include in Payment</option><option value="upfront">Pay Up Front</option><option value="none">Not Applicable</option></select></div>
             <div class="fee-row"><span>Miscellaneous Fee</span><input id="miscFee" type="number" min="0" step=".01"><select id="miscTreatment"><option value="capitalize">Include in Payment</option><option value="upfront">Pay Up Front</option><option value="none">Not Applicable</option></select></div>
-            <div class="fee-row"><span>Lease Tax on Cash Reduction</span><div id="cashDownTaxDisplay" class="readout">$0.00</div><select id="cashTaxTreatment"><option value="upfront">Pay Up Front</option><option value="capitalize">Include in Payment</option></select></div>
+            <div class="fee-row"><span>Lease Tax on Cash Reduction</span><div id="cashDownTaxDisplay" class="readout">$0.00</div><select id="cashTaxTreatment"><option value="capitalize">Include in Payment</option><option value="upfront">Pay Up Front</option></select></div>
           </div>
         </div>
 
@@ -301,9 +301,9 @@
           <div class="form-grid four">
             <label>Dealership Name<input id="dealerName" value="BMW of Peabody"></label>
             <label>Default Tax %<input id="defaultTax" type="number" step=".01" value="6.25"></label>
-            <label>Reserve Share %<input id="reserveShare" type="number" step=".01" value="70"></label>
+            <label>Reserve Share %<input id="reserveShare" type="number" step=".10" value="70"></label>
             <label>Default Salesperson<input id="defaultSalesperson" value="Brian Macey"></label>
-            <label>Default Doc Fee<input id="defaultDocFee" type="number" value="600"></label>
+            <label>Default Doc Fee<input id="defaultDocFee" type="number" value="595"></label>
             <label>Default Registration<input id="defaultRegFee" type="number" value="135"></label>
             <label>Default Acquisition<input id="defaultAcqFee" type="number" value="925"></label>
             <label>Default Misc Fee<input id="defaultMiscFee" type="number" value="0"></label>
@@ -349,7 +349,7 @@
         <label class="lease-field check"><input id="scenarioOnePay" type="checkbox"> One-Pay Lease</label>
         <label class="term-field">Term<input id="scenarioTerm" type="number"></label>
         <label class="lease-field">Annual Miles<select id="scenarioMiles"><option value="">Select</option><option value="7500">7,500</option><option value="10000">10,000</option><option value="12000">12,000</option><option value="15000">15,000</option></select></label>
-        <label class="lease-field required">Base Residual %<input id="scenarioResidual" type="number" step=".01"></label>
+        <label class="lease-field required">Base Residual %<input id="scenarioResidual" type="number" step="1.00"></label>
         <label class="lease-field required">Base / Buy Money Factor<input id="scenarioBaseMf" type="text" inputmode="decimal" data-decimal-input="true"></label>
         <label class="lease-field required">Used / Customer Money Factor<input id="scenarioMf" type="text" inputmode="decimal" data-decimal-input="true"></label>
         <label class="lease-field">One-Pay MF Reduction<input id="scenarioOnePayReduction" type="text" inputmode="decimal" data-decimal-input="true" value=".00050"></label>
