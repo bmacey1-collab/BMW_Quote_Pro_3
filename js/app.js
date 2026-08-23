@@ -3069,16 +3069,32 @@ function saveApprovedImports(){
  toast(`${checked.length} programs imported with residuals.`);
 }
 function bindNumericInputNormalization(){
-  document.querySelectorAll('input[type="number"]').forEach(input=>{
+  document.querySelectorAll('input[type="number"],input[data-decimal-input="true"]').forEach(input=>{
     const stepValue=(input.getAttribute("step")||"").trim();
-    const shouldUseDecimalInput=stepValue!=="" && stepValue!="1" && stepValue!="any" && Number(stepValue)!==0 && !Number.isInteger(Number(stepValue));
-    if(shouldUseDecimalInput){
+    const shouldUseDecimalInput=input.dataset.decimalInput==="true"||(
+      stepValue!=="" && stepValue!=="1" && stepValue!=="any" && Number(stepValue)!==0 && !Number.isInteger(Number(stepValue))
+    );
+    if(shouldUseDecimalInput && input.type!=="text"){
       input.type="text";
       input.setAttribute("inputmode","decimal");
       input.setAttribute("data-decimal-input","true");
     }
-  });
-  document.querySelectorAll('input[type="number"],input[data-decimal-input="true"]').forEach(input=>{if(input.dataset.numericNormalized)return;input.dataset.numericNormalized="true";input.addEventListener("input",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value){const start=input.selectionStart??normalized.length;input.value=normalized;const caret=Math.min(start,normalized.length);input.setSelectionRange(caret,caret)}});input.addEventListener("blur",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value)input.value=normalized;});});
+    if(input.dataset.numericNormalized)return;
+    input.dataset.numericNormalized="true";
+    input.addEventListener("beforeinput",event=>{
+      const start=input.selectionStart ?? input.value.length;
+      const end=input.selectionEnd ?? input.value.length;
+      const typed=event.data ?? "";
+      if(!typed && event.inputType==="deleteContentBackward")return;
+      const nextValue=input.value.slice(0,start)+typed+input.value.slice(end);
+      if(nextValue==="."||nextValue==="-."){
+        event.preventDefault();
+        input.value=nextValue==="-."?"-0.":"0.";
+        const caret=nextValue==="-."?3:2;
+        input.setSelectionRange(caret,caret);
+      }
+    });
+    input.addEventListener("input",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value){const start=input.selectionStart??normalized.length;input.value=normalized;const caret=Math.min(start,normalized.length);input.setSelectionRange(caret,caret)}});input.addEventListener("blur",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value)input.value=normalized;});});
 }
 function buildQuoteEmailBody(){
   readFormToState();
