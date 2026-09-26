@@ -20,8 +20,8 @@ function createEmptyDeal(){
  customer:{clientId:"",firstName:"",lastName:"",coFirstName:"",coLastName:"",email:"",phone:"",salesperson:"",currentPayment:0},
  vehicle:{stockNumber:"",vin:"",year:"",make:"BMW",model:"",msrp:0,discount:0,cost:0,pack:0,taxRate:null},
  trade:{vin:"",vehicle:"",allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true},
- fees:{doc:{amount:595,treatment:"upfront"},reg:{amount:130,treatment:"upfront"},acq:{amount:925,treatment:"capitalize"},misc:{amount:0,treatment:"capitalize"},cashTax:{amount:0,treatment:"upfront"}},
- incentiveMigrationVersion:1,scenarios:[],acceptedScenarioId:"",notes:"",presentation:{showPaymentComparison:true,combineDiscountIncentives:false,showSignature:false}};
+ fees:{doc:{amount:595,treatment:"capitalize"},reg:{amount:130,treatment:"capitalize"},acq:{amount:925,treatment:"capitalize"},misc:{amount:0,treatment:"capitalize"},cashTax:{amount:0,treatment:"capitalize"}},
+ incentiveMigrationVersion:1,scenarios:[],acceptedScenarioId:"",notes:"",presentation:{showPaymentComparison:true,combineDiscountIncentives:true,showSignature:false}};
 }
 function settings(){const saved=JSON.parse(localStorage.getItem(KEYS.settings)||"null")||{};return {dealerName:"BMW of Peabody",defaultTax:6.25,reserveShare:70,defaultSalesperson:"Brian Macey",docFee:595,regFee:130,acqFee:925,miscFee:0,onePayReduction:.00080,inceptionCharge:.20,customCharge:.20,salespeople:["Brian Macey"],disclaimer:"Figures are estimates and remain subject to credit approval, vehicle availability, final appraisal, and current manufacturer programs.",...saved};}
 let programCache=JSON.parse(localStorage.getItem(KEYS.programs)||"[]");
@@ -96,7 +96,7 @@ function showPage(name){document.querySelectorAll(".page").forEach(p=>p.classLis
 function bindNav(){document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.page)));document.querySelectorAll("[data-page-link]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.pageLink)));}
 function applySettingsToDeal(force=false){const s=settings();ensureFeeState();if(force||state.vehicle.taxRate===null)state.vehicle.taxRate=s.defaultTax;if(force||!state.customer.salesperson)state.customer.salesperson=s.defaultSalesperson;state.fees.doc.amount=force?s.docFee:(state.fees.doc.amount??s.docFee);state.fees.reg.amount=force?s.regFee:(state.fees.reg.amount??s.regFee);state.fees.acq.amount=force?s.acqFee:(state.fees.acq.amount??s.acqFee);state.fees.misc.amount=force?s.miscFee:(state.fees.misc.amount??s.miscFee);populateSalespeople();writeStateToForm();}
 function populateSalespeople(){const s=settings(),sel=$("salesperson");sel.innerHTML='<option value="">Select salesperson</option>'+s.salespeople.map(n=>`<option>${esc(n)}</option>`).join("");sel.value=state.customer.salesperson||s.defaultSalesperson||"";}
-function ensureFeeState(){state.fees=state.fees||{};state.fees.doc=state.fees.doc||{amount:0,treatment:"upfront"};state.fees.reg=state.fees.reg||{amount:0,treatment:"upfront"};state.fees.acq=state.fees.acq||{amount:0,treatment:"capitalize"};state.fees.misc=state.fees.misc||{amount:0,treatment:"capitalize"};state.fees.cashTax=state.fees.cashTax||{amount:0,treatment:"upfront"};if(!["upfront","capitalize"].includes(state.fees.cashTax.treatment))state.fees.cashTax.treatment="upfront";}
+function ensureFeeState(){state.fees=state.fees||{};state.fees.doc=state.fees.doc||{amount:0,treatment:"capitalize"};state.fees.reg=state.fees.reg||{amount:0,treatment:"capitalize"};state.fees.acq=state.fees.acq||{amount:0,treatment:"capitalize"};state.fees.misc=state.fees.misc||{amount:0,treatment:"capitalize"};state.fees.cashTax=state.fees.cashTax||{amount:0,treatment:"capitalize"};if(!["upfront","capitalize"].includes(state.fees.doc.treatment))state.fees.doc.treatment="capitalize";if(!["upfront","capitalize"].includes(state.fees.reg.treatment))state.fees.reg.treatment="capitalize";if(!["upfront","capitalize"].includes(state.fees.acq.treatment))state.fees.acq.treatment="capitalize";if(!["upfront","capitalize"].includes(state.fees.misc.treatment))state.fees.misc.treatment="capitalize";if(!["upfront","capitalize"].includes(state.fees.cashTax.treatment))state.fees.cashTax.treatment="capitalize";}
 function readFormToState(){state.customer={clientId:state.customer.clientId||"",firstName:$("firstName").value.trim(),lastName:$("lastName").value.trim(),coFirstName:$("coFirstName").value.trim(),coLastName:$("coLastName").value.trim(),email:$("customerEmail").value.trim().toLowerCase(),phone:$("customerPhone").value.trim(),salesperson:$("salesperson").value,currentPayment:num($("currentPayment").value)};
 state.vehicle={stockNumber:$("stockNumber").value.trim(),vin:$("vin").value.trim().toUpperCase(),year:$("year").value,make:$("make").value.trim(),model:$("model").value.trim(),msrp:num($("msrp").value),discount:num($("discount").value),cost:num($("vehicleCost").value),pack:num($("pack").value),taxRate:$("taxRate").value===""?null:num($("taxRate").value)};
 state.trade={vin:$("tradeVin").value.trim().toUpperCase(),vehicle:$("tradeVehicle").value.trim(),allowance:num($("tradeAllowance").value),acv:num($("tradeAcv").value),payoff:num($("tradePayoff").value),cashDown:num($("cashDown").value),equityMethod:$("equityMethod").value,equityCashBack:num($("equityCashBack").value),applyTradeTaxCredit:$("applyTradeTaxCredit")?$("applyTradeTaxCredit").checked:true};
@@ -3069,8 +3069,82 @@ function saveApprovedImports(){
  setPdfImportStatus(`${checked.length} programs saved`,"success");
  toast(`${checked.length} programs imported with residuals.`);
 }
-function bindNumericInputNormalization(){document.querySelectorAll('input[type="number"],input[data-decimal-input="true"]').forEach(input=>{if(input.dataset.numericNormalized)return;input.dataset.numericNormalized="true";input.addEventListener("input",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value){const start=input.selectionStart??normalized.length;input.value=normalized;const caret=Math.min(start,normalized.length);input.setSelectionRange(caret,caret)}});input.addEventListener("blur",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value)input.value=normalized;});});}
-function bindEvents(){bindNav();bindNumericInputNormalization();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("exportPdfTextButton").onclick=exportPdfExtractionReport;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);rememberSelectBalloon(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
+function bindNumericInputNormalization(){
+  document.querySelectorAll('input[type="number"],input[data-decimal-input="true"]').forEach(input=>{
+    const stepValue=(input.getAttribute("step")||"").trim();
+    const shouldUseDecimalInput=input.dataset.decimalInput==="true"||(
+      stepValue!=="" && stepValue!=="1" && stepValue!=="any" && Number(stepValue)!==0 && !Number.isInteger(Number(stepValue))
+    );
+    if(shouldUseDecimalInput && input.type!=="text"){
+      input.type="text";
+      input.setAttribute("inputmode","decimal");
+      input.setAttribute("data-decimal-input","true");
+    }
+    if(input.dataset.numericNormalized)return;
+    input.dataset.numericNormalized="true";
+    input.addEventListener("beforeinput",event=>{
+      const start=input.selectionStart ?? input.value.length;
+      const end=input.selectionEnd ?? input.value.length;
+      const typed=event.data ?? "";
+      if(!typed && event.inputType==="deleteContentBackward")return;
+      const nextValue=input.value.slice(0,start)+typed+input.value.slice(end);
+      if(nextValue==="."||nextValue==="-."){
+        event.preventDefault();
+        input.value=nextValue==="-."?"-0.":"0.";
+        const caret=nextValue==="-."?3:2;
+        input.setSelectionRange(caret,caret);
+      }
+    });
+    input.addEventListener("input",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value){const start=input.selectionStart??normalized.length;input.value=normalized;const caret=Math.min(start,normalized.length);input.setSelectionRange(caret,caret)}});input.addEventListener("blur",()=>{const normalized=normalizeNumericInputValue(input.value);if(normalized!==input.value)input.value=normalized;});});
+}
+function buildQuoteEmailBody(){
+  readFormToState();
+  const selected=state.scenarios.filter(s=>s.selected).filter(s=>calcScenario(s).ready).slice(0,3);
+  const customerName=[state.customer.firstName,state.customer.lastName].filter(Boolean).join(" ")||"Customer";
+  const vehicle=[state.vehicle.year,state.vehicle.make,state.vehicle.model].filter(Boolean).join(" ")||"Vehicle";
+  const lines=[
+    "BMW Quote Pro",
+    `Customer: ${customerName}`,
+    `Vehicle: ${vehicle}`,
+    `MSRP: ${money.format(state.vehicle.msrp)}`,
+    `Trade Allowance: ${money.format(state.trade.allowance)}`,
+    "",
+    "Selected Scenarios:"
+  ];
+  if(!selected.length){
+    lines.push("No complete scenarios selected.");
+    return lines.join("\n");
+  }
+  selected.forEach((scenario,index)=>{
+    const result=calcScenario(scenario);
+    const payment=Number.isFinite(scenario.onePay?result.onePayTotal:result.payment)?(scenario.onePay?result.onePayTotal:result.payment):0;
+    const label=scenario.type==="cash"?"Total Cash Due":scenario.onePay?"Total One-Pay":"Monthly Payment";
+    lines.push(`\n${index+1}. ${scenarioDisplayName(scenario)} (${scenarioTypeLabel(scenario.type)})`);
+    lines.push(`${label}: ${money.format(payment)}`);
+    lines.push(`Adjusted Price: ${money.format(result.selling)}`);
+    if(state.presentation.combineDiscountIncentives){
+      lines.push(`Discount + Incentives: ${money.format(state.vehicle.discount+result.incentives)}`);
+    }else{
+      lines.push(`Dealer Discount: ${money.format(state.vehicle.discount)}`);
+      lines.push(`Incentives: ${money.format(result.incentives)}`);
+    }
+    lines.push(`Total Due Up Front: ${money.format(result.dueUpfront)}`);
+    if(scenario.type==="lease"&&scenario.useDueTarget)lines.push(`Target Due at Signing: ${money.format(num(scenario.dueTarget))}`);
+  });
+  return lines.join("\n");
+}
+function emailCurrentQuote(){
+  readFormToState();
+  const customerName=[state.customer.firstName,state.customer.lastName].filter(Boolean).join(" ")||"Customer";
+  const vehicle=[state.vehicle.year,state.vehicle.make,state.vehicle.model].filter(Boolean).join(" ")||"Vehicle";
+  const subject=`BMW Quote - ${customerName}${vehicle?` - ${vehicle}`:""}`;
+  const body=buildQuoteEmailBody();
+  const address=(state.customer.email||"").trim();
+  const mailto=`mailto:${address || ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href=mailto;
+  toast("Email app opened with quote details.");
+}
+function bindEvents(){bindNav();bindNumericInputNormalization();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("emailQuote").onclick=emailCurrentQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("exportPdfTextButton").onclick=exportPdfExtractionReport;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);rememberSelectBalloon(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
  const scenarioId=e.target.dataset.removeScenarioIncentive,incentiveId=e.target.dataset.incentiveId;
  if(!scenarioId||!incentiveId)return;
  const scenario=state.scenarios.find(item=>item.id===scenarioId),incentive=scenario?.incentives?.find(item=>item.id===incentiveId);
