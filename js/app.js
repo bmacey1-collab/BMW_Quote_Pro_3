@@ -372,9 +372,10 @@ function scenarioAutoName(s){
   if(type==="finance")return `${term}mo Finance`;
   if(type==="select")return `${term}mo BMW Select`;
   const miles=num(s?.miles);
-  const kilo=Math.round(miles/1000);
+  const kilo=miles/1000;
+  const kiloLabel=Number.isInteger(kilo)?kilo:kilo.toFixed(1);
   const label=s?.onePay||s?.type==="onepay"?"One-Pay Lease":"Lease";
-  return `${term}mo ${label} ${kilo}k miles`;
+  return `${term}mo ${label} ${kiloLabel}k miles`;
 }
 function normalizeScenarioNameSource(s){
   if(!s||typeof s!=="object")return "auto";
