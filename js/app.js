@@ -140,7 +140,7 @@ function writeStateToForm(){
 }
 function updateComputed(){
  readFormToState();
- const selling=Math.max(0,state.vehicle.msrp-state.vehicle.discount),equity=state.trade.allowance-state.trade.payoff,gross=state.trade.allowance-state.trade.acv;
+ const selling=Math.max(0,state.vehicle.msrp-state.vehicle.discount),equity=state.trade.allowance-state.trade.payoff,gross=calculateTradeGross();
  $("sellingPriceDisplay").textContent=money.format(selling);
  $("tradeEquityDisplay").textContent=money.format(equity);
  $("tradeGrossDisplay").textContent=money.format(gross);
@@ -149,7 +149,9 @@ function updateComputed(){
  renderIncentives();
  renderScenarios();
  renderWorksheet();
-}function mileageAdjustment(m){return ({7500:4,10000:3,12000:2,15000:0})[Number(m)]||0;}
+}
+function calculateTradeGross(){return num(state.trade.acv)-num(state.trade.allowance);}
+function mileageAdjustment(m){return ({7500:4,10000:3,12000:2,15000:0})[Number(m)]||0;}
 function customMileageDeduction(s){
   const customMiles=Math.max(0,num(s.customMiles));
   if(!customMiles)return 0;
@@ -1409,7 +1411,7 @@ function renderQuote(){
 }
 function renderWorksheet(){
  readFormToState();
- const name=[state.customer.firstName,state.customer.lastName].filter(Boolean).join(" "),vehicle=[state.vehicle.year,state.vehicle.make,state.vehicle.model].filter(Boolean).join(" "),selling=Math.max(0,state.vehicle.msrp-state.vehicle.discount),front=selling-state.vehicle.cost-state.vehicle.pack,tradeGross=state.trade.allowance-state.trade.acv,accepted=state.scenarios.find(s=>s.id===state.acceptedScenarioId);
+ const name=[state.customer.firstName,state.customer.lastName].filter(Boolean).join(" "),vehicle=[state.vehicle.year,state.vehicle.make,state.vehicle.model].filter(Boolean).join(" "),selling=Math.max(0,state.vehicle.msrp-state.vehicle.discount),front=selling-state.vehicle.cost-state.vehicle.pack,tradeGross=calculateTradeGross(),accepted=state.scenarios.find(s=>s.id===state.acceptedScenarioId);
  if(accepted)syncScenarioName(accepted);
  const result=accepted?calcScenario(accepted):null;
  if(!accepted||!result?.ready){$("worksheetOutput").innerHTML=`<h2>BMW QUOTE WORKSHEET</h2><div class="empty-state manager-empty">Select one complete scenario as the Accepted Deal in Deal Builder. Only that scenario will appear on this worksheet.</div>`;return;}
