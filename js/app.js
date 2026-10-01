@@ -3,7 +3,7 @@
 const $ = id => document.getElementById(id);
 const money = new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"});
 const KEYS={settings:"bqp3_settings",programs:"bqp3_programs",deals:"bqp3_deals",connection:"bqp3_connection",draft:"bqp3_autosave_draft"};
-let supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,draggedScenarioId=null,importedProgramRows=[],pdfJsModulePromise=null,currentIncentiveProgramIds=[],currentProgramPickerRows=[],currentProgramApplicationPreview=null;
+let supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,quoteSaveSequence=0,dealSyncQueue=Promise.resolve(),draggedScenarioId=null,importedProgramRows=[],pdfJsModulePromise=null,currentIncentiveProgramIds=[],currentProgramPickerRows=[],currentProgramApplicationPreview=null;
 let savedDealsCache=[],savedDealsLoadedAt=0,savedDealFilter="all";
 let incentiveMatchCache=new Map(),currentIncentivePickerItems=[];
 let vinDecodeRequestTokens={vehicle:0,trade:0};
@@ -800,37 +800,94 @@ function updateClientHistoryDisplays(){
  $("clientRecordDisplay").textContent=clientId?clientId.slice(0,8)+"…":"New client";
  $("priorQuoteCountDisplay").textContent=String(count);
 }
-function setAutosaveStatus(message,kind=""){
+function setAutosaveStatus(message,kind="",detail=""){
  const el=$("autosaveStatus");
  if(!el)return;
  el.textContent=message;
+ el.title=detail;
  el.className="autosave-status"+(kind?" "+kind:"");
 }
 function saveDraftNow(){
  try{
    readFormToState();
-   if(!hasMeaningfulDraft()){
-     localStorage.removeItem(KEYS.draft);
-     setAutosaveStatus("Draft empty");
+   const isExistingDeal=localDeals().some(deal=>deal.id===state.id)||savedDealsCache.some(deal=>deal.id===state.id);
+   if(!hasMeaningfulDraft()&&!isExistingDeal){
+     clearAutosaveDraft("Quote not saved yet");
      return;
    }
-   const draft={deal:state,savedAt:new Date().toISOString()};
-   localStorage.setItem(KEYS.draft,JSON.stringify(draft));
-   setAutosaveStatus("Draft saved "+new Date(draft.savedAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}),"saved");
+   void saveDeal(true);
  }catch(error){
-   setAutosaveStatus("Draft save failed","error");
+   console.error("Unable to autosave the quote.",error);
+   setAutosaveStatus("Quote save failed","error",error.message);
  }
 }
 function scheduleAutosave(){
- setAutosaveStatus("Saving draft…","saving");
+ setAutosaveStatus("Saving quote…","saving");
  clearTimeout(autosaveTimer);
  autosaveTimer=setTimeout(saveDraftNow,700);
 }
-function clearAutosaveDraft(){
+function clearAutosaveDraft(message="Quote not saved yet"){
+ clearTimeout(autosaveTimer);
+ autosaveTimer=null;
  localStorage.removeItem(KEYS.draft);
- setAutosaveStatus("No unsaved draft");
+ setAutosaveStatus(message);
 }
-async function saveDeal(){readFormToState();state.updatedAt=new Date().toISOString();let rows=localDeals();const clientMatch=findMatchingClient(rows);if(!state.customer.clientId)state.customer.clientId=clientMatch?.customer?.clientId||crypto.randomUUID();let idx=rows.findIndex(d=>d.id===state.id);if(idx>=0)rows[idx]=structuredClone(state);else rows.unshift(structuredClone(state));saveLocalDeals(rows);savedDealsCache=[];savedDealsLoadedAt=0;if(supabaseClient&&currentUser){const result=await supabaseClient.from("v3_deals").upsert({id:state.id,user_id:currentUser.id,quote_number:state.quoteNumber,client_name:[state.customer.firstName,state.customer.lastName].filter(Boolean).join(" "),vehicle:[state.vehicle.year,state.vehicle.make,state.vehicle.model].filter(Boolean).join(" "),deal_data:state,updated_at:state.updatedAt});if(result.error){toast("Saved locally. Supabase: "+result.error.message);return}}clearAutosaveDraft();toast("Deal saved.");updateClientHistoryDisplays();renderDashboard();}
+async function saveDeal(automatic=false){
+ clearTimeout(autosaveTimer);
+ const sequence=++quoteSaveSequence;
+ let quote;
+ try{
+   readFormToState();
+   state.updatedAt=new Date().toISOString();
+   const rows=localDeals(),clientMatch=findMatchingClient(rows);
+   if(!state.customer.clientId)state.customer.clientId=clientMatch?.customer?.clientId||crypto.randomUUID();
+   const index=rows.findIndex(deal=>deal.id===state.id);
+   if(index>=0)rows[index]=structuredClone(state);
+   else rows.unshift(structuredClone(state));
+   saveLocalDeals(rows);
+   quote=structuredClone(state);
+ }catch(error){
+   console.error("Unable to save the quote locally.",error);
+   if(sequence===quoteSaveSequence)setAutosaveStatus("Quote save failed","error",error.message);
+   if(!automatic)toast("Quote could not be saved locally: "+error.message);
+   return;
+ }
+ savedDealsCache=[];
+ savedDealsLoadedAt=0;
+ clearAutosaveDraft();
+ if(supabaseClient&&currentUser){
+   const client=supabaseClient,userId=currentUser.id;
+   const sync=dealSyncQueue.then(()=>client.from("v3_deals").upsert({
+     id:quote.id,
+     user_id:userId,
+     quote_number:quote.quoteNumber,
+     client_name:[quote.customer.firstName,quote.customer.lastName].filter(Boolean).join(" "),
+     vehicle:[quote.vehicle.year,quote.vehicle.make,quote.vehicle.model].filter(Boolean).join(" "),
+     deal_data:quote,
+     updated_at:quote.updatedAt
+   }));
+   dealSyncQueue=sync.then(()=>undefined,()=>undefined);
+   if(sequence===quoteSaveSequence)setAutosaveStatus("Quote saved locally; syncing…","saving");
+   try{
+     const result=await sync;
+     if(result.error){
+       console.error("Quote saved locally, but Supabase sync failed.",result.error);
+       if(sequence===quoteSaveSequence)setAutosaveStatus("Saved locally; cloud sync failed","error",result.error.message);
+       if(!automatic)toast("Saved locally. Supabase: "+result.error.message);
+       return;
+     }
+   }catch(error){
+     console.error("Quote saved locally, but Supabase sync failed.",error);
+     if(sequence===quoteSaveSequence)setAutosaveStatus("Saved locally; cloud sync failed","error",error.message);
+     if(!automatic)toast("Saved locally. Supabase: "+error.message);
+     return;
+   }
+ }
+ if(sequence===quoteSaveSequence)setAutosaveStatus("Quote saved "+new Date(quote.updatedAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}),"saved");
+ if(!automatic)toast("Deal saved.");
+ updateClientHistoryDisplays();
+ if(!automatic)renderDashboard();
+}
 function mergeDealsById(localRows,remoteRows){
  const local=Array.isArray(localRows)?localRows:[];
  const remote=Array.isArray(remoteRows)?remoteRows:[];
@@ -1853,6 +1910,7 @@ async function startNewVehicleDeal(id){
    toast("That saved deal could not be found.");
    return;
  }
+ quoteSaveSequence++;
  state=createDealForNewVehicle(source);
  clearAutosaveDraft();
  writeStateToForm();
@@ -1866,6 +1924,7 @@ async function startNewVehicleDeal(id){
 async function loadDeal(id,duplicate=false){
  const rows=await loadAllDeals(),d=rows.find(x=>x.id===id);
  if(!d)return;
+ quoteSaveSequence++;
  state=hydrateDealIncentives(structuredClone(d));
  state.trade=state.trade||{allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true};
  state.trade.applyTradeTaxCredit=state.trade.applyTradeTaxCredit!==false;
@@ -1875,6 +1934,7 @@ async function loadDeal(id,duplicate=false){
    state.createdAt=new Date().toISOString();
    state.updatedAt=state.createdAt;
  }
+ clearAutosaveDraft(duplicate?"Duplicate quote not saved yet":"Quote loaded; edits save automatically");
  writeStateToForm();
  renderIncentives();
  renderScenarios();
@@ -3149,7 +3209,7 @@ function emailCurrentQuote(){
   window.location.href=mailto;
   toast("Email app opened with quote details.");
 }
-function bindEvents(){bindNav();bindNumericInputNormalization();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=saveDeal;$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("emailQuote").onclick=emailCurrentQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("exportPdfTextButton").onclick=exportPdfExtractionReport;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);rememberSelectBalloon(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
+function bindEvents(){bindNav();bindNumericInputNormalization();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{quoteSaveSequence++;state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=()=>saveDeal();$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"};$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("emailQuote").onclick=emailCurrentQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("exportPdfTextButton").onclick=exportPdfExtractionReport;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);rememberSelectBalloon(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
  const scenarioId=e.target.dataset.removeScenarioIncentive,incentiveId=e.target.dataset.incentiveId;
  if(!scenarioId||!incentiveId)return;
  const scenario=state.scenarios.find(item=>item.id===scenarioId),incentive=scenario?.incentives?.find(item=>item.id===incentiveId);
@@ -3224,6 +3284,6 @@ document.querySelectorAll("[data-saved-filter]").forEach(button=>button.addEvent
 }));
 document.body.addEventListener("click",e=>{if(e.target.dataset.loadDeal)loadDeal(e.target.dataset.loadDeal);if(e.target.dataset.duplicateDeal)loadDeal(e.target.dataset.duplicateDeal,true);if(e.target.dataset.newVehicleDeal)startNewVehicleDeal(e.target.dataset.newVehicleDeal);if(e.target.dataset.useProgram){applyProgramToDeal(e.target.dataset.useProgram)}if(e.target.dataset.editProgram)editProgram(e.target.dataset.editProgram);if(e.target.dataset.duplicateProgram)duplicateProgram(e.target.dataset.duplicateProgram);if(e.target.dataset.archiveProgram){let rows=programs(),p=rows.find(x=>x.id===e.target.dataset.archiveProgram);p.status=p.status==="expired"?"confirmed":"expired";saveProgramsLocal(rows);renderPrograms();
  if(supabaseClient&&currentUser)saveProgramToSupabase(p)}});$("saveConnection").onclick=()=>{localStorage.setItem(KEYS.connection,JSON.stringify({url:$("supabaseUrl").value.trim(),key:$("supabaseKey").value.trim()}));initializeSupabase();updateConnectionStatus("Connection saved.")};$("testConnection").onclick=async()=>{if(!supabaseClient&&!initializeSupabase()){updateConnectionStatus("Enter and save connection details.");return}const r=await supabaseClient.auth.getSession();updateConnectionStatus(r.error?r.error.message:"Connection works.")};$("createAccount").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signUp({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Account created. Check email if confirmation is enabled.")};$("signIn").onclick=async()=>{if(!supabaseClient&&!initializeSupabase())return;const r=await supabaseClient.auth.signInWithPassword({email:$("authEmail").value,password:$("authPassword").value});updateConnectionStatus(r.error?r.error.message:"Signed in.");if(!r.error){currentUser=r.data.user;await loadProgramsFromSupabase(true)}};$("signOut").onclick=async()=>{if(supabaseClient)await supabaseClient.auth.signOut();currentUser=null;updateConnectionStatus()};}
-function init(){loadSettingsForm();const c=JSON.parse(localStorage.getItem(KEYS.connection)||"null");if(c){$("supabaseUrl").value=c.url||"";$("supabaseKey").value=c.key||"";initializeSupabase()}applySettingsToDeal(true);if(!restoreAutosaveDraft()){state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);writeStateToForm();setAutosaveStatus("Draft ready")}bindEvents();runNumericNormalizationSelfCheck();renderIncentives();renderScenarios();renderDashboard();renderPrograms();renderProgramIncentiveEditor([]);updateClientHistoryDisplays();setPdfImportStatus("Importer ready");setProgramSyncStatus(currentUser?"Loading shared programs…":"Programs are local until you sign in and sync.");$("programMonth").value=new Date().toISOString().slice(0,7);}
+function init(){loadSettingsForm();const c=JSON.parse(localStorage.getItem(KEYS.connection)||"null");if(c){$("supabaseUrl").value=c.url||"";$("supabaseKey").value=c.key||"";initializeSupabase()}applySettingsToDeal(true);if(!restoreAutosaveDraft()){state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);writeStateToForm();setAutosaveStatus("Quote not saved yet")}bindEvents();if(autosaveRestored)scheduleAutosave();runNumericNormalizationSelfCheck();renderIncentives();renderScenarios();renderDashboard();renderPrograms();renderProgramIncentiveEditor([]);updateClientHistoryDisplays();setPdfImportStatus("Importer ready");setProgramSyncStatus(currentUser?"Loading shared programs…":"Programs are local until you sign in and sync.");$("programMonth").value=new Date().toISOString().slice(0,7);}
 document.addEventListener("DOMContentLoaded",init);
 })();

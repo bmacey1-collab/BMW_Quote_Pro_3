@@ -42,7 +42,7 @@ Continue using Version 2.4.1 for live work until Beta calculations and importing
 - New incentives save to the matching Program Center record.
 - Newly added incentives are automatically checked and ready to apply.
 - Applied incentives display a Remove Incentive button in Deal Builder.
-- Removing an incentive recalculates scenarios, refreshes the Manager Worksheet, and autosaves the draft.
+- Removing an incentive recalculates scenarios, refreshes the Manager Worksheet, and autosaves the quote to Saved Deals.
 - Selected program incentives retain their source program and source incentive IDs.
 
 
