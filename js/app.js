@@ -505,6 +505,16 @@ function rememberSelectBalloon(scenario){
  }
 }
 
+function financeUsedAprFromBuy(buyApr){
+ const normalized=buyApr===""||buyApr==null?"":num(buyApr);
+ return normalized===""?"":normalized+1;
+}
+
+function leaseUsedMoneyFactorFromBase(baseMoneyFactor){
+ const normalized=baseMoneyFactor===""||baseMoneyFactor==null?"":num(baseMoneyFactor);
+ return normalized===""?"":normalized+.0004;
+}
+
 function applyProgramToScenarioObject(scenario,program){
  const source=structuredClone(program);
  scenario.programId=source.id;
@@ -513,21 +523,24 @@ function applyProgramToScenarioObject(scenario,program){
    scenario.term=num(source.leaseTerm)||scenario.term||36;
    scenario.residual=source.residual===""?"":num(source.residual);
    scenario.baseMoneyFactor=source.moneyFactor===""?"":num(source.moneyFactor);
-   if(scenario.moneyFactor===""||num(scenario.moneyFactor)<num(source.moneyFactor)){
-     scenario.moneyFactor=source.moneyFactor===""?"":num(source.moneyFactor);
+   const usedMoneyFactor=leaseUsedMoneyFactorFromBase(source.moneyFactor);
+   if(scenario.moneyFactor===""||num(scenario.moneyFactor)<num(usedMoneyFactor)){
+     scenario.moneyFactor=usedMoneyFactor;
    }
    scenario.onePayReduction=num(source.onePayReduction)||scenario.onePayReduction||.00080;
  }else if(scenario.type==="finance"){
    scenario.term=num(source.financeTerm)||scenario.term||60;
    scenario.buyApr=source.financeApr===""?"":num(source.financeApr);
-   if(scenario.apr===""||num(scenario.apr)<num(source.financeApr)){
-     scenario.apr=source.financeApr===""?"":num(source.financeApr);
+   const usedRate=financeUsedAprFromBuy(source.financeApr);
+   if(scenario.apr===""||num(scenario.apr)<num(usedRate)){
+     scenario.apr=usedRate;
    }
  }else if(scenario.type==="select"){
    scenario.term=num(source.selectTerm)||scenario.term||60;
    scenario.buyApr=source.selectApr===""?"":num(source.selectApr);
-   if(scenario.apr===""||num(scenario.apr)<num(source.selectApr)){
-     scenario.apr=source.selectApr===""?"":num(source.selectApr);
+   const usedRate=financeUsedAprFromBuy(source.selectApr);
+   if(scenario.apr===""||num(scenario.apr)<num(usedRate)){
+     scenario.apr=usedRate;
    }
    const rememberedBalloon=programBalloonForTerm(source,scenario.term);
    if(rememberedBalloon!=="")scenario.balloon=rememberedBalloon;
@@ -561,13 +574,13 @@ function applyProgramRateForScenarioTerm(scenario,program){
    const rate=useLongRate?resolvedProgram.financeAprLong:resolvedProgram.financeApr;
    const normalizedRate=rate===""||rate==null?"":num(rate);
    scenario.buyApr=normalizedRate;
-   scenario.apr=normalizedRate;
+   scenario.apr=financeUsedAprFromBuy(normalizedRate);
    return;
  }
  const selectRate=resolvedProgram.selectApr;
  const normalizedSelectRate=selectRate===""||selectRate==null?"":num(selectRate);
  scenario.buyApr=normalizedSelectRate;
- scenario.apr=normalizedSelectRate;
+ scenario.apr=financeUsedAprFromBuy(normalizedSelectRate);
  const rememberedBalloon=programBalloonForTerm(resolvedProgram,scenario.term);
  if(rememberedBalloon!=="")scenario.balloon=rememberedBalloon;
 }
