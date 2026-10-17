@@ -100,7 +100,8 @@ function ensureFeeState(){state.fees=state.fees||{};state.fees.doc=state.fees.do
 function readFormToState(){state.customer={clientId:state.customer.clientId||"",firstName:$("firstName").value.trim(),lastName:$("lastName").value.trim(),coFirstName:$("coFirstName").value.trim(),coLastName:$("coLastName").value.trim(),email:$("customerEmail").value.trim().toLowerCase(),phone:$("customerPhone").value.trim(),salesperson:$("salesperson").value,currentPayment:num($("currentPayment").value)};
 state.vehicle={stockNumber:$("stockNumber").value.trim(),vin:$("vin").value.trim().toUpperCase(),year:$("year").value,make:$("make").value.trim(),model:$("model").value.trim(),msrp:num($("msrp").value),discount:num($("discount").value),cost:num($("vehicleCost").value),pack:num($("pack").value),taxRate:$("taxRate").value===""?null:num($("taxRate").value)};
 state.trade={vin:$("tradeVin").value.trim().toUpperCase(),vehicle:$("tradeVehicle").value.trim(),allowance:num($("tradeAllowance").value),acv:num($("tradeAcv").value),payoff:num($("tradePayoff").value),cashDown:num($("cashDown").value),equityMethod:$("equityMethod").value,equityCashBack:num($("equityCashBack").value),applyTradeTaxCredit:$("applyTradeTaxCredit")?$("applyTradeTaxCredit").checked:true};
-const leaseCashTaxAmount=Math.max(0,state.trade.cashDown)*(state.vehicle.taxRate===null?0:(num(state.vehicle.taxRate)/100));
+const tradeReduction=tradeAllocation(state.trade.allowance);
+const leaseCashTaxAmount=Math.max(0,num(state.trade.cashDown)+num(tradeReduction.cap))*(state.vehicle.taxRate===null?0:(num(state.vehicle.taxRate)/100));
 state.fees={doc:{amount:num($("docFee").value),treatment:$("docTreatment").value},reg:{amount:num($("regFee").value),treatment:$("regTreatment").value},acq:{amount:num($("acqFee").value),treatment:$("acqTreatment").value},misc:{amount:num($("miscFee").value),treatment:$("miscTreatment").value},cashTax:{amount:leaseCashTaxAmount,treatment:$("cashTaxTreatment")?$("cashTaxTreatment").value:"upfront"}};
 ensureFeeState();
  state.notes=$("managerNotes").value;state.scenarios=(state.scenarios||[]).map(syncScenarioName);state.presentation={quoteHeaderMetric:["tradeValue","savings","sellingPrice","stockNumber"].includes($("quoteHeaderMetric").value)?$("quoteHeaderMetric").value:"tradeValue",showPaymentComparison:$("showPaymentComparison").checked,combineDiscountIncentives:$("combineDiscountIncentives").checked,showSignature:$("showSignature").checked};state.updatedAt=new Date().toISOString();}
@@ -110,7 +111,8 @@ function writeStateToForm(){
  }
  state.trade.applyTradeTaxCredit=state.trade.applyTradeTaxCredit!==false;
  ensureFeeState();
- const leaseCashTaxAmount=Math.max(0,num(state.trade.cashDown))*(state.vehicle.taxRate===null?0:(num(state.vehicle.taxRate)/100));
+ const tradeReduction=tradeAllocation(state.trade.allowance);
+ const leaseCashTaxAmount=Math.max(0,num(state.trade.cashDown)+num(tradeReduction.cap))*(state.vehicle.taxRate===null?0:(num(state.vehicle.taxRate)/100));
  state.fees.cashTax.amount=leaseCashTaxAmount;
  state.scenarios=(state.scenarios||[]).map(syncScenarioName);
  const map={
@@ -1401,7 +1403,7 @@ function calcScenario(s,override={}){
  if(s.type==="lease"){
    const customAnnualMiles=Math.max(0,num(s.customMiles));
    const adjustedPct=customAnnualMiles>15000?num(s.residual):num(s.residual)+mileageAdjustment(s.miles),inceptionDed=Math.max(0,num(s.inceptionMileage)-500)*num(s.inceptionCharge),customDed=customMileageDeduction(s),residualValue=Math.max(0,msrp*adjustedPct/100-inceptionDed-customDed),requestedMf=override.moneyFactor??s.moneyFactor,usedMf=Math.max(0,num(requestedMf)-(s.onePay?num(s.onePayReduction):0));
-   const buildLeaseResult=(cashValue)=>{const leaseCashTax=Math.max(0,cashValue*tax),fees=feeTotals(s.type,{cashTaxAmount:leaseCashTax}),capCost=selling+fees.cap+Math.max(0,-trade.equity)-trade.cap-cashValue,base=((capCost-residualValue)/s.term)+((capCost+residualValue)*usedMf),monthlyTax=base*tax,payment=base+monthlyTax,estimatedTotalTax=monthlyTax*s.term+leaseCashTax,standardDue=payment+fees.upfront+cashValue,onePay=payment*s.term+fees.upfront+cashValue;return {cashValue,leaseCashTax,fees,capCost,base,monthlyTax,payment,estimatedTotalTax,standardDue,onePay};};
+   const buildLeaseResult=(cashValue)=>{const cashReductionAmount=Math.max(0, cashValue + trade.cap);const leaseCashTax=cashReductionAmount*tax;const fees=feeTotals(s.type,{cashTaxAmount:leaseCashTax}),capCost=selling+fees.cap+Math.max(0,-trade.equity)-trade.cap-cashValue,base=((capCost-residualValue)/s.term)+((capCost+residualValue)*usedMf),monthlyTax=base*tax,payment=base+monthlyTax,estimatedTotalTax=monthlyTax*s.term+leaseCashTax,standardDue=payment+fees.upfront+cashValue,onePay=payment*s.term+fees.upfront+cashValue;return {cashValue,leaseCashTax,fees,capCost,base,monthlyTax,payment,estimatedTotalTax,standardDue,onePay};};
    let solvedCash=requestedCash,targetDueAtSigning=null,targetDueUnreachable=false;
    if(!s.onePay&&s.useDueTarget&&num(s.dueTarget)>0){targetDueAtSigning=num(s.dueTarget);const minResult=buildLeaseResult(0);if(targetDueAtSigning<=minResult.standardDue){solvedCash=0;targetDueUnreachable=true;}else{let low=0,high=Math.max(targetDueAtSigning,requestedCash,msrp,1000),highResult=buildLeaseResult(high),guard=0;while(highResult.standardDue<targetDueAtSigning&&guard<30){high*=2;highResult=buildLeaseResult(high);guard++;}for(let i=0;i<50;i++){const mid=(low+high)/2,midResult=buildLeaseResult(mid);if(midResult.standardDue<targetDueAtSigning)low=mid;else high=mid;}solvedCash=high;}}
    const solved=buildLeaseResult(solvedCash);
