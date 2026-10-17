@@ -2074,15 +2074,15 @@ function vehicleModelMatchesProgram(vehicleValue,programValue){
  if(vehicle.series&&program.series)return true;
  return false;
 }
-function incentiveMatchCacheKey(){
- return `${num(state.vehicle.year)}|${normalizeModelName(state.vehicle.model)}`;
+function incentiveMatchCacheKey(month=""){
+ return `${num(state.vehicle.year)}|${normalizeModelName(state.vehicle.model)}|${month}`;
 }
-function currentProgramMatches(){
- const key=incentiveMatchCacheKey();
+function currentProgramMatches(month=""){
+ const key=incentiveMatchCacheKey(month);
  const cached=incentiveMatchCache.get(key);
  if(cached)return cached;
  const y=num(state.vehicle.year),model=state.vehicle.model;
- let matches=programs().filter(p=>p.status!=="expired"&&(!y||num(p.year)===y)&&vehicleModelMatchesProgram(model,p.model));
+ let matches=programs().filter(p=>p.status!=="expired"&&(!month||p.month===month)&&(!y||num(p.year)===y)&&vehicleModelMatchesProgram(model,p.model));
  if(matches.length){
    const latestMonth=matches.reduce((latest,p)=>String(p.month||"")>latest?String(p.month||""):latest,"");
    matches=matches.filter(p=>String(p.month||"")===latestMonth);
@@ -2133,17 +2133,20 @@ function buildIncentivePicker(matches){
  else{
    const empty=document.createElement("div");
    empty.className="empty-state incentive-empty";
-   empty.innerHTML='<strong>No incentives are stored for the matching program.</strong><span>Use “Add Incentive to This Program” below to enter Loyalty, Lease Credit, Purchase Credit, Conquest or another available program.</span>';
+   empty.innerHTML=matches.length
+     ? '<strong>No incentives are stored for the matching program.</strong><span>Use “Add Incentive to This Program” below to enter Loyalty, Lease Credit, Purchase Credit, Conquest or another available program.</span>'
+     : '<strong>No current-month program matches this vehicle.</strong><span>Add the missing program or sync current programs in Program Center. Previous months remain available in Program Center for reference.</span>';
    host.append(empty);
  }
 }
 function openIncentivePicker(programId=""){
  readFormToState();
- const matches=programId?programs().filter(p=>p.id===programId):currentProgramMatches();
+ const today=new Date(),month=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}`;
+ const matches=programId?programs().filter(p=>p.id===programId&&p.month===month&&p.status!=="expired"):currentProgramMatches(month);
  currentIncentiveProgramIds=matches.map(p=>p.id);
  $("incentiveProgramSummary").textContent=matches.length
-   ? `${matches.length} latest matching program record${matches.length===1?"":"s"} for ${state.vehicle.year||""} ${state.vehicle.model||""}`
-   : "No matching program found. Add the missing program first.";
+   ? `${matches.length} matching program record${matches.length===1?"":"s"} for ${month} · ${state.vehicle.year||""} ${state.vehicle.model||""}`
+   : `No matching program found for ${month}. Add the missing program first. Previous months remain available in Program Center.`;
  buildIncentivePicker(matches);
  const canAdd=matches.length>0;
  $("addIncentiveToProgram").disabled=!canAdd;

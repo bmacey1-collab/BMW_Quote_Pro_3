@@ -45,6 +45,13 @@ Continue using Version 2.4.1 for live work until Beta calculations and importing
 - Removing an incentive recalculates scenarios, refreshes the Manager Worksheet, and autosaves the quote to Saved Deals.
 - Selected program incentives retain their source program and source incentive IDs.
 
+### Current-month incentive selection
+
+- **Select Incentives** shows only matching, non-archived programs for the current calendar month, using the device's local date.
+- If no current-month program matches, the picker stays empty rather than offering an older month's incentives. Add the missing program or sync current programs in Program Center.
+- Previous months are retained in **Program Center**. Search by month (`YYYY-MM`) and click **Edit** to review the program and its incentives.
+- Incentives already saved on existing deals are not removed or changed.
+
 
 ## Beta 3 — Residual Import Fix
 
