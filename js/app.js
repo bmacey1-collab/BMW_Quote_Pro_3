@@ -3,7 +3,7 @@
 const $ = id => document.getElementById(id);
 const money = new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"});
 const KEYS={settings:"bqp3_settings",programs:"bqp3_programs",deals:"bqp3_deals",connection:"bqp3_connection",draft:"bqp3_autosave_draft"};
-let supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,quoteSaveSequence=0,dealSyncQueue=Promise.resolve(),draggedScenarioId=null,importedProgramRows=[],pdfJsModulePromise=null,currentIncentiveProgramIds=[],currentProgramPickerRows=[],currentProgramApplicationPreview=null;
+let pendingRollAdjustment=null,supabaseClient=null,currentUser=null,autosaveTimer=null,autosaveRestored=false,quoteSaveSequence=0,dealSyncQueue=Promise.resolve(),draggedScenarioId=null,importedProgramRows=[],pdfJsModulePromise=null,currentIncentiveProgramIds=[],currentProgramPickerRows=[],currentProgramApplicationPreview=null;
 let savedDealsCache=[],savedDealsLoadedAt=0,savedDealFilter="all";
 let incentiveMatchCache=new Map(),currentIncentivePickerItems=[];
 let vinDecodeRequestTokens={vehicle:0,trade:0};
@@ -507,14 +507,20 @@ function rememberSelectBalloon(scenario){
  }
 }
 
+// Strips binary floating-point noise (e.g. .0015+.0004 = .0018999999…) from rates.
+function cleanRate(value,decimals=6){
+ if(value===""||value==null)return "";
+ return Number(num(value).toFixed(decimals));
+}
+
 function financeUsedAprFromBuy(buyApr){
  const normalized=buyApr===""||buyApr==null?"":num(buyApr);
- return normalized===""?"":normalized+1;
+ return normalized===""?"":cleanRate(normalized+1,4);
 }
 
 function leaseUsedMoneyFactorFromBase(baseMoneyFactor){
  const normalized=baseMoneyFactor===""||baseMoneyFactor==null?"":num(baseMoneyFactor);
- return normalized===""?"":normalized+.0004;
+ return normalized===""?"":cleanRate(normalized+.0004,6);
 }
 
 function applyProgramToScenarioObject(scenario,program){
@@ -585,6 +591,14 @@ function applyProgramRateForScenarioTerm(scenario,program){
  scenario.apr=financeUsedAprFromBuy(normalizedSelectRate);
  const rememberedBalloon=programBalloonForTerm(resolvedProgram,scenario.term);
  if(rememberedBalloon!=="")scenario.balloon=rememberedBalloon;
+}
+
+function scenarioMissingProgramRates(scenario){
+ if(!scenario)return false;
+ const blank=value=>value===""||value==null;
+ if(scenario.type==="lease")return blank(scenario.residual)||blank(scenario.moneyFactor);
+ if(["finance","select"].includes(scenario.type))return blank(scenario.apr);
+ return false;
 }
 
 function openProgramPicker(){
@@ -791,20 +805,147 @@ async function decodeVin(target){
   else toast("VIN decoded.");
  }catch(e){toast("VIN decoding failed.")}
 }
-function resetRollPayment(options={}){if(!options.preserveScenario&&$("rollerScenario").options.length)$("rollerScenario").selectedIndex=0;$("rollerTarget").value="";$("rollerVariable").value="discount";$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box";}
+function resetRollPayment(options={}){pendingRollAdjustment=null;if(!options.preserveScenario&&$("rollerScenario").options.length)$("rollerScenario").selectedIndex=0;$("rollerTarget").value="";$("rollerVariable").value="discount";$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box";}
 function formatRollPaymentValue(variable,value){
   if(variable==="apr")return `${num(value).toFixed(2)}%`;
-  if(variable==="moneyFactor")return num(value).toFixed(4);
+  if(variable==="moneyFactor")return num(value).toFixed(5);
   return money.format(num(value));
 }
 
 function formatRollPaymentChange(variable,value){
   if(variable==="apr")return `${num(value).toFixed(2)}%`;
-  if(variable==="moneyFactor")return num(value).toFixed(4);
+  if(variable==="moneyFactor")return num(value).toFixed(5);
   return money.format(num(value));
 }
 
-function rollPayment(){readFormToState();const s=state.scenarios.find(x=>x.id===$("rollerScenario").value),target=num($("rollerTarget").value),variable=$("rollerVariable").value,out=$("rollerResult");if(!s||target<=0){out.textContent="Choose a scenario and target payment.";out.className="result-box error";return}if((variable==="apr"&&!['finance','select'].includes(s.type))||(variable==="moneyFactor"&&s.type!=="lease")){out.textContent=variable==="apr"?"APR roll-up works for Finance and BMW Select scenarios only.":"Money factor roll-up works for Lease scenarios only.";out.className="result-box error";return}const r0=calcScenario(s);if(!r0.ready){out.textContent="Complete the scenario first: "+r0.missing.join(", ");out.className="result-box error";return}const current=variable==="discount"?state.vehicle.discount:variable==="cashDown"?state.trade.cashDown:variable==="tradeAllowance"?state.trade.allowance:variable==="apr"?num(s.apr):num(s.moneyFactor);const currentPayment=r0.payment;let low=0,high=100000;if(variable==="apr")high=Math.max(30,Math.max(current||5,5)*4+5);else if(variable==="moneyFactor")high=Math.max(0.02,Math.max(current||0.0025,0.0025)*4+0.005);else high=Math.max(state.vehicle.msrp*2,100000);if(variable==="apr"||variable==="moneyFactor"){const overrideKey=variable==="apr"?"apr":"moneyFactor";const minimumOverride={};minimumOverride[overrideKey]=0;const minimumResult=calcScenario(s,minimumOverride);const minimumPayment=minimumResult.ready?minimumResult.payment:currentPayment;const minimumLabel=variable==="apr"?"used APR":"used money factor";const minimumValue=formatRollPaymentValue(variable,0);if(target<minimumPayment){out.innerHTML=`<strong>Target payment is below the minimum achievable payment at ${minimumValue} ${minimumLabel}.</strong><br>Minimum ${minimumLabel}: ${minimumValue} · Payment ${money.format(minimumPayment)}`;out.className="result-box warning";return}const currentVal=current||0;let lowRange=0,highRange=variable==="moneyFactor"?Math.max(0.01,Math.max(currentVal,0.0025)*3+0.005):Math.max(10,Math.max(currentVal,5)*3+5);let best={value:0,payment:minimumPayment};for(let i=0;i<200;i++){const mid=(lowRange+highRange)/2,o={};o[overrideKey]=mid;const r=calcScenario(s,o);if(!r.ready)break;best={value:mid,payment:r.payment};if(Math.abs(r.payment-target)<.01)break;if(r.payment>target)highRange=mid;else lowRange=mid;}const label=variable==="apr"?"Required used APR":"Required used money factor";out.innerHTML=`<strong>${label}: ${formatRollPaymentValue(variable,best.value)}</strong><br>Change: ${best.value-current>=0?"+":"−"}${formatRollPaymentChange(variable,Math.abs(best.value-current))} · Payment ${money.format(best.payment)}`;out.className="result-box success";return}high=Math.max(state.vehicle.msrp*2,100000);let best=null;for(let i=0;i<100;i++){const mid=(low+high)/2,o={};o[variable]=mid;const r=calcScenario(s,o);if(!r.ready)break;best={value:mid,payment:r.payment};if(Math.abs(r.payment-target)<.01)break;if(r.payment>target)low=mid;else high=mid}const label=variable==="discount"?"Required dealer discount":variable==="cashDown"?"Required cash up front":"Required trade allowance";out.innerHTML=`<strong>${label}: ${formatRollPaymentValue(variable,best.value)}</strong><br>Change: ${best.value-current>=0?"+":"−"}${formatRollPaymentChange(variable,Math.abs(best.value-current))} · Payment ${money.format(best.payment)}`;out.className="result-box success";}
+const ROLL_PAYMENT_LABELS={
+  discount:{required:"Required dealer discount",name:"dealer discount"},
+  cashDown:{required:"Required cash up front",name:"cash up front"},
+  tradeAllowance:{required:"Required trade allowance",name:"trade allowance"},
+  apr:{required:"Required used APR",name:"used APR"},
+  moneyFactor:{required:"Required used money factor",name:"used money factor"}
+};
+
+// Value the scenario is actually using today, including scenario-level adjustments,
+// so the reported "Change" matches what calcScenario overrides.
+function rollPaymentCurrentValue(s,variable){
+  if(variable==="discount")return num(state.vehicle.discount);
+  if(variable==="cashDown")return Math.max(0,num(state.trade.cashDown)+num(s.cashAdjustment));
+  if(variable==="tradeAllowance")return Math.max(0,num(state.trade.allowance)+num(s.tradeAdjustment));
+  if(variable==="apr")return num(s.apr);
+  return num(s.moneyFactor);
+}
+
+function rollPaymentNoEffectReason(s,variable){
+  if(variable==="cashDown"&&s.type==="lease"&&!s.onePay&&s.useDueTarget&&num(s.dueTarget)>0)return "This lease uses a Due-at-Signing Target, which solves the cash applied automatically. Turn the target off to roll with cash.";
+  if(variable==="tradeAllowance"&&s.type==="lease"&&state.trade.equityMethod==="cashback")return "Trade equity is set to Cash Back, so trade allowance does not reduce the lease cap cost.";
+  if(variable==="discount")return "The selling price is already reduced to $0.";
+  return "";
+}
+
+function rollPayment(){
+  readFormToState();
+  const s=state.scenarios.find(x=>x.id===$("rollerScenario").value),target=num($("rollerTarget").value),variable=$("rollerVariable").value,out=$("rollerResult");
+  pendingRollAdjustment=null;
+  const showResult=(html,cls)=>{out.innerHTML=html;out.className=`result-box ${cls}`;};
+  if(!s||target<=0){out.textContent="Choose a scenario and target payment.";out.className="result-box error";return}
+  if((variable==="apr"&&!["finance","select"].includes(s.type))||(variable==="moneyFactor"&&s.type!=="lease")){out.textContent=variable==="apr"?"APR roll-up works for Finance and BMW Select scenarios only.":"Money factor roll-up works for Lease scenarios only.";out.className="result-box error";return}
+  const r0=calcScenario(s);
+  if(!r0.ready){out.textContent="Complete the scenario first: "+r0.missing.join(", ");out.className="result-box error";return}
+  const labels=ROLL_PAYMENT_LABELS[variable]||ROLL_PAYMENT_LABELS.discount;
+  const current=rollPaymentCurrentValue(s,variable);
+  const paymentAt=value=>{const o={};o[variable]=value;const r=calcScenario(s,o);return r.ready?r.payment:null;};
+  // Rates raise the payment as they rise; discount, cash and trade lower it.
+  const increasing=variable==="apr"||variable==="moneyFactor";
+  let high;
+  if(variable==="apr")high=Math.max(30,current*4+5);
+  else if(variable==="moneyFactor")high=Math.max(.01,current*4+.005);
+  // Past this discount the selling price is floored at $0, so the payment stops changing.
+  else if(variable==="discount")high=Math.max(1,num(state.vehicle.msrp)+num(s.priceAdjustment));
+  else high=Math.max(num(state.vehicle.msrp)*2,100000);
+  const zeroPayment=paymentAt(0);
+  let highPayment=paymentAt(high);
+  if(zeroPayment==null||highPayment==null){out.textContent="Unable to calculate this scenario for the requested adjustment.";out.className="result-box error";return}
+  if(increasing){
+    for(let guard=0;guard<10&&highPayment<target;guard++){high*=2;highPayment=paymentAt(high);if(highPayment==null)break}
+  }
+  const minPayment=Math.min(zeroPayment,highPayment),maxPayment=Math.max(zeroPayment,highPayment);
+  if(maxPayment-minPayment<.005){
+    const reason=rollPaymentNoEffectReason(s,variable);
+    showResult(`<strong>Changing the ${labels.name} does not change this payment.</strong><br>Payment stays at ${money.format(r0.payment)}.${reason?" "+esc(reason):""}`,"warning");
+    return;
+  }
+  if(target<minPayment){
+    const atValue=increasing?0:high;
+    const hint=increasing?"":(variable==="discount"?" (selling price reduced to $0)":"");
+    showResult(`<strong>Target payment is below the lowest payment reachable by adjusting the ${labels.name}.</strong><br>Lowest payment: ${money.format(minPayment)} at ${formatRollPaymentValue(variable,atValue)} ${labels.name}${hint}.`,"warning");
+    return;
+  }
+  if(target>maxPayment){
+    if(increasing){
+      showResult(`<strong>Target payment is above the highest payment tested.</strong><br>${formatRollPaymentValue(variable,high)} ${labels.name} produces ${money.format(maxPayment)}.`,"warning");
+    }else{
+      showResult(`<strong>Target payment is above the payment with no ${labels.name}.</strong><br>Payment at ${formatRollPaymentValue(variable,0)} ${labels.name}: ${money.format(maxPayment)} · Change: −${formatRollPaymentChange(variable,current)}`,"warning");
+    }
+    return;
+  }
+  let low=0,best={value:current,payment:r0.payment};
+  for(let i=0;i<200;i++){
+    const mid=(low+high)/2,payment=paymentAt(mid);
+    if(payment==null)break;
+    best={value:mid,payment};
+    if(Math.abs(payment-target)<.005)break;
+    const tooHigh=payment>target;
+    if(tooHigh===increasing)high=mid;else low=mid;
+  }
+  const delta=best.value-current;
+  pendingRollAdjustment={scenarioId:s.id,variable,value:best.value,current};
+  showResult(`<strong>${labels.required}: ${formatRollPaymentValue(variable,best.value)}</strong><br>Change: ${delta>=0?"+":"−"}${formatRollPaymentChange(variable,Math.abs(delta))} · Payment ${money.format(best.payment)}<div class="button-row roll-accept-row"><button type="button" class="primary" id="acceptRollPaymentButton">Accept &amp; Apply to Scenario</button></div>`,"success");
+}
+
+// Rounds a solved roll value to the precision shown in the roller result.
+function roundRollValue(variable,value){
+  if(variable==="apr")return Number(num(value).toFixed(2));
+  if(variable==="moneyFactor")return Number(num(value).toFixed(5));
+  return Math.round(num(value)*100)/100;
+}
+
+// Applies an accepted roll to the rolled scenario only. Discount, cash and trade are
+// deal-level fields shared by every scenario, so the difference is stored in this
+// scenario's own Price/Cash/Trade adjustment instead of changing the deal fields.
+function acceptRollPayment(){
+  const pending=pendingRollAdjustment,out=$("rollerResult");
+  if(!pending)return;
+  readFormToState();
+  const s=state.scenarios.find(x=>x.id===pending.scenarioId);
+  if(!s){out.textContent="The rolled scenario no longer exists.";out.className="result-box error";pendingRollAdjustment=null;return}
+  if(Math.abs(rollPaymentCurrentValue(s,pending.variable)-pending.current)>1e-9){out.textContent="The deal changed after this payment was rolled. Calculate the adjustment again before accepting.";out.className="result-box error";pendingRollAdjustment=null;return}
+  const value=roundRollValue(pending.variable,pending.value);
+  const before=calcScenario(s);
+  const toCents=v=>Math.round(v*100)/100;
+  if(pending.variable==="discount"){
+    // Selling price = MSRP - deal discount + priceAdjustment, so extra discount lowers priceAdjustment.
+    s.priceAdjustment=toCents(num(s.priceAdjustment)-(value-num(state.vehicle.discount)));
+  }else if(pending.variable==="cashDown"){
+    s.cashAdjustment=toCents(value-num(state.trade.cashDown));
+  }else if(pending.variable==="tradeAllowance"){
+    s.tradeAdjustment=toCents(value-num(state.trade.allowance));
+  }else if(pending.variable==="apr"){
+    s.apr=value;
+  }else if(pending.variable==="moneyFactor"){
+    s.moneyFactor=value;
+  }
+  pendingRollAdjustment=null;
+  const after=calcScenario(s);
+  renderScenarios();
+  if(typeof renderWorksheet==="function")renderWorksheet();
+  scheduleAutosave();
+  const labels=ROLL_PAYMENT_LABELS[pending.variable]||ROLL_PAYMENT_LABELS.discount;
+  const fieldNote=pending.variable==="discount"?` Scenario price adjustment is now ${money.format(s.priceAdjustment)}.`:pending.variable==="cashDown"?` Scenario cash adjustment is now ${money.format(s.cashAdjustment)}.`:pending.variable==="tradeAllowance"?` Scenario trade adjustment is now ${money.format(s.tradeAdjustment)}.`:"";
+  out.innerHTML=`<strong>Applied to ${esc(scenarioDisplayName(s))}: ${labels.name} ${formatRollPaymentValue(pending.variable,value)}.</strong><br>Payment ${before.ready?money.format(before.payment)+" → ":""}${after.ready?money.format(after.payment):"Incomplete"}.${esc(fieldNote)}`;
+  out.className="result-box success";
+  toast("Roll adjustment applied to scenario.");
+}
 
 function normalizeClientText(value){return String(value||"").trim().toLowerCase().replace(/\s+/g," ")}
 function findMatchingClient(deals){
@@ -1586,6 +1727,15 @@ function openScenario(s=null){
    const active=resolveProgramForType(base.type);
    if(active)base.programId=active.id;
  }
+ // The dropdown pre-selects the matching program, but its change event never fires for
+ // that pre-selection. Load the program's rates when the scenario has none so the user
+ // doesn't have to pick another program and switch back. Entered rates are never overwritten.
+ const preselectedProgram=programs().find(item=>item.id===base.programId);
+ if(preselectedProgram&&scenarioMissingProgramRates(base)){
+   applyProgramToScenarioObject(base,preselectedProgram);
+   if(["finance","select"].includes(base.type))applyProgramRateForScenarioTerm(base,preselectedProgram);
+   syncScenarioProgramIncentives(base,preselectedProgram);
+ }
  const source=normalizeScenarioNameSource(base);
  const title=source==="custom"?base.name:scenarioAutoName(base);
  $("scenarioId").value=base.id;
@@ -1596,8 +1746,8 @@ function openScenario(s=null){
  $("scenarioTerm").value=base.term;
  $("scenarioMiles").value=base.miles;
  $("scenarioResidual").value=base.residual;
- $("scenarioBaseMf").value=base.baseMoneyFactor??"";
- $("scenarioMf").value=base.moneyFactor;
+ $("scenarioBaseMf").value=cleanRate(base.baseMoneyFactor);
+ $("scenarioMf").value=cleanRate(base.moneyFactor);
  $("scenarioOnePayReduction").value=base.onePayReduction;
  $("scenarioInceptionMileage").value=base.inceptionMileage;
  $("scenarioInceptionCharge").value=base.inceptionCharge;
@@ -3237,7 +3387,7 @@ function emailCurrentQuote(){
   window.location.href=mailto;
   toast("Email app opened with quote details.");
 }
-function bindEvents(){bindNav();bindNumericInputNormalization();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{quoteSaveSequence++;state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=()=>saveDeal();$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{if($("rollerTarget").value!="")rollPayment();else{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"}};$("rollerTarget").addEventListener("input",()=>{if($("rollerTarget").value!==""&&$("rollerScenario").value){rollPayment();}});$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("emailQuote").onclick=emailCurrentQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("exportPdfTextButton").onclick=exportPdfExtractionReport;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);rememberSelectBalloon(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
+function bindEvents(){bindNav();bindNumericInputNormalization();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{quoteSaveSequence++;state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=()=>saveDeal();$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("rollerResult").addEventListener("click",e=>{if(e.target.closest("#acceptRollPaymentButton"))acceptRollPayment()});$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{if($("rollerTarget").value!="")rollPayment();else{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"}};$("rollerTarget").addEventListener("input",()=>{if($("rollerTarget").value!==""&&$("rollerScenario").value){rollPayment();}});$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("emailQuote").onclick=emailCurrentQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("exportPdfTextButton").onclick=exportPdfExtractionReport;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);rememberSelectBalloon(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
  const scenarioId=e.target.dataset.removeScenarioIncentive,incentiveId=e.target.dataset.incentiveId;
  if(!scenarioId||!incentiveId)return;
  const scenario=state.scenarios.find(item=>item.id===scenarioId),incentive=scenario?.incentives?.find(item=>item.id===incentiveId);
