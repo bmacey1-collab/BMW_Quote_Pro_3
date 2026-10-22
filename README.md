@@ -20,6 +20,7 @@ Imported rows are marked **Needs Review** until confirmed.
 
 - Lease, One-Pay Lease, Finance, Cash and BMW Select
 - Base and customer rates
+- Adjustable dealer default APR and money factor markups, managed in Dealer Settings
 - Automatic lease residual adjustments
 - Program Center with incentives
 - PDF import review

@@ -23,7 +23,7 @@ function createEmptyDeal(){
  fees:{doc:{amount:595,treatment:"capitalize"},reg:{amount:130,treatment:"capitalize"},acq:{amount:925,treatment:"capitalize"},misc:{amount:0,treatment:"capitalize"},cashTax:{amount:0,treatment:"capitalize"}},
  incentiveMigrationVersion:1,scenarios:[],acceptedScenarioId:"",notes:"",presentation:{quoteHeaderMetric:"tradeValue",showPaymentComparison:true,combineDiscountIncentives:true,showSignature:false}};
 }
-function settings(){const saved=JSON.parse(localStorage.getItem(KEYS.settings)||"null")||{};return {dealerName:"BMW of Peabody",defaultTax:6.25,reserveShare:70,defaultSalesperson:"Brian Macey",docFee:595,regFee:130,acqFee:925,miscFee:0,onePayReduction:.00080,inceptionCharge:.20,customCharge:.20,salespeople:["Brian Macey"],disclaimer:"Figures are estimates and remain subject to credit approval, vehicle availability, final appraisal, and current manufacturer programs.",...saved};}
+function settings(){const saved=JSON.parse(localStorage.getItem(KEYS.settings)||"null")||{};return {dealerName:"BMW of Peabody",defaultTax:6.25,reserveShare:70,defaultSalesperson:"Brian Macey",rateMarkup:1,moneyFactorMarkup:.0004,docFee:595,regFee:130,acqFee:925,miscFee:0,onePayReduction:.00080,inceptionCharge:.20,customCharge:.20,salespeople:["Brian Macey"],disclaimer:"Figures are estimates and remain subject to credit approval, vehicle availability, final appraisal, and current manufacturer programs.",...saved};}
 let programCache=JSON.parse(localStorage.getItem(KEYS.programs)||"[]");
 function programs(){return programCache;}
 function saveProgramsLocal(rows){
@@ -515,12 +515,12 @@ function cleanRate(value,decimals=6){
 
 function financeUsedAprFromBuy(buyApr){
  const normalized=buyApr===""||buyApr==null?"":num(buyApr);
- return normalized===""?"":cleanRate(normalized+1,4);
+ return normalized===""?"":cleanRate(normalized+num(settings().rateMarkup),4);
 }
 
 function leaseUsedMoneyFactorFromBase(baseMoneyFactor){
  const normalized=baseMoneyFactor===""||baseMoneyFactor==null?"":num(baseMoneyFactor);
- return normalized===""?"":cleanRate(normalized+.0004,6);
+ return normalized===""?"":cleanRate(normalized+num(settings().moneyFactorMarkup),6);
 }
 
 function applyProgramToScenarioObject(scenario,program){
@@ -2183,8 +2183,8 @@ document.body.addEventListener("click",e=>{
    e.stopImmediatePropagation();
  }
 },true);
-function loadSettingsForm(){const s=settings();$("dealerName").value=s.dealerName;$("defaultTax").value=s.defaultTax;$("reserveShare").value=s.reserveShare;$("defaultSalesperson").value=s.defaultSalesperson;$("defaultDocFee").value=s.docFee;$("defaultRegFee").value=s.regFee;$("defaultAcqFee").value=s.acqFee;$("defaultMiscFee").value=s.miscFee;$("defaultOnePayReduction").value=s.onePayReduction;$("defaultInceptionCharge").value=s.inceptionCharge;$("defaultCustomCharge").value=s.customCharge;$("salespeople").value=s.salespeople.join("\n");$("disclaimer").value=s.disclaimer;}
-function saveSettings(){const s={dealerName:$("dealerName").value,defaultTax:num($("defaultTax").value),reserveShare:num($("reserveShare").value),defaultSalesperson:$("defaultSalesperson").value,docFee:num($("defaultDocFee").value),regFee:num($("defaultRegFee").value),acqFee:num($("defaultAcqFee").value),miscFee:num($("defaultMiscFee").value),onePayReduction:num($("defaultOnePayReduction").value),inceptionCharge:num($("defaultInceptionCharge").value),customCharge:num($("defaultCustomCharge").value),salespeople:$("salespeople").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),disclaimer:$("disclaimer").value};localStorage.setItem(KEYS.settings,JSON.stringify(s));state.scenarios=(state.scenarios||[]).map(scenario=>({...scenario,onePayReduction:s.onePayReduction,inceptionCharge:s.inceptionCharge,customCharge:s.customCharge}));applySettingsToDeal(false);const dialogScenario=state.scenarios.find(scenario=>scenario.id===$("scenarioId")?.value);if(dialogScenario&&$("scenarioDialog")?.open){$("scenarioOnePayReduction").value=dialogScenario.onePayReduction;$("scenarioInceptionCharge").value=dialogScenario.inceptionCharge;$("scenarioCustomCharge").value=dialogScenario.customCharge;updateScenarioPreview();}renderScenarios();toast("Dealer settings saved.");}
+function loadSettingsForm(){const s=settings();$("dealerName").value=s.dealerName;$("defaultTax").value=s.defaultTax;$("reserveShare").value=s.reserveShare;$("defaultSalesperson").value=s.defaultSalesperson;$("defaultRateMarkup").value=s.rateMarkup;$("defaultMoneyFactorMarkup").value=s.moneyFactorMarkup;$("defaultDocFee").value=s.docFee;$("defaultRegFee").value=s.regFee;$("defaultAcqFee").value=s.acqFee;$("defaultMiscFee").value=s.miscFee;$("defaultOnePayReduction").value=s.onePayReduction;$("defaultInceptionCharge").value=s.inceptionCharge;$("defaultCustomCharge").value=s.customCharge;$("salespeople").value=s.salespeople.join("\n");$("disclaimer").value=s.disclaimer;}
+function saveSettings(){const s={dealerName:$("dealerName").value,defaultTax:num($("defaultTax").value),reserveShare:num($("reserveShare").value),defaultSalesperson:$("defaultSalesperson").value,rateMarkup:num($("defaultRateMarkup").value),moneyFactorMarkup:num($("defaultMoneyFactorMarkup").value),docFee:num($("defaultDocFee").value),regFee:num($("defaultRegFee").value),acqFee:num($("defaultAcqFee").value),miscFee:num($("defaultMiscFee").value),onePayReduction:num($("defaultOnePayReduction").value),inceptionCharge:num($("defaultInceptionCharge").value),customCharge:num($("defaultCustomCharge").value),salespeople:$("salespeople").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),disclaimer:$("disclaimer").value};localStorage.setItem(KEYS.settings,JSON.stringify(s));state.scenarios=(state.scenarios||[]).map(scenario=>({...scenario,onePayReduction:s.onePayReduction,inceptionCharge:s.inceptionCharge,customCharge:s.customCharge}));applySettingsToDeal(false);const dialogScenario=state.scenarios.find(scenario=>scenario.id===$("scenarioId")?.value);if(dialogScenario&&$("scenarioDialog")?.open){$("scenarioOnePayReduction").value=dialogScenario.onePayReduction;$("scenarioInceptionCharge").value=dialogScenario.inceptionCharge;$("scenarioCustomCharge").value=dialogScenario.customCharge;updateScenarioPreview();}renderScenarios();toast("Dealer settings saved.");}
 function initializeSupabase(){
  const c=JSON.parse(localStorage.getItem(KEYS.connection)||"null");
  if(!c?.url||!c?.key)return false;
