@@ -1634,7 +1634,7 @@ function renderQuote(){
    if(s.showFees&&s.type==="lease")r.fees.rows.filter(x=>x[1].treatment==="upfront").forEach(x=>lines.push([x[0],money.format(x[1].amount)]));
    lines.push(["Total Due Up Front",money.format(r.dueUpfront)]);
    let comparison="";
-   if(state.presentation.showPaymentComparison&&state.customer.currentPayment>0&&s.type!=="cash"){const d=r.payment-state.customer.currentPayment;comparison=`<div class="result-box">${d<=0?"Payment reduction":"Payment increase"} ${money.format(Math.abs(d))}</div>`;}
+   if(state.presentation.showPaymentComparison&&state.customer.currentPayment>0&&s.type!=="cash"){const d=r.payment-state.customer.currentPayment,reduced=d<=0;comparison=`<div class="result-box${reduced?" success payment-reduction":""}">${reduced?"Payment reduction":"Payment increase"} ${money.format(Math.abs(d))}</div>`;}
    return `<article class="quote-card ${s.type}"><div class="card-title">${esc(displayName)}</div><div class="quote-payment">${money.format(amount)}</div><div class="payment-label">${label}</div>${comparison}<div class="quote-lines">${lines.map(x=>`<div class="quote-line"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join("")}</div></article>`;
  }).join(""):'<div class="empty-state">Select up to three complete scenarios in Deal Builder.</div>';
  $("signatureArea").classList.toggle("hidden",!state.presentation.showSignature);

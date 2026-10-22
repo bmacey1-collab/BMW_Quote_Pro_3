@@ -254,3 +254,5 @@
 .verification-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1.5rem;margin-top:.75rem}
 @media(max-width:760px){.verification-grid{grid-template-columns:1fr}}
 .roll-accept-row{margin-top:10px}
+.quote-header-metric.savings{color:#1f6a41}
+.result-box.payment-reduction{font-weight:700}
