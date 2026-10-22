@@ -1537,8 +1537,7 @@ function calcScenario(s,override={}){
  const missing=validateScenario(s);
  if(missing.length)return {ready:false,missing};
  const msrp=state.vehicle.msrp,discount=override.discount??state.vehicle.discount;
- const scenarioIncentives=scenarioEligibleIncentives(s);
- const incentiveTotal=scenarioIncentives.reduce((sum,item)=>sum+num(item.amount),0)+num(s.extraIncentive);
+ const incentiveTotal=scenarioIncentiveTotal(s);
  const selling=Math.max(0,msrp-discount+s.priceAdjustment-incentiveTotal);
  const requestedCash=Math.max(0,override.cashDown??state.trade.cashDown+s.cashAdjustment);
  const allowance=Math.max(0,override.tradeAllowance??state.trade.allowance+s.tradeAdjustment);
@@ -1614,9 +1613,12 @@ function renderQuote(){
  const selected=state.scenarios.filter(s=>s.selected).filter(s=>calcScenario(s).ready).slice(0,3);
  const name=[state.customer.firstName,state.customer.lastName].filter(Boolean).join(" ");
  const vehicle=[state.vehicle.year,state.vehicle.make,state.vehicle.model].filter(Boolean).join(" ");
- const headerMetrics={tradeValue:["Trade Value",money.format(state.trade.allowance)],savings:["Savings",money.format(state.vehicle.discount)],sellingPrice:["Selling Price",money.format(Math.max(0,state.vehicle.msrp-state.vehicle.discount))],stockNumber:["Stock Number",state.vehicle.stockNumber||"Not entered"]};
+ const savingsScenario=state.scenarios.find(scenario=>scenario.id===state.acceptedScenarioId)||selected[0];
+ const savingsIncentives=savingsScenario?scenarioIncentiveTotal(savingsScenario):0;
+ const headerMetrics={tradeValue:["Trade Value",money.format(state.trade.allowance)],savings:["Savings",money.format(state.vehicle.discount+savingsIncentives)],sellingPrice:["Selling Price",money.format(Math.max(0,state.vehicle.msrp-state.vehicle.discount))],stockNumber:["Stock Number",state.vehicle.stockNumber||"Not entered"]};
  const [headerLabel,headerValue]=headerMetrics[state.presentation.quoteHeaderMetric]||headerMetrics.tradeValue;
- $("quoteHeader").innerHTML=`<div><strong>${esc(name||"Customer")}</strong><div class="item-meta">${esc(vehicle||"Vehicle")}</div></div><div><strong>MSRP ${money.format(state.vehicle.msrp)}</strong><div class="item-meta">${esc(headerLabel)} ${esc(headerValue)}</div></div>`;
+ const headerMetricClass=state.presentation.quoteHeaderMetric==="savings"?"quote-header-metric savings":"quote-header-metric";
+ $("quoteHeader").innerHTML=`<div><strong>${esc(name||"Customer")}</strong><div class="item-meta">${esc(vehicle||"Vehicle")}</div></div><div><strong>MSRP ${money.format(state.vehicle.msrp)}</strong><div class="${headerMetricClass}">${esc(headerLabel)} ${esc(headerValue)}</div></div>`;
  $("quoteCards").innerHTML=selected.length?selected.map(s=>{
    const displayName=scenarioDisplayName(s),r=calcScenario(s),amount=s.onePay?r.onePayTotal:r.payment,label=s.type==="cash"?"TOTAL CASH DUE":s.onePay?"TOTAL ONE-PAY":"PER MONTH",scenarioIncentives=r.incentives||0,taxSummary=calculateTaxableAmount({sellingPrice:r.selling,tradeAllowance:state.trade.allowance,taxableFees:0,applyTradeTaxCredit:state.trade.applyTradeTaxCredit!==false,taxRate:state.vehicle.taxRate}),lines=[["MSRP / Market Value",money.format(state.vehicle.msrp)]];
    if(state.presentation.combineDiscountIncentives){lines.push(["Total Discount & Incentives",money.format(state.vehicle.discount+scenarioIncentives)]);}else{lines.push(["Dealer Discount",money.format(state.vehicle.discount)],["Incentives",money.format(scenarioIncentives)]);}
