@@ -21,7 +21,7 @@ function createEmptyDeal(){
  vehicle:{stockNumber:"",vin:"",year:"",make:"BMW",model:"",msrp:0,discount:0,cost:0,pack:0,taxRate:null},
  trade:{vin:"",vehicle:"",allowance:0,acv:0,payoff:0,cashDown:0,equityMethod:"cap",equityCashBack:0,applyTradeTaxCredit:true},
  fees:{doc:{amount:595,treatment:"capitalize"},reg:{amount:130,treatment:"capitalize"},acq:{amount:925,treatment:"capitalize"},misc:{amount:0,treatment:"capitalize"},cashTax:{amount:0,treatment:"capitalize"}},
- incentiveMigrationVersion:1,scenarios:[],acceptedScenarioId:"",notes:"",presentation:{quoteHeaderMetric:"tradeValue",showPaymentComparison:true,combineDiscountIncentives:true,showSignature:false}};
+ incentiveMigrationVersion:1,scenarios:[],acceptedScenarioId:"",notes:"",quoteNotes:"",presentation:{quoteHeaderMetric:"tradeValue",showPaymentComparison:true,combineDiscountIncentives:true,showSignature:false}};
 }
 function settings(){const saved=JSON.parse(localStorage.getItem(KEYS.settings)||"null")||{};return {dealerName:"BMW of Peabody",defaultTax:6.25,reserveShare:70,defaultSalesperson:"Brian Macey",rateMarkup:1,moneyFactorMarkup:.0004,docFee:595,regFee:130,acqFee:925,miscFee:0,onePayReduction:.00080,inceptionCharge:.20,customCharge:.20,salespeople:["Brian Macey"],disclaimer:"Figures are estimates and remain subject to credit approval, vehicle availability, final appraisal, and current manufacturer programs.",...saved};}
 let programCache=JSON.parse(localStorage.getItem(KEYS.programs)||"[]");
@@ -104,6 +104,7 @@ const tradeReduction=tradeAllocation(state.trade.allowance);
 const leaseCashTaxAmount=Math.max(0,num(state.trade.cashDown)+num(tradeReduction.cap))*(state.vehicle.taxRate===null?0:(num(state.vehicle.taxRate)/100));
 state.fees={doc:{amount:num($("docFee").value),treatment:$("docTreatment").value},reg:{amount:num($("regFee").value),treatment:$("regTreatment").value},acq:{amount:num($("acqFee").value),treatment:$("acqTreatment").value},misc:{amount:num($("miscFee").value),treatment:$("miscTreatment").value},cashTax:{amount:leaseCashTaxAmount,treatment:$("cashTaxTreatment")?$("cashTaxTreatment").value:"upfront"}};
 ensureFeeState();
+ state.quoteNotes=$("customerQuoteNotes").value;
  state.notes=$("managerNotes").value;state.scenarios=(state.scenarios||[]).map(syncScenarioName);state.presentation={quoteHeaderMetric:["tradeValue","savings","sellingPrice","stockNumber"].includes($("quoteHeaderMetric").value)?$("quoteHeaderMetric").value:"tradeValue",showPaymentComparison:$("showPaymentComparison").checked,combineDiscountIncentives:$("combineDiscountIncentives").checked,showSignature:$("showSignature").checked};state.updatedAt=new Date().toISOString();}
 function writeStateToForm(){
  if(!state.trade){
@@ -121,7 +122,8 @@ function writeStateToForm(){
   stockNumber:state.vehicle.stockNumber,vin:state.vehicle.vin,year:state.vehicle.year,make:state.vehicle.make,model:state.vehicle.model,
   msrp:state.vehicle.msrp||"",discount:state.vehicle.discount||0,taxRate:state.vehicle.taxRate??"",vehicleCost:state.vehicle.cost||"",pack:state.vehicle.pack||"",
   tradeVin:state.trade.vin,tradeVehicle:state.trade.vehicle,tradeAllowance:state.trade.allowance||"",tradeAcv:state.trade.acv||"",tradePayoff:state.trade.payoff||"",cashDown:state.trade.cashDown||"",equityCashBack:state.trade.equityCashBack||0,
-  docFee:state.fees.doc.amount,regFee:state.fees.reg.amount,acqFee:state.fees.acq.amount,miscFee:state.fees.misc.amount,managerNotes:state.notes
+  docFee:state.fees.doc.amount,regFee:state.fees.reg.amount,acqFee:state.fees.acq.amount,miscFee:state.fees.misc.amount,managerNotes:state.notes,
+  customerQuoteNotes:typeof state.quoteNotes==="string"?state.quoteNotes:""
  };
  Object.entries(map).forEach(([id,v])=>{if($(id))$(id).value=v});
  $("equityMethod").value=state.trade.equityMethod;
@@ -370,15 +372,17 @@ function calculateTaxableAmount({sellingPrice=0,tradeAllowance=0,taxableFees=0,a
   const salesTax=taxableAmount*(num(taxRate)/100);
   return {eligibleTradeTaxCredit,taxableAmount,salesTax};
 }
+function scenarioAnnualMileage(s){
+  const customMiles=Math.max(0,num(s?.customMiles));
+  return customMiles||num(s?.miles);
+}
 function scenarioAutoName(s){
   const type=s?.type==="onepay"?"lease":s?.type;
   const term=num(s?.term)||((type==="cash")?1:36);
   if(type==="cash")return "Cash Purchase";
   if(type==="finance")return `${term}mo Finance`;
   if(type==="select")return `${term}mo BMW Select`;
-  const miles=num(s?.miles);
-  const kilo=miles/1000;
-  const kiloLabel=Number.isInteger(kilo)?kilo:kilo.toFixed(1);
+  const kiloLabel=scenarioAnnualMileage(s)/1000;
   const label=s?.onePay||s?.type==="onepay"?"One-Pay Lease":"Lease";
   return `${term}mo ${label} ${kiloLabel}k miles`;
 }
@@ -386,7 +390,11 @@ function normalizeScenarioNameSource(s){
   if(!s||typeof s!=="object")return "auto";
   if(s.nameSource==="custom")return "custom";
   if(s.nameSource==="auto")return "auto";
-  if(typeof s.name==="string")return s.name.trim()===scenarioAutoName(s)?"auto":"custom";
+  if(typeof s.name==="string"){
+    const name=s.name.trim();
+    // Older automatic titles used the standard mileage even with custom miles.
+    return name===scenarioAutoName(s)||name===scenarioAutoName({...s,customMiles:0})?"auto":"custom";
+  }
   return "auto";
 }
 function scenarioDisplayName(s){
@@ -1637,6 +1645,8 @@ function renderQuote(){
    if(state.presentation.showPaymentComparison&&state.customer.currentPayment>0&&s.type!=="cash"){const d=r.payment-state.customer.currentPayment,reduced=d<=0;comparison=`<div class="result-box${reduced?" success payment-reduction":""}">${reduced?"Payment reduction":"Payment increase"} ${money.format(Math.abs(d))}</div>`;}
    return `<article class="quote-card ${s.type}"><div class="card-title">${esc(displayName)}</div><div class="quote-payment">${money.format(amount)}</div><div class="payment-label">${label}</div>${comparison}<div class="quote-lines">${lines.map(x=>`<div class="quote-line"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join("")}</div></article>`;
  }).join(""):'<div class="empty-state">Select up to three complete scenarios in Deal Builder.</div>';
+ $("quoteNotesOutput").textContent=state.quoteNotes.trim();
+ $("quoteNotesOutput").classList.toggle("hidden",!state.quoteNotes.trim());
  $("signatureArea").classList.toggle("hidden",!state.presentation.showSignature);
  $("signatureArea").innerHTML=`<p>${esc(settings().disclaimer)}</p><p>Client Signature: ______________________________</p><p>Co-Buyer Signature: ___________________________</p><p>Date: ________________________________________</p>`;
 }
@@ -1653,7 +1663,7 @@ function renderWorksheet(){
    <div class="worksheet-block"><h3>Pricing</h3>${ws("MSRP",money.format(state.vehicle.msrp))}${ws("Dealer Discount",money.format(state.vehicle.discount))}${ws("Selling Price",money.format(selling))}${ws("Applied Incentives",money.format(result.incentives||0))}${ws("Adjusted Price",money.format(result.selling))}${ws("Vehicle Cost",money.format(state.vehicle.cost))}${ws("Pack",money.format(state.vehicle.pack))}${ws("Front Gross",money.format(front))}</div>
    <div class="worksheet-block"><h3>Trade</h3>${ws("Allowance",money.format(state.trade.allowance))}${ws("ACV",money.format(state.trade.acv))}${ws("Payoff",money.format(state.trade.payoff))}${ws("Equity",money.format(state.trade.allowance-state.trade.payoff))}${ws("Trade Gross",money.format(tradeGross))}${ws("Equity Treatment",state.trade.equityMethod)}</div>
    <div class="worksheet-block"><h3>Selected Incentives</h3>${incentiveLines}</div>
-   <div class="worksheet-block"><h3>Accepted Scenario</h3>${ws("Scenario",acceptedDisplayName)}${ws("Type",accepted.type)}${ws("Term",accepted.term+" months")}${accepted.type==="lease"?ws("Annual Mileage",Number(accepted.miles).toLocaleString("en-US")):""}${ws(accepted.onePay?"One-Pay Total":accepted.type==="cash"?"Cash Due":"Payment",money.format(accepted.onePay?result.onePayTotal:result.payment))}</div>
+   <div class="worksheet-block"><h3>Accepted Scenario</h3>${ws("Scenario",acceptedDisplayName)}${ws("Type",accepted.type)}${ws("Term",accepted.term+" months")}${accepted.type==="lease"?ws("Annual Mileage",scenarioAnnualMileage(accepted).toLocaleString("en-US")):""}${ws(accepted.onePay?"One-Pay Total":accepted.type==="cash"?"Cash Due":"Payment",money.format(accepted.onePay?result.onePayTotal:result.payment))}</div>
    <div class="worksheet-block"><h3>Programs / Rates</h3>${rateLines}</div>
   <div class="worksheet-block"><h3>Taxes & Fees</h3>${accepted.type==="lease"?ws("Monthly Sales Tax",money.format(result.monthlyTax||0))+ws("Estimated Total Tax",money.format(result.estimatedTotalTax||0))+ws("Tax on Cash Reduction",money.format(result.taxOnCash||0))+ws("Tax on Cash Treatment",state.fees.cashTax.treatment==="capitalize"?"Include in Payment":"Pay Up Front"):ws("Trade Tax Credit",result.tradeTaxCreditApplied?"Applied":"Not Applied")+ws("Eligible Trade Tax Credit",money.format(result.eligibleTradeTaxCredit||0))+ws("Taxable Amount",money.format(taxSummary.taxableAmount||0))+ws("Sales Tax",money.format(taxSummary.salesTax||0))+ws("Estimated Tax Savings",money.format((taxSummary.eligibleTradeTaxCredit*state.vehicle.taxRate/100)||0))}${ws("Document Fee",money.format(state.fees.doc.amount))}${ws("Registration / Title",money.format(state.fees.reg.amount))}${accepted.type==="lease"?ws("Acquisition Fee",money.format(state.fees.acq.amount)):""}${ws("Miscellaneous Fee",money.format(state.fees.misc.amount))}${ws("Total Included Fees",money.format(result.totalFees||0))}</div>
   <div class="worksheet-block"><h3>Financing Summary</h3>${accepted.type==="lease"?ws("Adjusted Cap Cost",money.format(result.capCost||0))+ws("Base Payment Before Tax",money.format(result.basePayment||0))+ws("Amount Financed / Cap Cost",money.format(result.amountFinanced||0))+ws("Cash Applied to Cap Reduction",money.format(result.effectiveCashDown||0))+(accepted.useDueTarget?ws("Target Due at Signing",money.format(num(accepted.dueTarget))):""):ws("Amount Financed",money.format(result.amountFinanced||0))+ws("Cash Down",money.format(state.trade.cashDown))+ws("Net Trade Equity",money.format(state.trade.allowance-state.trade.payoff))}${accepted.type==="select"?ws("Final Balloon Payment",money.format(result.finalPayment||0)):""}</div>
@@ -2026,7 +2036,7 @@ function hydrateDealIncentives(deal){
 function hasMeaningfulDraft(){
  return Boolean(
   state.customer.firstName||state.customer.lastName||state.customer.email||state.customer.phone||
-  state.vehicle.stockNumber||state.vehicle.vin||state.vehicle.model||state.vehicle.msrp||
+  state.vehicle.stockNumber||state.vehicle.vin||state.vehicle.model||state.vehicle.msrp||state.quoteNotes?.trim()||
   state.trade.allowance||(state.scenarios||[]).some(s=>scenarioEligibleIncentives(s).length||num(s.extraIncentive)||validateScenario(s).length===0)
  );
 }
@@ -3354,6 +3364,7 @@ function buildQuoteEmailBody(){
     `MSRP: ${money.format(state.vehicle.msrp)}`,
     `Trade Allowance: ${money.format(state.trade.allowance)}`,
     "",
+    ...(state.quoteNotes.trim()?["Customer Quote Notes:",state.quoteNotes.trim(),""]:[]),
     "Selected Scenarios:"
   ];
   if(!selected.length){
@@ -3389,7 +3400,9 @@ function emailCurrentQuote(){
   window.location.href=mailto;
   toast("Email app opened with quote details.");
 }
-function bindEvents(){bindNav();bindNumericInputNormalization();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{quoteSaveSequence++;state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=()=>saveDeal();$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("rollerResult").addEventListener("click",e=>{if(e.target.closest("#acceptRollPaymentButton"))acceptRollPayment()});$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{if($("rollerTarget").value!="")rollPayment();else{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"}};$("rollerTarget").addEventListener("input",()=>{if($("rollerTarget").value!==""&&$("rollerScenario").value){rollPayment();}});$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("emailQuote").onclick=emailCurrentQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("exportPdfTextButton").onclick=exportPdfExtractionReport;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);rememberSelectBalloon(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
+function bindEvents(){
+ $("customerQuoteNotes").addEventListener("input",()=>{renderQuote();scheduleAutosave()});
+ bindNav();bindNumericInputNormalization();document.querySelectorAll("#page-deal input,#page-deal select,#page-deal textarea").forEach(e=>{e.addEventListener("input",()=>{updateComputed();scheduleAutosave()});e.addEventListener("change",()=>{updateComputed();scheduleAutosave()})});$("newDealButton").onclick=()=>{quoteSaveSequence++;state=createEmptyDeal();applySettingsToDeal(true);state.scenarios=[defaultScenario("lease"),defaultScenario("finance"),defaultScenario("select")];state.scenarios.forEach(s=>s.selected=true);clearAutosaveDraft();writeStateToForm();resetRollPayment();showPage("deal")};$("clearDealButton").onclick=$("newDealButton").onclick;$("saveDealButton").onclick=()=>saveDeal();$("selectIncentivesButton").onclick=()=>openIncentivePicker();$("quickProgramButton").onclick=openQuickProgram;$("addScenarioButton").onclick=()=>openScenario(null);$("applyBmwProgramButton").onclick=openProgramPicker;$("rollPaymentButton").onclick=rollPayment;$("rollerResult").addEventListener("click",e=>{if(e.target.closest("#acceptRollPaymentButton"))acceptRollPayment()});$("clearRollPaymentButton").onclick=()=>resetRollPayment({preserveScenario:true});$("rollerScenario").onchange=()=>resetRollPayment({preserveScenario:true});$("rollerVariable").onchange=()=>{if($("rollerTarget").value!="")rollPayment();else{$("rollerResult").textContent="Choose a scenario and target payment.";$("rollerResult").className="result-box"}};$("rollerTarget").addEventListener("input",()=>{if($("rollerTarget").value!==""&&$("rollerScenario").value){rollPayment();}});$("decodeVin").onclick=()=>decodeVin("vehicle");$("decodeTradeVin").onclick=()=>decodeVin("trade");$("refreshQuote").onclick=renderQuote;$("emailQuote").onclick=emailCurrentQuote;$("printQuote").onclick=()=>{document.body.classList.add("print-quote");window.print();setTimeout(()=>document.body.classList.remove("print-quote"),500)};$("printWorksheet").onclick=()=>{document.body.classList.add("print-worksheet");window.print();setTimeout(()=>document.body.classList.remove("print-worksheet"),500)};$("refreshDashboard").onclick=()=>renderDashboard(true);$("refreshSaved").onclick=()=>renderSaved(true);$("saveSettings").onclick=saveSettings;$("saveProgram").onclick=saveProgram;$("syncProgramsButton").onclick=syncPrograms;$("exportPdfTextButton").onclick=exportPdfExtractionReport;$("uploadLocalProgramsButton").onclick=uploadLocalProgramsToSupabase;$("addProgramIncentive").onclick=()=>{const c=$("programIncentiveRows");if(c.querySelector(".empty-state"))c.innerHTML="";c.insertAdjacentHTML("beforeend",programIncentiveRowHtml())};$("importProgramPdf").onclick=()=>{$("programPdfFile").value="";showPdfImportError("");setPdfImportStatus("Choose a BMW program PDF…","working");$("programPdfFile").click()};$("programPdfFile").onchange=e=>{const file=e.target.files?.[0];if(file)importProgramPdf(file);else setPdfImportStatus("No file selected")};$("programSearch").oninput=renderPrograms;$("copyPriorProgram").onclick=()=>{const p=[...programs()].sort((a,b)=>String(b.month).localeCompare(String(a.month)))[0];if(p)duplicateProgram(p.id);else toast("No program is available to duplicate.")};$("copyProgramMonth").onclick=copyProgramMonth;$("bulkUpdatePrograms").onclick=bulkUpdatePrograms;$("bulkUpdateIncentives").onclick=bulkUpdateIncentives;$("closeScenarioDialog").onclick=()=>$("scenarioDialog").close();$("cancelScenario").onclick=()=>$("scenarioDialog").close();$("scenarioForm").onsubmit=e=>{e.preventDefault();const s=scenarioFromDialog(),i=state.scenarios.findIndex(x=>x.id===s.id);i>=0?state.scenarios[i]=s:state.scenarios.push(s);rememberSelectBalloon(s);$("scenarioDialog").close();renderScenarios();scheduleAutosave()};$("scenarioType").onchange=()=>{updateScenarioFields();updateScenarioPreview()};$("scenarioProgram").onchange=applyProgramToDialog;document.querySelectorAll("#scenarioDialog input,#scenarioDialog select").forEach(e=>{e.addEventListener("input",updateScenarioPreview);e.addEventListener("change",updateScenarioPreview)});$("incentiveRows").addEventListener("click",e=>{
  const scenarioId=e.target.dataset.removeScenarioIncentive,incentiveId=e.target.dataset.incentiveId;
  if(!scenarioId||!incentiveId)return;
  const scenario=state.scenarios.find(item=>item.id===scenarioId),incentive=scenario?.incentives?.find(item=>item.id===incentiveId);
