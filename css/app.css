@@ -256,3 +256,6 @@
 .roll-accept-row{margin-top:10px}
 .quote-header-metric.savings{color:#1f6a41}
 .result-box.payment-reduction{font-weight:700}
+.quote-notes-editor{margin-top:16px}
+.quote-notes-editor textarea{width:100%;min-height:72px}
+.quote-notes{margin-top:12px;color:#0f2f57;font-size:13px;font-weight:700;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}

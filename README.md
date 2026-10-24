@@ -34,6 +34,12 @@ Imported rows are marked **Needs Review** until confirmed.
 
 Continue using Version 2.4.1 for live work until Beta calculations and importing have been tested against actual BMW program documents.
 
+## Customer Quote notes
+
+Enter **Customer Quote Notes** directly on the Customer Quote screen. One shared note appears below the payment options in compact, bold dark-blue text, including on printed/PDF quotes and in quote emails (plain text). Blank notes are hidden in print.
+
+Customer-facing notes are saved with each deal in the optional `quoteNotes` field and remain separate from internal Manager Notes. Older deals without this field open with blank customer notes; no storage keys or database columns change. New deals and New Vehicle deals start with blank customer notes.
+
 
 ## Beta 2 — Incentive Selection Fix
 
