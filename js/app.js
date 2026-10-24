@@ -370,15 +370,17 @@ function calculateTaxableAmount({sellingPrice=0,tradeAllowance=0,taxableFees=0,a
   const salesTax=taxableAmount*(num(taxRate)/100);
   return {eligibleTradeTaxCredit,taxableAmount,salesTax};
 }
+function scenarioAnnualMileage(s){
+  const customMiles=Math.max(0,num(s?.customMiles));
+  return customMiles||num(s?.miles);
+}
 function scenarioAutoName(s){
   const type=s?.type==="onepay"?"lease":s?.type;
   const term=num(s?.term)||((type==="cash")?1:36);
   if(type==="cash")return "Cash Purchase";
   if(type==="finance")return `${term}mo Finance`;
   if(type==="select")return `${term}mo BMW Select`;
-  const miles=num(s?.miles);
-  const kilo=miles/1000;
-  const kiloLabel=Number.isInteger(kilo)?kilo:kilo.toFixed(1);
+  const kiloLabel=scenarioAnnualMileage(s)/1000;
   const label=s?.onePay||s?.type==="onepay"?"One-Pay Lease":"Lease";
   return `${term}mo ${label} ${kiloLabel}k miles`;
 }
@@ -386,7 +388,11 @@ function normalizeScenarioNameSource(s){
   if(!s||typeof s!=="object")return "auto";
   if(s.nameSource==="custom")return "custom";
   if(s.nameSource==="auto")return "auto";
-  if(typeof s.name==="string")return s.name.trim()===scenarioAutoName(s)?"auto":"custom";
+  if(typeof s.name==="string"){
+    const name=s.name.trim();
+    // Older automatic titles used the standard mileage even with custom miles.
+    return name===scenarioAutoName(s)||name===scenarioAutoName({...s,customMiles:0})?"auto":"custom";
+  }
   return "auto";
 }
 function scenarioDisplayName(s){
@@ -1653,7 +1659,7 @@ function renderWorksheet(){
    <div class="worksheet-block"><h3>Pricing</h3>${ws("MSRP",money.format(state.vehicle.msrp))}${ws("Dealer Discount",money.format(state.vehicle.discount))}${ws("Selling Price",money.format(selling))}${ws("Applied Incentives",money.format(result.incentives||0))}${ws("Adjusted Price",money.format(result.selling))}${ws("Vehicle Cost",money.format(state.vehicle.cost))}${ws("Pack",money.format(state.vehicle.pack))}${ws("Front Gross",money.format(front))}</div>
    <div class="worksheet-block"><h3>Trade</h3>${ws("Allowance",money.format(state.trade.allowance))}${ws("ACV",money.format(state.trade.acv))}${ws("Payoff",money.format(state.trade.payoff))}${ws("Equity",money.format(state.trade.allowance-state.trade.payoff))}${ws("Trade Gross",money.format(tradeGross))}${ws("Equity Treatment",state.trade.equityMethod)}</div>
    <div class="worksheet-block"><h3>Selected Incentives</h3>${incentiveLines}</div>
-   <div class="worksheet-block"><h3>Accepted Scenario</h3>${ws("Scenario",acceptedDisplayName)}${ws("Type",accepted.type)}${ws("Term",accepted.term+" months")}${accepted.type==="lease"?ws("Annual Mileage",Number(accepted.miles).toLocaleString("en-US")):""}${ws(accepted.onePay?"One-Pay Total":accepted.type==="cash"?"Cash Due":"Payment",money.format(accepted.onePay?result.onePayTotal:result.payment))}</div>
+   <div class="worksheet-block"><h3>Accepted Scenario</h3>${ws("Scenario",acceptedDisplayName)}${ws("Type",accepted.type)}${ws("Term",accepted.term+" months")}${accepted.type==="lease"?ws("Annual Mileage",scenarioAnnualMileage(accepted).toLocaleString("en-US")):""}${ws(accepted.onePay?"One-Pay Total":accepted.type==="cash"?"Cash Due":"Payment",money.format(accepted.onePay?result.onePayTotal:result.payment))}</div>
    <div class="worksheet-block"><h3>Programs / Rates</h3>${rateLines}</div>
   <div class="worksheet-block"><h3>Taxes & Fees</h3>${accepted.type==="lease"?ws("Monthly Sales Tax",money.format(result.monthlyTax||0))+ws("Estimated Total Tax",money.format(result.estimatedTotalTax||0))+ws("Tax on Cash Reduction",money.format(result.taxOnCash||0))+ws("Tax on Cash Treatment",state.fees.cashTax.treatment==="capitalize"?"Include in Payment":"Pay Up Front"):ws("Trade Tax Credit",result.tradeTaxCreditApplied?"Applied":"Not Applied")+ws("Eligible Trade Tax Credit",money.format(result.eligibleTradeTaxCredit||0))+ws("Taxable Amount",money.format(taxSummary.taxableAmount||0))+ws("Sales Tax",money.format(taxSummary.salesTax||0))+ws("Estimated Tax Savings",money.format((taxSummary.eligibleTradeTaxCredit*state.vehicle.taxRate/100)||0))}${ws("Document Fee",money.format(state.fees.doc.amount))}${ws("Registration / Title",money.format(state.fees.reg.amount))}${accepted.type==="lease"?ws("Acquisition Fee",money.format(state.fees.acq.amount)):""}${ws("Miscellaneous Fee",money.format(state.fees.misc.amount))}${ws("Total Included Fees",money.format(result.totalFees||0))}</div>
   <div class="worksheet-block"><h3>Financing Summary</h3>${accepted.type==="lease"?ws("Adjusted Cap Cost",money.format(result.capCost||0))+ws("Base Payment Before Tax",money.format(result.basePayment||0))+ws("Amount Financed / Cap Cost",money.format(result.amountFinanced||0))+ws("Cash Applied to Cap Reduction",money.format(result.effectiveCashDown||0))+(accepted.useDueTarget?ws("Target Due at Signing",money.format(num(accepted.dueTarget))):""):ws("Amount Financed",money.format(result.amountFinanced||0))+ws("Cash Down",money.format(state.trade.cashDown))+ws("Net Trade Equity",money.format(state.trade.allowance-state.trade.payoff))}${accepted.type==="select"?ws("Final Balloon Payment",money.format(result.finalPayment||0)):""}</div>
